@@ -184,6 +184,7 @@
       }
     </style>
   </head>
+
   <body>
     <main>
       <header>
@@ -200,11 +201,11 @@
           <textarea
             id="code-input"
             name="code"
-            placeholder="Paste your CS 61A code, Scheme expression, or SQL query here..."
+            placeholder="Paste your CS 61A code..."
           ></textarea>
           <p class="hint">
             Don’t include solution keys or copyrighted exam PDFs — just the code
-            / expression you’re working on.
+            / expression you're working on.
           </p>
         </div>
 
@@ -216,27 +217,17 @@
               <option value="scheme">Scheme</option>
               <option value="sql">SQL</option>
               <option value="oop">OOP / Classes</option>
-              <option value="other">Other (Links, Trees, macros…)</option>
+              <option value="other">Other</option>
             </select>
           </div>
           <div>
             <label for="task-select">Task type</label>
             <select id="task-select" name="taskType">
-              <option value="explain">
-                Explain step-by-step (beginner friendly)
-              </option>
-              <option value="env_diagram">
-                Build an environment diagram
-              </option>
-              <option value="recursion_trace">
-                Trace recursion / calls
-              </option>
-              <option value="tree_help">
-                Help with Trees / Links
-              </option>
-              <option value="fill_blanks">
-                Help fill exam-style blanks
-              </option>
+              <option value="explain">Explain</option>
+              <option value="env_diagram">Environment diagram</option>
+              <option value="recursion_trace">Recursion trace</option>
+              <option value="tree_help">Trees / Links help</option>
+              <option value="fill_blanks">Fill blanks</option>
             </select>
           </div>
         </div>
@@ -247,13 +238,14 @@
             id="question-input"
             name="question"
             type="text"
-            placeholder="e.g. Why does this return None? Where is the new frame created?"
+            placeholder="e.g. Why does this return None?"
           />
         </div>
 
         <button type="submit" class="primary" id="submit-btn">
           Send to CS61A Mentor
         </button>
+
         <div class="status" id="status-label" data-state="idle">
           Ready. Fill the form and submit to update the CS61A context.
         </div>
@@ -272,7 +264,6 @@
     </main>
 
     <script type="module">
-      const formEl = document.querySelector("#mentor-form");
       const codeInput = document.querySelector("#code-input");
       const langSelect = document.querySelector("#language-select");
       const taskSelect = document.querySelector("#task-select");
@@ -283,22 +274,23 @@
       const envContainerEl = document.querySelector("#env-diagram-container");
       const envTextEl = document.querySelector("#env-diagram-text");
       const submitBtn = document.querySelector("#submit-btn");
-    
+      const formEl = document.querySelector("#mentor-form");
+
       //
-      // ⭐ NEW: Correct widget state initialization
+      // ⭐ CORRECT: ChatGPT stores state here
       //
-      let currentState = window.openai?.widgetState ?? {
+      let currentState = window.openai?.globals?.toolOutput ?? {
         currentSession: null,
       };
-    
+
       //
-      // Utility display helpers
+      // Readable labels
       //
       const languageLabel = (value) =>
         ({ python: "Python", scheme: "Scheme", sql: "SQL", oop: "OOP", other: "Other" }[
           value
         ] || value);
-    
+
       const taskLabel = (value) =>
         ({
           explain: "Explain",
@@ -307,64 +299,64 @@
           tree_help: "Trees / Links help",
           fill_blanks: "Fill blanks",
         }[value] || value);
-    
+
       //
-      // Render UI from state
+      // Render UI
       //
       const render = () => {
-        const { currentSession } = currentState || {};
+        const { currentSession } = currentState;
         badgeRowEl.innerHTML = "";
-    
+
         if (!currentSession) {
           summaryEl.innerHTML =
             "<em>No active CS61A session yet. Submit code to create one.</em>";
           envContainerEl.style.display = "none";
           return;
         }
-    
+
         const { language, taskType, question, code, modelNotes, envDiagram } =
           currentSession;
-    
+
         const langBadge = document.createElement("span");
         langBadge.className = "badge accent";
         langBadge.textContent = `Language: ${languageLabel(language)}`;
         badgeRowEl.appendChild(langBadge);
-    
+
         const taskBadge = document.createElement("span");
         taskBadge.className = "badge";
         taskBadge.textContent = `Task: ${taskLabel(taskType)}`;
         badgeRowEl.appendChild(taskBadge);
-    
+
         if (question) {
           const qBadge = document.createElement("span");
           qBadge.className = "badge";
           qBadge.textContent = `Question: ${question}`;
           badgeRowEl.appendChild(qBadge);
         }
-    
+
         const summaryParts = [];
-    
+
         if (modelNotes?.summary) {
           summaryParts.push(
             `<strong>Mentor summary:</strong><br>${modelNotes.summary}`
           );
         } else {
           summaryParts.push(
-            "<strong>Context saved.</strong> Ask ChatGPT to explain, trace, or draw an env diagram using this session."
+            "<strong>Context saved.</strong> Ask ChatGPT any question using this session."
           );
         }
-    
+
         if (code) {
           summaryParts.push(
             "<strong>Code:</strong><br><code>" +
-              escapeHtml(snippet(code, 500)) +
+              escapeHtml(code.slice(0, 500)) +
               (code.length > 500 ? "\n… (truncated)" : "") +
               "</code>"
           );
         }
-    
+
         summaryEl.innerHTML = summaryParts.join("<br><br>");
-    
+
         if (envDiagram?.text) {
           envContainerEl.style.display = "block";
           envTextEl.textContent = envDiagram.text;
@@ -372,104 +364,93 @@
           envContainerEl.style.display = "none";
         }
       };
-    
+
       const escapeHtml = (str) =>
         str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
-    
-      const snippet = (str, maxLen) =>
-        str.length > maxLen ? str.slice(0, maxLen) : str;
-    
+
       //
-      // ⭐ NEW: Handle widget state updates from ChatGPT
+      // ⭐ CORRECT: Listen for global state updates
       //
-      const handleStateUpdate = (ev) => {
-        if (ev.detail?.state) {
-          currentState = ev.detail.state;
+      window.addEventListener("openai:set_globals", (ev) => {
+        if (ev.detail?.globals?.toolOutput) {
+          currentState = ev.detail.globals.toolOutput;
           render();
         }
-      };
-    
-      // Listen for state updates
-      window.addEventListener("openai:state_updated", handleStateUpdate);
-    
+      });
+
       //
-      // ⭐ NEW: Tool calling API
+      // ⭐ CORRECT: new tool-calling API
       //
       const callMentorTool = async (payload) => {
-        if (window.openai?.tools?.call) {
-          const response = await window.openai.tools.call({
-            name: "set_cs61a_context",
-            arguments: payload,
-          });
-    
-          if (response?.structuredContent) {
-            currentState = response.structuredContent;
+        if (window.openai?.callTool) {
+          const response = await window.openai.callTool(
+            "set_cs61a_context",
+            payload
+          );
+
+          if (response?.toolOutput) {
+            currentState = response.toolOutput;
             render();
           }
+
           return;
         }
-    
-        // Local dev fallback
+
+        // Dev mode fallback
         currentState = {
           currentSession: {
             id: "dev-session",
             ...payload,
-            modelNotes: {
-              summary:
-                "Local dev mode: this is what a model-generated summary might look like.",
-            },
+            modelNotes: { summary: "Local dev mode example." },
           },
         };
         render();
       };
-    
+
       //
-      // Form submit = call tool
+      // On form submit → call tool
       //
-      formEl.addEventListener("submit", async (event) => {
-        event.preventDefault();
-    
+      formEl.addEventListener("submit", async (ev) => {
+        ev.preventDefault();
+
         const code = codeInput.value.trim();
         const language = langSelect.value;
         const taskType = taskSelect.value;
         const question = questionInput.value.trim();
-    
+
         if (!code) {
           statusEl.dataset.state = "idle";
           statusEl.textContent = "Please paste some code first.";
           return;
         }
-    
+
         const payload = {
           code,
           language,
           taskType,
           question: question || null,
         };
-    
+
         submitBtn.disabled = true;
         statusEl.dataset.state = "loading";
         statusEl.textContent = "Sending context to CS61A Mentor…";
-    
+
         try {
           await callMentorTool(payload);
           statusEl.dataset.state = "ok";
           statusEl.textContent =
-            "Context updated. Now ask ChatGPT to explain / diagram using this session.";
+            "Context updated. You can now ask ChatGPT follow-up questions.";
         } catch (err) {
-          console.error("Error calling tool:", err);
+          console.error("Error:", err);
           statusEl.dataset.state = "idle";
           statusEl.textContent =
-            "Error updating context. Check console / server logs.";
+            "Error updating context. Check console/server.";
         } finally {
           submitBtn.disabled = false;
         }
       });
-    
-      //
-      // Initial render
-      //
+
       render();
-    </script>    
+    </script>
   </body>
 </html>
