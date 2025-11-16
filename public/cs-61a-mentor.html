@@ -283,79 +283,68 @@
       const envContainerEl = document.querySelector("#env-diagram-container");
       const envTextEl = document.querySelector("#env-diagram-text");
       const submitBtn = document.querySelector("#submit-btn");
-
-      let currentState =
-        (window.openai && window.openai.toolOutput) || {
-          currentSession: null,
-        };
-
-      const languageLabel = (value) => {
-        switch (value) {
-          case "python":
-            return "Python";
-          case "scheme":
-            return "Scheme";
-          case "sql":
-            return "SQL";
-          case "oop":
-            return "OOP";
-          case "other":
-          default:
-            return "Other";
-        }
+    
+      //
+      // ⭐ NEW: Correct widget state initialization
+      //
+      let currentState = window.openai?.widgetState ?? {
+        currentSession: null,
       };
-
-      const taskLabel = (value) => {
-        switch (value) {
-          case "explain":
-            return "Explain";
-          case "env_diagram":
-            return "Environment diagram";
-          case "recursion_trace":
-            return "Recursion trace";
-          case "tree_help":
-            return "Trees / Links help";
-          case "fill_blanks":
-            return "Fill blanks";
-          default:
-            return value;
-        }
-      };
-
+    
+      //
+      // Utility display helpers
+      //
+      const languageLabel = (value) =>
+        ({ python: "Python", scheme: "Scheme", sql: "SQL", oop: "OOP", other: "Other" }[
+          value
+        ] || value);
+    
+      const taskLabel = (value) =>
+        ({
+          explain: "Explain",
+          env_diagram: "Environment diagram",
+          recursion_trace: "Recursion trace",
+          tree_help: "Trees / Links help",
+          fill_blanks: "Fill blanks",
+        }[value] || value);
+    
+      //
+      // Render UI from state
+      //
       const render = () => {
         const { currentSession } = currentState || {};
         badgeRowEl.innerHTML = "";
-
+    
         if (!currentSession) {
           summaryEl.innerHTML =
             "<em>No active CS61A session yet. Submit code to create one.</em>";
           envContainerEl.style.display = "none";
           return;
         }
-
+    
         const { language, taskType, question, code, modelNotes, envDiagram } =
           currentSession;
-
+    
         const langBadge = document.createElement("span");
         langBadge.className = "badge accent";
         langBadge.textContent = `Language: ${languageLabel(language)}`;
         badgeRowEl.appendChild(langBadge);
-
+    
         const taskBadge = document.createElement("span");
         taskBadge.className = "badge";
         taskBadge.textContent = `Task: ${taskLabel(taskType)}`;
         badgeRowEl.appendChild(taskBadge);
-
+    
         if (question) {
           const qBadge = document.createElement("span");
           qBadge.className = "badge";
           qBadge.textContent = `Question: ${question}`;
           badgeRowEl.appendChild(qBadge);
         }
-
+    
         const summaryParts = [];
-
-        if (modelNotes && modelNotes.summary) {
+    
+        if (modelNotes?.summary) {
           summaryParts.push(
             `<strong>Mentor summary:</strong><br>${modelNotes.summary}`
           );
@@ -364,7 +353,7 @@
             "<strong>Context saved.</strong> Ask ChatGPT to explain, trace, or draw an env diagram using this session."
           );
         }
-
+    
         if (code) {
           summaryParts.push(
             "<strong>Code:</strong><br><code>" +
@@ -373,57 +362,54 @@
               "</code>"
           );
         }
-
+    
         summaryEl.innerHTML = summaryParts.join("<br><br>");
-
-        if (envDiagram && envDiagram.text) {
+    
+        if (envDiagram?.text) {
           envContainerEl.style.display = "block";
           envTextEl.textContent = envDiagram.text;
         } else {
           envContainerEl.style.display = "none";
         }
       };
-
+    
       const escapeHtml = (str) =>
-        str
-          .replace(/&/g, "&amp;")
-          .replace(/</g, "&lt;")
-          .replace(/>/g, "&gt;");
-
+        str.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+    
       const snippet = (str, maxLen) =>
         str.length > maxLen ? str.slice(0, maxLen) : str;
-
-      const updateFromResponse = (response) => {
-        if (response && response.structuredContent) {
-          currentState = response.structuredContent;
+    
+      //
+      // ⭐ NEW: Handle widget state updates from ChatGPT
+      //
+      const handleStateUpdate = (ev) => {
+        if (ev.detail?.state) {
+          currentState = ev.detail.state;
           render();
         }
       };
-
-      const handleSetGlobals = (event) => {
-        const globals = event.detail && event.detail.globals;
-        if (!globals || !globals.toolOutput) return;
-        currentState = globals.toolOutput;
-        render();
-      };
-
-      window.addEventListener("openai:set_globals", handleSetGlobals, {
-        passive: true,
-      });
-
+    
+      // Listen for state updates
+      window.addEventListener("openai:state_updated", handleStateUpdate);
+    
+      //
+      // ⭐ NEW: Tool calling API
+      //
       const callMentorTool = async (payload) => {
-        // NEW ChatGPT App Widget Tool Call API
-        if (typeof openai !== "undefined" && openai?.tools?.call) {
-          const response = await openai.tools.call({
+        if (window.openai?.tools?.call) {
+          const response = await window.openai.tools.call({
             name: "set_cs61a_context",
             arguments: payload,
           });
-
-          updateFromResponse(response);
+    
+          if (response?.structuredContent) {
+            currentState = response.structuredContent;
+            render();
+          }
           return;
         }
-
-        // Fallback for local dev
+    
+        // Local dev fallback
         currentState = {
           currentSession: {
             id: "dev-session",
@@ -436,39 +422,42 @@
         };
         render();
       };
-
-
+    
+      //
+      // Form submit = call tool
+      //
       formEl.addEventListener("submit", async (event) => {
         event.preventDefault();
+    
         const code = codeInput.value.trim();
         const language = langSelect.value;
         const taskType = taskSelect.value;
         const question = questionInput.value.trim();
-
+    
         if (!code) {
           statusEl.dataset.state = "idle";
           statusEl.textContent = "Please paste some code first.";
           return;
         }
-
+    
         const payload = {
           code,
           language,
           taskType,
           question: question || null,
         };
-
+    
         submitBtn.disabled = true;
         statusEl.dataset.state = "loading";
         statusEl.textContent = "Sending context to CS61A Mentor…";
-
+    
         try {
           await callMentorTool(payload);
           statusEl.dataset.state = "ok";
           statusEl.textContent =
             "Context updated. Now ask ChatGPT to explain / diagram using this session.";
-        } catch (error) {
-          console.error("Error calling set_cs61a_context:", error);
+        } catch (err) {
+          console.error("Error calling tool:", err);
           statusEl.dataset.state = "idle";
           statusEl.textContent =
             "Error updating context. Check console / server logs.";
@@ -476,8 +465,11 @@
           submitBtn.disabled = false;
         }
       });
-
+    
+      //
+      // Initial render
+      //
       render();
-    </script>
+    </script>    
   </body>
 </html>
