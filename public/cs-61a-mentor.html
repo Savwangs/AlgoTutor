@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>CS61A Mentor+</title>
+    <style>
+      :root {
+        color: #0b0b0f;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro",
+          "Inter", sans-serif;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        padding: 16px;
+        background: #f6f8fb;
+      }
+
+      main {
+        width: 100%;
+        max-width: 720px;
+        min-height: 260px;
+        margin: 0 auto;
+        background: #ffffff;
+        border-radius: 16px;
+        padding: 20px;
+        box-shadow: 0 12px 24px rgba(15, 23, 42, 0.08);
+        display: flex;
+        flex-direction: column;
+        gap: 16px;
+      }
+
+      h2 {
+        margin: 0;
+        font-size: 1.25rem;
+      }
+
+      p.subtitle {
+        margin: 4px 0 0;
+        font-size: 0.85rem;
+        color: #6b7280;
+      }
+
+      form {
+        display: flex;
+        flex-direction: column;
+        gap: 10px;
+      }
+
+      label {
+        font-size: 0.85rem;
+        font-weight: 500;
+        color: #374151;
+      }
+
+      textarea,
+      select,
+      input[type="text"] {
+        width: 100%;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        border-radius: 10px;
+        border: 1px solid #d1d5db;
+        padding: 8px 10px;
+        font-size: 0.9rem;
+        box-sizing: border-box;
+        background-color: #f9fafb;
+      }
+
+      textarea {
+        min-height: 140px;
+        resize: vertical;
+      }
+
+      .row {
+        display: flex;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+
+      .row > div {
+        flex: 1;
+        min-width: 150px;
+      }
+
+      button.primary {
+        align-self: flex-start;
+        border: none;
+        border-radius: 999px;
+        background: #111bf5;
+        color: #ffffff;
+        font-weight: 600;
+        padding: 8px 20px;
+        cursor: pointer;
+        font-size: 0.9rem;
+      }
+
+      button.primary:disabled {
+        opacity: 0.6;
+        cursor: default;
+      }
+
+      .status {
+        font-size: 0.8rem;
+        color: #6b7280;
+      }
+
+      .status[data-state="loading"]::before {
+        content: "⏳ ";
+      }
+
+      .status[data-state="ok"]::before {
+        content: "✅ ";
+      }
+
+      .status[data-state="idle"]::before {
+        content: "💡 ";
+      }
+
+      .panel {
+        border-radius: 12px;
+        background: #f3f4ff;
+        padding: 12px 14px;
+        font-size: 0.85rem;
+        max-height: 260px;
+        overflow: auto;
+      }
+
+      .panel h3 {
+        margin: 0 0 6px;
+        font-size: 0.9rem;
+      }
+
+      .panel code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.8rem;
+        white-space: pre-wrap;
+      }
+
+      .badge-row {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px;
+        margin-bottom: 4px;
+      }
+
+      .badge {
+        border-radius: 999px;
+        padding: 2px 8px;
+        font-size: 0.7rem;
+        background: #e5e7eb;
+        color: #374151;
+      }
+
+      .badge.accent {
+        background: #dde1ff;
+        color: #111827;
+      }
+
+      .env-diagram {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.8rem;
+        white-space: pre;
+        background: #111827;
+        color: #f9fafb;
+        border-radius: 10px;
+        padding: 8px 10px;
+        margin-top: 6px;
+      }
+
+      .hint {
+        font-size: 0.8rem;
+        color: #6b7280;
+        margin-top: -4px;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <header>
+        <h2>CS61A Mentor+</h2>
+        <p class="subtitle">
+          Paste a problem, choose a task, and let ChatGPT generate environment
+          diagrams, traces, and explanations.
+        </p>
+      </header>
+
+      <form id="mentor-form" autocomplete="off">
+        <div>
+          <label for="code-input">Code or expression</label>
+          <textarea
+            id="code-input"
+            name="code"
+            placeholder="Paste your CS 61A code, Scheme expression, or SQL query here..."
+          ></textarea>
+          <p class="hint">
+            Don’t include solution keys or copyrighted exam PDFs — just the code
+            / expression you’re working on.
+          </p>
+        </div>
+
+        <div class="row">
+          <div>
+            <label for="language-select">Language</label>
+            <select id="language-select" name="language">
+              <option value="python">Python (61A subset)</option>
+              <option value="scheme">Scheme</option>
+              <option value="sql">SQL</option>
+              <option value="oop">OOP / Classes</option>
+              <option value="other">Other (Links, Trees, macros…)</option>
+            </select>
+          </div>
+          <div>
+            <label for="task-select">Task type</label>
+            <select id="task-select" name="taskType">
+              <option value="explain">
+                Explain step-by-step (beginner friendly)
+              </option>
+              <option value="env_diagram">
+                Build an environment diagram
+              </option>
+              <option value="recursion_trace">
+                Trace recursion / calls
+              </option>
+              <option value="tree_help">
+                Help with Trees / Links
+              </option>
+              <option value="fill_blanks">
+                Help fill exam-style blanks
+              </option>
+            </select>
+          </div>
+        </div>
+
+        <div>
+          <label for="question-input">Optional question</label>
+          <input
+            id="question-input"
+            name="question"
+            type="text"
+            placeholder="e.g. Why does this return None? Where is the new frame created?"
+          />
+        </div>
+
+        <button type="submit" class="primary" id="submit-btn">
+          Send to CS61A Mentor
+        </button>
+        <div class="status" id="status-label" data-state="idle">
+          Ready. Fill the form and submit to update the CS61A context.
+        </div>
+      </form>
+
+      <section class="panel" id="session-panel">
+        <h3>Current CS61A session</h3>
+        <div class="badge-row" id="badge-row"></div>
+        <div id="summary-text">
+          <em>No session yet. Submit code to start.</em>
+        </div>
+        <div id="env-diagram-container" style="display: none">
+          <div class="env-diagram" id="env-diagram-text"></div>
+        </div>
+      </section>
+    </main>
+
+    <script type="module">
+      const formEl = document.querySelector("#mentor-form");
+      const codeInput = document.querySelector("#code-input");
+      const langSelect = document.querySelector("#language-select");
+      const taskSelect = document.querySelector("#task-select");
+      const questionInput = document.querySelector("#question-input");
+      const statusEl = document.querySelector("#status-label");
+      const summaryEl = document.querySelector("#summary-text");
+      const badgeRowEl = document.querySelector("#badge-row");
+      const envContainerEl = document.querySelector("#env-diagram-container");
+      const envTextEl = document.querySelector("#env-diagram-text");
+      const submitBtn = document.querySelector("#submit-btn");
+
+      let currentState =
+        (window.openai && window.openai.toolOutput) || {
+          currentSession: null,
+        };
+
+      const languageLabel = (value) => {
+        switch (value) {
+          case "python":
+            return "Python";
+          case "scheme":
+            return "Scheme";
+          case "sql":
+            return "SQL";
+          case "oop":
+            return "OOP";
+          case "other":
+          default:
+            return "Other";
+        }
+      };
+
+      const taskLabel = (value) => {
+        switch (value) {
+          case "explain":
+            return "Explain";
+          case "env_diagram":
+            return "Environment diagram";
+          case "recursion_trace":
+            return "Recursion trace";
+          case "tree_help":
+            return "Trees / Links help";
+          case "fill_blanks":
+            return "Fill blanks";
+          default:
+            return value;
+        }
+      };
+
+      const render = () => {
+        const { currentSession } = currentState || {};
+        badgeRowEl.innerHTML = "";
+
+        if (!currentSession) {
+          summaryEl.innerHTML =
+            "<em>No active CS61A session yet. Submit code to create one.</em>";
+          envContainerEl.style.display = "none";
+          return;
+        }
+
+        const { language, taskType, question, code, modelNotes, envDiagram } =
+          currentSession;
+
+        const langBadge = document.createElement("span");
+        langBadge.className = "badge accent";
+        langBadge.textContent = `Language: ${languageLabel(language)}`;
+        badgeRowEl.appendChild(langBadge);
+
+        const taskBadge = document.createElement("span");
+        taskBadge.className = "badge";
+        taskBadge.textContent = `Task: ${taskLabel(taskType)}`;
+        badgeRowEl.appendChild(taskBadge);
+
+        if (question) {
+          const qBadge = document.createElement("span");
+          qBadge.className = "badge";
+          qBadge.textContent = `Question: ${question}`;
+          badgeRowEl.appendChild(qBadge);
+        }
+
+        const summaryParts = [];
+
+        if (modelNotes && modelNotes.summary) {
+          summaryParts.push(
+            `<strong>Mentor summary:</strong><br>${modelNotes.summary}`
+          );
+        } else {
+          summaryParts.push(
+            "<strong>Context saved.</strong> Ask ChatGPT to explain, trace, or draw an env diagram using this session."
+          );
+        }
+
+        if (code) {
+          summaryParts.push(
+            "<strong>Code:</strong><br><code>" +
+              escapeHtml(snippet(code, 500)) +
+              (code.length > 500 ? "\n… (truncated)" : "") +
+              "</code>"
+          );
+        }
+
+        summaryEl.innerHTML = summaryParts.join("<br><br>");
+
+        if (envDiagram && envDiagram.text) {
+          envContainerEl.style.display = "block";
+          envTextEl.textContent = envDiagram.text;
+        } else {
+          envContainerEl.style.display = "none";
+        }
+      };
+
+      const escapeHtml = (str) =>
+        str
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;");
+
+      const snippet = (str, maxLen) =>
+        str.length > maxLen ? str.slice(0, maxLen) : str;
+
+      const updateFromResponse = (response) => {
+        if (response && response.structuredContent) {
+          currentState = response.structuredContent;
+          render();
+        }
+      };
+
+      const handleSetGlobals = (event) => {
+        const globals = event.detail && event.detail.globals;
+        if (!globals || !globals.toolOutput) return;
+        currentState = globals.toolOutput;
+        render();
+      };
+
+      window.addEventListener("openai:set_globals", handleSetGlobals, {
+        passive: true,
+      });
+
+      const callMentorTool = async (payload) => {
+        if (window.openai && window.openai.callTool) {
+          const response = await window.openai.callTool(
+            "set_cs61a_context",
+            payload
+          );
+          updateFromResponse(response);
+          return;
+        }
+
+        // Fallback: mutate locally during local dev without ChatGPT
+        currentState = {
+          currentSession: {
+            id: "dev-session",
+            ...payload,
+            modelNotes: {
+              summary:
+                "Local dev mode: this is what a model-generated summary might look like.",
+            },
+          },
+        };
+        render();
+      };
+
+      formEl.addEventListener("submit", async (event) => {
+        event.preventDefault();
+        const code = codeInput.value.trim();
+        const language = langSelect.value;
+        const taskType = taskSelect.value;
+        const question = questionInput.value.trim();
+
+        if (!code) {
+          statusEl.dataset.state = "idle";
+          statusEl.textContent = "Please paste some code first.";
+          return;
+        }
+
+        const payload = {
+          code,
+          language,
+          taskType,
+          question: question || null,
+        };
+
+        submitBtn.disabled = true;
+        statusEl.dataset.state = "loading";
+        statusEl.textContent = "Sending context to CS61A Mentor…";
+
+        try {
+          await callMentorTool(payload);
+          statusEl.dataset.state = "ok";
+          statusEl.textContent =
+            "Context updated. Now ask ChatGPT to explain / diagram using this session.";
+        } catch (error) {
+          console.error("Error calling set_cs61a_context:", error);
+          statusEl.dataset.state = "idle";
+          statusEl.textContent =
+            "Error updating context. Check console / server logs.";
+        } finally {
+          submitBtn.disabled = false;
+        }
+      });
+
+      render();
+    </script>
+  </body>
+</html>
