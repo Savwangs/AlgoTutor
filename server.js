@@ -21,12 +21,12 @@ const setContextInputSchema = z.object({
     "env_diagram",
     "recursion_trace",
     "tree_help",
-    "fill_blanks"
+    "fill_blanks",
   ]),
   question: z.string().optional(),
 });
 
-const listSessionsSchema = z.object({}); // no inputs
+const listSessionsSchema = z.object({});
 
 //
 // 3. Memory
@@ -34,14 +34,17 @@ const listSessionsSchema = z.object({}); // no inputs
 let sessions = [];
 let nextId = 1;
 
-function makeStructuredContent(currentSession, message) {
+//
+// 🔥 Correct shape for ChatGPT persistence
+//
+function makeToolOutput(currentSession, message) {
   return {
-    state: "update",   // 🔥 REQUIRED for widget persistence
+    state: "update",
     content: message ? [{ type: "text", text: message }] : [],
-    structuredContent: {
+    toolOutput: {
       currentSession,
-      recentSessions: sessions.slice(-10)
-    }
+      recentSessions: sessions.slice(-10),
+    },
   };
 }
 
@@ -51,11 +54,11 @@ function makeStructuredContent(currentSession, message) {
 function createMentorServer() {
   const server = new McpServer({
     name: "cs61a-mentor-app",
-    version: "1.0.0"
+    version: "1.1.0",
   });
 
   //
-  // 🚀 Widget resource
+  // Widget resource
   //
   server.registerResource(
     "cs61a-mentor-widget",
@@ -67,16 +70,14 @@ function createMentorServer() {
           uri: "ui://widget/cs-61a-mentor.html",
           mimeType: "text/html+skybridge",
           text: mentorHtml,
-          _meta: {
-            "openai/widgetPrefersBorder": true
-          }
-        }
-      ]
+          _meta: { "openai/widgetPrefersBorder": true },
+        },
+      ],
     })
   );
 
   //
-  // 🚀 Main tool: store CS61A context
+  // 🚀 Primary tool
   //
   server.registerTool(
     "set_cs61a_context",
@@ -88,9 +89,9 @@ function createMentorServer() {
       _meta: {
         "openai/outputTemplate": "ui://widget/cs-61a-mentor.html",
         "openai/toolInvocation/invoking": "Updating CS61A context…",
-        "openai/toolInvocation/invoked": "CS61A context updated."
+        "openai/toolInvocation/invoked": "CS61A context updated.",
       },
-      annotations: { readOnlyHint: true }
+      annotations: { readOnlyHint: true },
     },
     async (args) => {
       const id = `session-${nextId++}`;
@@ -101,12 +102,12 @@ function createMentorServer() {
         language: args.language,
         taskType: args.taskType,
         question: args.question ? args.question.trim() : null,
-        modelNotes: {}
+        modelNotes: {},
       };
 
       sessions.push(baseSession);
 
-      return makeStructuredContent(
+      return makeToolOutput(
         baseSession,
         "CS61A context stored successfully."
       );
@@ -114,7 +115,7 @@ function createMentorServer() {
   );
 
   //
-  // 🚀 Tool: list stored sessions
+  // 🚀 list_cs61a_sessions tool
   //
   server.registerTool(
     "list_cs61a_sessions",
@@ -125,18 +126,20 @@ function createMentorServer() {
       _meta: {
         "openai/outputTemplate": "ui://widget/cs-61a-mentor.html",
         "openai/toolInvocation/invoking": "Loading sessions…",
-        "openai/toolInvocation/invoked": "Loaded sessions."
+        "openai/toolInvocation/invoked": "Loaded sessions.",
       },
-      annotations: { readOnlyHint: true }
+      annotations: { readOnlyHint: true },
     },
-    async () => ({
-      state: "update",  // 🔥 REQUIRED for persistence
-      content: [],
-      structuredContent: {
-        currentSession: sessions[sessions.length - 1] || null,
-        recentSessions: sessions.slice(-10)
-      }
-    })
+    async () => {
+      return {
+        state: "update",
+        content: [],
+        toolOutput: {
+          currentSession: sessions[sessions.length - 1] || null,
+          recentSessions: sessions.slice(-10),
+        },
+      };
+    }
   );
 
   return server;
@@ -162,7 +165,7 @@ const httpServer = createServer(async (req, res) => {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
       "Access-Control-Allow-Headers": "content-type, mcp-session-id",
-      "Access-Control-Expose-Headers": "Mcp-Session-Id"
+      "Access-Control-Expose-Headers": "Mcp-Session-Id",
     });
     return res.end();
   }
@@ -173,7 +176,7 @@ const httpServer = createServer(async (req, res) => {
     return res.end("CS61A Mentor MCP server");
   }
 
-  // Handle MCP request
+  // Handle MCP
   const MCP_METHODS = new Set(["POST", "GET", "DELETE"]);
   if (url.pathname === MCP_PATH && MCP_METHODS.has(req.method)) {
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -182,7 +185,7 @@ const httpServer = createServer(async (req, res) => {
     const server = createMentorServer();
     const transport = new StreamableHTTPServerTransport({
       enableJsonResponse: true,
-      sessionIdGenerator: undefined
+      sessionIdGenerator: undefined,
     });
 
     res.on("close", () => {
@@ -199,7 +202,6 @@ const httpServer = createServer(async (req, res) => {
         res.writeHead(500).end("Internal server error");
       }
     }
-
     return;
   }
 
