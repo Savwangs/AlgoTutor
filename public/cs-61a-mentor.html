@@ -412,16 +412,18 @@
       });
 
       const callMentorTool = async (payload) => {
-        if (window.openai && window.openai.callTool) {
-          const response = await window.openai.callTool(
-            "set_cs61a_context",
-            payload
-          );
+        // NEW ChatGPT App Widget Tool Call API
+        if (typeof openai !== "undefined" && openai?.tools?.call) {
+          const response = await openai.tools.call({
+            name: "set_cs61a_context",
+            arguments: payload,
+          });
+
           updateFromResponse(response);
           return;
         }
 
-        // Fallback: mutate locally during local dev without ChatGPT
+        // Fallback for local dev
         currentState = {
           currentSession: {
             id: "dev-session",
@@ -434,6 +436,7 @@
         };
         render();
       };
+
 
       formEl.addEventListener("submit", async (event) => {
         event.preventDefault();
