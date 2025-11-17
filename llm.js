@@ -12,6 +12,7 @@ async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
     const completion = await openai.chat.completions.create({
       model: MODEL,
       max_tokens: maxTokens,
+      response_format: { type: "json_object" }, // Force JSON mode for valid output
       messages: [
         { role: 'system', content: systemPrompt },
         { role: 'user', content: userPrompt }
@@ -32,7 +33,7 @@ async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
 
 // Generate Learn Mode content
 export async function generateLearnContent(args) {
-  const systemPrompt = `You are AlgoTutor, an expert CS educator. Generate clear, educational content about data structures and algorithms.`;
+  const systemPrompt = `You are AlgoTutor, an expert CS educator. Generate clear, educational content about data structures and algorithms. You must respond with valid JSON only.`;
   
   const userPrompt = `Generate educational content for: ${args.topic}
 Difficulty: ${args.difficulty}
@@ -71,7 +72,7 @@ Return ONLY valid JSON.`;
 
 // Generate Build Mode solution
 export async function generateBuildSolution(args) {
-  const systemPrompt = `You are AlgoTutor, an expert problem solver. Generate complete coding solutions.`;
+  const systemPrompt = `You are AlgoTutor, an expert problem solver. Generate complete coding solutions. You must respond with valid JSON only.`;
   
   const userPrompt = `Solve this problem: ${args.problem}
 Language: ${args.language}
@@ -111,7 +112,7 @@ Return ONLY valid JSON.`;
 
 // Generate Debug Mode analysis
 export async function generateDebugAnalysis(args) {
-  const systemPrompt = `You are AlgoTutor, an expert code debugger. Identify bugs and provide fixes.`;
+  const systemPrompt = `You are AlgoTutor, an expert code debugger. Identify bugs and provide fixes. You must respond with valid JSON only.`;
   
   const userPrompt = `Debug this ${args.language} code:
 \`\`\`

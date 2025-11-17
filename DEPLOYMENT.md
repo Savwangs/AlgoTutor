@@ -1,1 +1,0 @@
-https://developers.openai.com/apps-sdk/deploy
