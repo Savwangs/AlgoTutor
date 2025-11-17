@@ -11,6 +11,8 @@
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
+    "dotenv": "^16.6.1",
+    "openai": "^4.104.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
@@ -30,4 +32,3 @@
   "author": "Your Name",
   "license": "MIT"
 }
-  

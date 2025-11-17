@@ -1005,20 +1005,26 @@
       window.addEventListener("openai:set_globals", (ev) => {
         console.log("[Widget] openai:set_globals event received");
         console.log("[Widget] Event detail:", JSON.stringify(ev.detail, null, 2));
+        
         const detail = ev.detail || {};
         const g = detail.globals || detail.state || detail;
         console.log("[Widget] Extracted globals:", JSON.stringify(g, null, 2));
-        if (g?.toolOutput) {
-          console.log("[Widget] toolOutput found:", JSON.stringify(g.toolOutput, null, 2));
-          currentState = g.toolOutput;
-          if (currentState.outputs) {
-            console.log("[Widget] Rendering outputs:", JSON.stringify(currentState.outputs, null, 2));
-            renderOutputs(currentState.outputs);
-          } else {
-            console.warn("[Widget] No outputs in toolOutput");
-          }
+        
+        // Handle nested structure from tool responses
+        let toolOutput = g?.toolOutput;
+        
+        // If toolOutput has a result wrapper, unwrap it
+        if (toolOutput?.result?.toolOutput) {
+          toolOutput = toolOutput.result.toolOutput;
+          console.log("[Widget] Unwrapped nested toolOutput:", JSON.stringify(toolOutput, null, 2));
+        }
+        
+        if (toolOutput?.outputs) {
+          console.log("[Widget] Rendering outputs:", JSON.stringify(toolOutput.outputs, null, 2));
+          currentState = toolOutput;
+          renderOutputs(toolOutput.outputs);
         } else {
-          console.warn("[Widget] No toolOutput in globals");
+          console.warn("[Widget] No outputs found in toolOutput");
         }
       });
 

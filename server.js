@@ -1,9 +1,11 @@
 // server.js
+import 'dotenv/config';
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
+import { generateLearnContent, generateBuildSolution, generateDebugAnalysis } from './llm.js';
 
 //
 // 1. Load widget HTML
@@ -139,123 +141,24 @@ function createAlgoTutorServer() {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Preparing your lesson...",
         "openai/toolInvocation/invoked": "Lesson ready! Check the AlgoTutor panel.",
-        "openai/instruction": `
-⚠️ CRITICAL INSTRUCTIONS - READ CAREFULLY ⚠️
-
-You are AlgoTutor Learn Mode. When triggered, you MUST follow this TWO-STEP process:
-
-═══════════════════════════════════════════════════════════════════
-STEP 1: GENERATE REAL EDUCATIONAL CONTENT (DO NOT SKIP THIS!)
-═══════════════════════════════════════════════════════════════════
-
-Based on the topic, create ACTUAL educational content with REAL details:
-- pattern: Identify the algorithm pattern (1-2 sentences with specifics)
-- stepByStep: Write numbered steps explaining the algorithm (use \\n for line breaks)
-- code: Write ACTUAL working Python code (5-15 lines, minimal style)
-- dryRunTable: If showDryRun=true, create execution table with real values
-- paperVersion: If showPaperVersion=true, list 3-5 interview tips
-- edgeCases: If showEdgeCases=true, list 3 specific edge cases
-
-⚠️ WARNING: DO NOT use placeholder text like "..." or "will be generated" or "example"
-⚠️ WARNING: DO NOT return empty strings for pattern, stepByStep, or code
-⚠️ WARNING: You MUST generate COMPLETE, REAL content based on the actual topic
-
-═══════════════════════════════════════════════════════════════════
-STEP 2: CALL THE TOOL WITH YOUR GENERATED CONTENT
-═══════════════════════════════════════════════════════════════════
-
-After generating content in STEP 1, call learn_mode() with ALL fields including:
-- All user inputs (topic, difficulty, depth, exampleSize, showEdgeCases, showDryRun, showPaperVersion)
-- All generated content (pattern, stepByStep, code, dryRunTable, paperVersion, edgeCases)
-
-═══════════════════════════════════════════════════════════════════
-DETAILED EXAMPLE - Binary Search
-═══════════════════════════════════════════════════════════════════
-
-learn_mode({
-  topic: "binary search",
-  difficulty: "normal",
-  depth: "normal",
-  exampleSize: "small",
-  showEdgeCases: true,
-  showDryRun: true,
-  showPaperVersion: true,
-  pattern: "Divide-and-conquer search algorithm that repeatedly divides a sorted array in half to find a target value in O(log n) time.",
-  stepByStep: "1. Initialize two pointers: low = 0, high = length - 1\\n2. While low <= high, calculate mid = (low + high) // 2\\n3. If arr[mid] equals target, return mid (found!)\\n4. If arr[mid] < target, search right half (low = mid + 1)\\n5. If arr[mid] > target, search left half (high = mid - 1)\\n6. If loop ends without finding target, return -1",
-  code: "def binary_search(arr, target):\\n    low = 0\\n    high = len(arr) - 1\\n    \\n    while low <= high:\\n        mid = (low + high) // 2\\n        if arr[mid] == target:\\n            return mid\\n        elif arr[mid] < target:\\n            low = mid + 1\\n        else:\\n            high = mid - 1\\n    \\n    return -1",
-  dryRunTable: [
-    {"step": "1", "variable": "low=0, high=6, arr=[1,3,5,7,9,11,13]", "value": "target=7", "action": "Initialize pointers"},
-    {"step": "2", "variable": "mid=3", "value": "arr[3]=7", "action": "Found! Return 3"}
-  ],
-  paperVersion: ["Write low=0, high=n-1", "Calculate mid, compare arr[mid] to target", "Update low or high based on comparison", "Return index when found, -1 if not found"],
-  edgeCases: ["Empty array: return -1 immediately", "Single element: check if it matches target", "Target not in array: loop exits, return -1"]
-})
-
-═══════════════════════════════════════════════════════════════════
-WHAT NOT TO DO (COMMON MISTAKES)
-═══════════════════════════════════════════════════════════════════
-
-❌ WRONG:
-  pattern: ""
-  stepByStep: ""
-  code: ""
-
-❌ WRONG:
-  pattern: "Will explain the pattern"
-  stepByStep: "Steps will be generated"
-  code: "# Code will be added"
-
-❌ WRONG:
-  code: "def algorithm():\\n    # TODO: implement"
-
-✅ CORRECT:
-  pattern: "Actual description of the algorithm pattern"
-  stepByStep: "1. Real step\\n2. Another real step\\n3. Final step"
-  code: "def actual_code():\\n    return actual_implementation"
-
-═══════════════════════════════════════════════════════════════════
-FINAL REMINDER
-═══════════════════════════════════════════════════════════════════
-
-1. GENERATE actual content first
-2. CALL learn_mode WITH that content
-3. Keep your chat response brief: "I've explained [topic] in the AlgoTutor panel."
-
-DO NOT say you'll generate content later. DO IT NOW and pass it to the tool.
-        `,
+        "openai/instruction": "Use this tool to explain a DSA topic. The server will generate educational content about the requested topic.",
       },
       annotations: { readOnlyHint: true },
     },
     async (args) => {
       const id = `session-${nextId++}`;
-      
-      // Store session
-      const session = {
-        id,
-        mode: "learn",
-        timestamp: new Date().toISOString(),
-        input: args,
-      };
+      const session = { id, mode: "learn", timestamp: new Date().toISOString(), input: args };
       sessions.push(session);
-
+      
       console.log("[learn_mode] Session created:", id);
       console.log("[learn_mode] Received args:", JSON.stringify(args, null, 2));
-
-      // Return the content ChatGPT generated
-      const outputs = {
-        pattern: args.pattern || "",
-        stepByStep: args.stepByStep || "",
-        code: args.code || "",
-        dryRunTable: args.dryRunTable || null,
-        paperVersion: args.paperVersion || null,
-        edgeCases: args.edgeCases || null,
-      };
-
-      return makeToolOutput(
-        "learn",
-        outputs,
-        ""
-      );
+      
+      // Generate content with Claude
+      const outputs = await generateLearnContent(args);
+      
+      console.log("[learn_mode] Generated outputs:", JSON.stringify(outputs, null, 2));
+      
+      return makeToolOutput("learn", outputs, "");
     }
   );
 
@@ -273,134 +176,24 @@ DO NOT say you'll generate content later. DO IT NOW and pass it to the tool.
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Building your solution...",
         "openai/toolInvocation/invoked": "Solution ready! Check the AlgoTutor panel.",
-        "openai/instruction": `
-⚠️ CRITICAL INSTRUCTIONS - READ CAREFULLY ⚠️
-
-You are AlgoTutor Build Mode. When triggered, you MUST follow this TWO-STEP process:
-
-═══════════════════════════════════════════════════════════════════
-STEP 1: GENERATE A COMPLETE SOLUTION (DO NOT SKIP THIS!)
-═══════════════════════════════════════════════════════════════════
-
-Based on the problem, create ACTUAL solution content with REAL details:
-- pattern: Identify the problem pattern (1-2 sentences)
-- stepByStep: Write numbered solution steps (use \\n for line breaks), 5-10 steps
-- code: Write ACTUAL working code in the specified language (5-20 lines)
-  * If minimalCode=true: use simple, explicit code (no fancy syntax)
-  * If skeletonOnly=true: function signature + TODO comments only
-- dryRunTable: If includeDryRun=true, show execution steps with real values
-- paperVersion: Create 4-6 interview approach steps
-- complexity: Time and space complexity analysis
-
-⚠️ WARNING: DO NOT use placeholder text like "..." or "will be generated"
-⚠️ WARNING: DO NOT return empty strings for pattern, stepByStep, code, or complexity
-⚠️ WARNING: You MUST generate COMPLETE, REAL code and solution steps
-
-═══════════════════════════════════════════════════════════════════
-STEP 2: CALL THE TOOL WITH YOUR GENERATED CONTENT
-═══════════════════════════════════════════════════════════════════
-
-After generating in STEP 1, call build_mode() with ALL fields:
-- All user inputs (problem, language, allowRecursion, skeletonOnly, includeDryRun, minimalCode)
-- All generated content (pattern, stepByStep, code, dryRunTable, paperVersion, complexity)
-
-⚠️ IMPORTANT: Include ALL user input fields. Missing fields cause validation errors!
-
-═══════════════════════════════════════════════════════════════════
-DETAILED EXAMPLE - Duplicate Detection
-═══════════════════════════════════════════════════════════════════
-
-build_mode({
-  problem: "Given an integer array nums, return true if any value appears more than once.",
-  language: "python",
-  allowRecursion: false,
-  skeletonOnly: false,
-  includeDryRun: true,
-  minimalCode: true,
-  pattern: "Hash set pattern for O(1) lookups. Track seen elements while iterating through the array once.",
-  stepByStep: "1. Create an empty set to track seen numbers\\n2. Loop through each number in the array\\n3. Check if current number is already in the set\\n4. If yes, return True (found duplicate)\\n5. If no, add number to set\\n6. If loop completes without finding duplicates, return False",
-  code: "def hasDuplicate(nums):\\n    seen = set()\\n    for num in nums:\\n        if num in seen:\\n            return True\\n        seen.add(num)\\n    return False",
-  dryRunTable: [
-    {"step": "1", "state": "seen={}, nums=[1,2,3,1]", "action": "Start with empty set"},
-    {"step": "2", "state": "seen={1}, i=0", "action": "Add 1 to set"},
-    {"step": "3", "state": "seen={1,2}, i=1", "action": "Add 2 to set"},
-    {"step": "4", "state": "seen={1,2,3}, i=2", "action": "Add 3 to set"},
-    {"step": "5", "state": "seen={1,2,3}, i=3, num=1", "action": "1 already in set! Return True"}
-  ],
-  paperVersion: ["Clarify: input is array, output is boolean", "Identify pattern: use hash set for O(1) membership", "Write approach: iterate once, track seen values", "Code the solution with set operations", "Test with edge cases: empty, single element, all unique"],
-  complexity: "Time: O(n) where n is array length (single pass), Space: O(n) for the set in worst case"
-})
-
-═══════════════════════════════════════════════════════════════════
-WHAT NOT TO DO (COMMON MISTAKES)
-═══════════════════════════════════════════════════════════════════
-
-❌ WRONG - Empty strings:
-  pattern: ""
-  code: ""
-  complexity: ""
-
-❌ WRONG - Placeholder text:
-  pattern: "Will identify pattern"
-  code: "# Solution will go here"
-  complexity: "Will calculate"
-
-❌ WRONG - Missing user input fields:
-  build_mode({
-    problem: "...",
-    language: "python",
-    // Missing: allowRecursion, skeletonOnly, includeDryRun, minimalCode
-    pattern: "...",
-    code: "..."
-  })
-
-✅ CORRECT - Complete with real content:
-  pattern: "Two-pointer technique on sorted array"
-  code: "def solution(arr):\\n    left = 0\\n    right = len(arr) - 1\\n    ..."
-  complexity: "Time: O(n), Space: O(1)"
-
-═══════════════════════════════════════════════════════════════════
-FINAL REMINDER
-═══════════════════════════════════════════════════════════════════
-
-1. GENERATE actual solution first
-2. CALL build_mode WITH complete solution AND all user inputs
-3. Keep your chat response brief: "I've built the solution in the AlgoTutor panel."
-
-DO NOT say you'll generate code later. DO IT NOW and pass it to the tool.
-        `,
+        "openai/instruction": "Use this tool to build a solution for a coding problem. The server will generate a complete solution with step-by-step logic and complexity analysis.",
       },
       annotations: { readOnlyHint: true },
     },
     async (args) => {
       const id = `session-${nextId++}`;
-      
-      const session = {
-        id,
-        mode: "build",
-        timestamp: new Date().toISOString(),
-        input: args,
-      };
+      const session = { id, mode: "build", timestamp: new Date().toISOString(), input: args };
       sessions.push(session);
-
+      
       console.log("[build_mode] Session created:", id);
       console.log("[build_mode] Received args:", JSON.stringify(args, null, 2));
-
-      // Return the content ChatGPT generated
-      const outputs = {
-        pattern: args.pattern || "",
-        stepByStep: args.stepByStep || "",
-        code: args.code || "",
-        dryRunTable: args.dryRunTable || null,
-        paperVersion: args.paperVersion || [],
-        complexity: args.complexity || "",
-      };
-
-      return makeToolOutput(
-        "build",
-        outputs,
-        ""
-      );
+      
+      // Generate solution with Claude
+      const outputs = await generateBuildSolution(args);
+      
+      console.log("[build_mode] Generated outputs:", JSON.stringify(outputs, null, 2));
+      
+      return makeToolOutput("build", outputs, "");
     }
   );
 
@@ -418,143 +211,24 @@ DO NOT say you'll generate code later. DO IT NOW and pass it to the tool.
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Analyzing your code...",
         "openai/toolInvocation/invoked": "Debug complete! Check the AlgoTutor panel.",
-        "openai/instruction": `
-⚠️ CRITICAL INSTRUCTIONS - READ CAREFULLY ⚠️
-
-You are AlgoTutor Debug Mode. When triggered, you MUST follow this TWO-STEP process:
-
-═══════════════════════════════════════════════════════════════════
-STEP 1: ANALYZE CODE AND IDENTIFY THE BUG (DO NOT SKIP THIS!)
-═══════════════════════════════════════════════════════════════════
-
-Carefully analyze the provided code and create ACTUAL debugging analysis:
-- bugDiagnosis: Detailed bug analysis with problem type, location, and explanation
-- beforeCode: Original code with "# BUG HERE" or "// BUG HERE" comment on problematic line
-- afterCode: Fixed code with "# FIXED" or "// FIXED" comment on corrected line
-- testCases: If generateTests=true, create 3 test cases showing the fix works
-- edgeCases: If showEdgeWarnings=true, list 3 edge case warnings
-
-⚠️ WARNING: DO NOT use placeholder text or generic messages
-⚠️ WARNING: DO NOT return empty strings for bugDiagnosis, beforeCode, or afterCode
-⚠️ WARNING: You MUST provide REAL bug analysis and WORKING fixed code
-
-═══════════════════════════════════════════════════════════════════
-STEP 2: CALL THE TOOL WITH YOUR ANALYSIS
-═══════════════════════════════════════════════════════════════════
-
-After analyzing in STEP 1, call debug_mode() with ALL fields:
-- All user inputs (code, problemDescription, language, generateTests, showEdgeWarnings)
-- All generated analysis (bugDiagnosis, beforeCode, afterCode, testCases, edgeCases)
-
-═══════════════════════════════════════════════════════════════════
-DETAILED EXAMPLE - Logic Error in Duplicate Check
-═══════════════════════════════════════════════════════════════════
-
-debug_mode({
-  code: "def hasDuplicate(nums):\\n    for i in range(len(nums)):\\n        if nums[i] == nums[i]:\\n            return True\\n    return False",
-  problemDescription: "Check if array has duplicates",
-  language: "python",
-  generateTests: true,
-  showEdgeWarnings: true,
-  bugDiagnosis: "Problem: Logic Error\\n\\nLocation: Line 3 (if nums[i] == nums[i])\\n\\nExplanation:\\n1. The condition compares nums[i] with itself, which is always True\\n2. This causes the function to return True on the first iteration for any non-empty array\\n3. The code never actually checks if the current element matches any OTHER element\\n4. Correct approach: compare nums[i] with nums[j] where j > i",
-  beforeCode: "def hasDuplicate(nums):\\n    for i in range(len(nums)):\\n        if nums[i] == nums[i]:  # BUG HERE - comparing element with itself!\\n            return True\\n    return False",
-  afterCode: "def hasDuplicate(nums):\\n    seen = set()\\n    for num in nums:\\n        if num in seen:  # FIXED - check if already seen\\n            return True\\n        seen.add(num)\\n    return False",
-  testCases: [
-    "[1, 2, 3] → False ✓ (no duplicates)",
-    "[1, 2, 1] → True ✓ (duplicate found)",
-    "[] → False ✓ (empty array)"
-  ],
-  edgeCases: [
-    "Empty array: should return False, code handles correctly",
-    "Single element: should return False, code handles correctly",
-    "All same values: should return True immediately on second element"
-  ]
-})
-
-═══════════════════════════════════════════════════════════════════
-ANOTHER EXAMPLE - Off-by-One Error
-═══════════════════════════════════════════════════════════════════
-
-debug_mode({
-  code: "def binary_search(arr, target):\\n    low, high = 0, len(arr)\\n    while low < high:\\n        mid = (low + high) // 2\\n        if arr[mid] == target:\\n            return mid\\n        elif arr[mid] < target:\\n            low = mid + 1\\n        else:\\n            high = mid - 1\\n    return -1",
-  problemDescription: "Binary search in sorted array",
-  language: "python",
-  generateTests: true,
-  showEdgeWarnings: false,
-  bugDiagnosis: "Problem: Off-by-One Error\\n\\nLocation: Line 2 (high = len(arr))\\n\\nExplanation:\\n1. high is initialized to len(arr) instead of len(arr) - 1\\n2. This causes IndexError when accessing arr[mid] if mid equals len(arr)\\n3. The condition 'low < high' should be 'low <= high' with correct initialization\\n4. Fix: Initialize high to len(arr) - 1 and use low <= high",
-  beforeCode: "def binary_search(arr, target):\\n    low, high = 0, len(arr)  # BUG HERE - should be len(arr) - 1\\n    while low < high:  # Also problematic\\n        mid = (low + high) // 2\\n        if arr[mid] == target:\\n            return mid\\n        elif arr[mid] < target:\\n            low = mid + 1\\n        else:\\n            high = mid - 1\\n    return -1",
-  afterCode: "def binary_search(arr, target):\\n    low, high = 0, len(arr) - 1  # FIXED - correct upper bound\\n    while low <= high:  # FIXED - inclusive range\\n        mid = (low + high) // 2\\n        if arr[mid] == target:\\n            return mid\\n        elif arr[mid] < target:\\n            low = mid + 1\\n        else:\\n            high = mid - 1\\n    return -1",
-  testCases: [
-    "[1,3,5,7,9], target=5 → 2 ✓",
-    "[1,3,5,7,9], target=1 → 0 ✓ (first element)",
-    "[1,3,5,7,9], target=9 → 4 ✓ (last element)"
-  ]
-})
-
-═══════════════════════════════════════════════════════════════════
-WHAT NOT TO DO (COMMON MISTAKES)
-═══════════════════════════════════════════════════════════════════
-
-❌ WRONG - Empty or vague:
-  bugDiagnosis: ""
-  beforeCode: ""
-  afterCode: ""
-
-❌ WRONG - Generic/placeholder:
-  bugDiagnosis: "There is a bug in the code"
-  beforeCode: "# Bug will be marked"
-  afterCode: "# Fixed version will be shown"
-
-❌ WRONG - Not marking bug location:
-  beforeCode: "def func():\\n    return x + y"  (no comment!)
-
-✅ CORRECT - Specific and detailed:
-  bugDiagnosis: "Problem: Logic Error\\nLocation: Line 5\\nExplanation:\\n1. Using = instead of ==\\n..."
-  beforeCode: "if x = 5:  # BUG HERE - assignment instead of comparison"
-  afterCode: "if x == 5:  # FIXED - comparison operator"
-
-═══════════════════════════════════════════════════════════════════
-FINAL REMINDER
-═══════════════════════════════════════════════════════════════════
-
-1. ANALYZE the code and identify the ACTUAL bug
-2. GENERATE complete before/after code with bug markers
-3. CALL debug_mode WITH all analysis
-4. Keep your chat response brief: "Found the bug in the AlgoTutor panel."
-
-DO NOT say you'll analyze later. DO IT NOW and pass the analysis to the tool.
-        `,
+        "openai/instruction": "Use this tool to debug code and find errors. The server will analyze the code, identify bugs, and provide fixed versions.",
       },
       annotations: { readOnlyHint: true },
     },
     async (args) => {
       const id = `session-${nextId++}`;
-      
-      const session = {
-        id,
-        mode: "debug",
-        timestamp: new Date().toISOString(),
-        input: args,
-      };
+      const session = { id, mode: "debug", timestamp: new Date().toISOString(), input: args };
       sessions.push(session);
-
+      
       console.log("[debug_mode] Session created:", id);
       console.log("[debug_mode] Received args:", JSON.stringify(args, null, 2));
-
-      // Return the content ChatGPT generated
-      const outputs = {
-        bugDiagnosis: args.bugDiagnosis || "",
-        beforeCode: args.beforeCode || "",
-        afterCode: args.afterCode || "",
-        testCases: args.testCases || null,
-        edgeCases: args.edgeCases || null,
-      };
-
-      return makeToolOutput(
-        "debug",
-        outputs,
-        ""
-      );
+      
+      // Generate debug analysis with Claude
+      const outputs = await generateDebugAnalysis(args);
+      
+      console.log("[debug_mode] Generated outputs:", JSON.stringify(outputs, null, 2));
+      
+      return makeToolOutput("debug", outputs, "");
     }
   );
 
@@ -661,4 +335,12 @@ httpServer.listen(port, () => {
   console.log("📚 Learn Mode: Explain DSA topics in small steps");
   console.log("🔨 Build Mode: Generate solutions with dry-runs");
   console.log("🐛 Debug Mode: Find and fix bugs line-by-line\n");
+  
+  // Verify API key is loaded
+  if (!process.env.OPENAI_API_KEY) {
+    console.warn("⚠️  WARNING: OPENAI_API_KEY not found in environment!");
+    console.warn("   Please create a .env file with: OPENAI_API_KEY=your_key_here\n");
+  } else {
+    console.log(`✅ OpenAI API key loaded (${process.env.OPENAI_API_KEY.substring(0, 8)}...)\n`);
+  }
 });
