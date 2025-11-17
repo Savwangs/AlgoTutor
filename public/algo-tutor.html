@@ -1,0 +1,1051 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>AlgoTutor</title>
+    <script type="oas-config">
+      {
+        "state": {
+          "toolOutput": { "type": "json" }
+        }
+      }
+    </script>
+    <style>
+      :root {
+        color-scheme: light dark;
+        --bg-main: #0a0e27;
+        --bg-panel: #0f1629;
+        --bg-editor: #0a0e27;
+        --bg-output: #0a0e27;
+        --border-subtle: #1f2937;
+        --accent: #3b82f6;
+        --accent-soft: rgba(59, 130, 246, 0.16);
+        --accent-strong: rgba(59, 130, 246, 0.9);
+        --text-main: #e5e7eb;
+        --text-muted: #9ca3af;
+        --text-strong: #f9fafb;
+        --badge-bg: #1e293b;
+        --badge-accent-bg: #1e40af;
+        --error: #ef4444;
+        --success: #10b981;
+        font-family: system-ui, -apple-system, BlinkMacSystemFont, "SF Pro",
+          "Inter", sans-serif;
+      }
+
+      html,
+      body {
+        width: 100%;
+        min-height: 100%;
+        margin: 0;
+        padding: 0;
+        box-sizing: border-box;
+      }
+
+      body {
+        background: linear-gradient(135deg, #0a0e27 0%, #1e293b 100%);
+        padding: 12px;
+        color: var(--text-main);
+      }
+
+      main {
+        max-width: 1200px;
+        margin: 0 auto;
+        border-radius: 16px;
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        box-shadow: 0 20px 50px rgba(0, 0, 0, 0.8);
+        display: flex;
+        flex-direction: column;
+        overflow: hidden;
+      }
+
+      header {
+        padding: 16px 20px;
+        border-bottom: 1px solid var(--border-subtle);
+        background: linear-gradient(
+          to right,
+          rgba(59, 130, 246, 0.1),
+          rgba(59, 130, 246, 0.05)
+        );
+      }
+
+      .header-top {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-bottom: 8px;
+      }
+
+      h1 {
+        margin: 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--text-strong);
+        background: linear-gradient(to right, #3b82f6, #60a5fa);
+        -webkit-background-clip: text;
+        -webkit-text-fill-color: transparent;
+        background-clip: text;
+      }
+
+      .tagline {
+        margin: 0;
+        font-size: 0.85rem;
+        color: var(--text-muted);
+      }
+
+      .mode-selector {
+        display: flex;
+        gap: 8px;
+        margin-bottom: 4px;
+      }
+
+      .mode-btn {
+        padding: 8px 16px;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        background: transparent;
+        color: var(--text-muted);
+        cursor: pointer;
+        font-size: 0.85rem;
+        font-weight: 500;
+        transition: all 0.2s;
+      }
+
+      .mode-btn:hover {
+        border-color: var(--accent);
+        color: var(--text-strong);
+      }
+
+      .mode-btn.active {
+        background: var(--accent);
+        color: white;
+        border-color: var(--accent);
+      }
+
+      .layout {
+        display: grid;
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1.5fr);
+        gap: 0;
+        min-height: 500px;
+      }
+
+      /* Left pane (inputs) */
+      .pane-left {
+        border-right: 1px solid var(--border-subtle);
+        background: var(--bg-editor);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+        overflow-y: auto;
+      }
+
+      .section-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-strong);
+        margin: 0 0 8px 0;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      label {
+        font-size: 0.8rem;
+        font-weight: 500;
+        color: var(--text-muted);
+        display: block;
+        margin-bottom: 6px;
+      }
+
+      .field-block {
+        display: flex;
+        flex-direction: column;
+      }
+
+      textarea,
+      select,
+      input[type="text"] {
+        width: 100%;
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+        padding: 10px 12px;
+        font-size: 0.85rem;
+        box-sizing: border-box;
+        background-color: #0a0e27;
+        color: var(--text-main);
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+      }
+
+      textarea {
+        min-height: 120px;
+        resize: vertical;
+      }
+
+      textarea:focus,
+      select:focus,
+      input[type="text"]:focus {
+        outline: none;
+        border-color: var(--accent);
+        box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.3);
+      }
+
+      select {
+        font-family: system-ui, sans-serif;
+        background-color: #0a0e27;
+      }
+
+      .row {
+        display: flex;
+        gap: 10px;
+      }
+
+      .row > div {
+        flex: 1;
+      }
+
+      .toggles-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding: 12px;
+        border-radius: 8px;
+        background: rgba(59, 130, 246, 0.05);
+        border: 1px solid rgba(59, 130, 246, 0.2);
+      }
+
+      .toggle-item {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .toggle-item input[type="checkbox"] {
+        width: 18px;
+        height: 18px;
+        cursor: pointer;
+        accent-color: var(--accent);
+      }
+
+      .toggle-item label {
+        margin: 0;
+        cursor: pointer;
+        font-size: 0.85rem;
+        color: var(--text-main);
+      }
+
+      .hint {
+        font-size: 0.75rem;
+        color: var(--text-muted);
+        margin: 4px 0 0 0;
+      }
+
+      .submit-section {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        padding-top: 8px;
+        border-top: 1px solid var(--border-subtle);
+      }
+
+      button.primary {
+        border: none;
+        border-radius: 8px;
+        background: linear-gradient(to right, var(--accent-strong), #60a5fa);
+        color: white;
+        font-weight: 600;
+        padding: 12px 20px;
+        cursor: pointer;
+        font-size: 0.9rem;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 8px;
+        box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+        transition: all 0.2s;
+      }
+
+      button.primary:hover {
+        transform: translateY(-1px);
+        box-shadow: 0 6px 16px rgba(59, 130, 246, 0.5);
+      }
+
+      button.primary:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .status {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        padding: 8px;
+        border-radius: 6px;
+        background: rgba(15, 23, 42, 0.5);
+      }
+
+      /* Right pane (output) */
+      .pane-right {
+        background: var(--bg-output);
+        padding: 16px;
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+        overflow-y: auto;
+      }
+
+      .output-block {
+        border-radius: 10px;
+        border: 1px solid var(--border-subtle);
+        background: linear-gradient(
+          to bottom,
+          rgba(15, 23, 42, 0.8),
+          rgba(15, 23, 42, 0.6)
+        );
+        padding: 14px;
+      }
+
+      .output-block h3 {
+        margin: 0 0 10px 0;
+        font-size: 0.95rem;
+        font-weight: 600;
+        color: var(--accent);
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .output-block h3::before {
+        content: "▸";
+        font-size: 1rem;
+      }
+
+      .output-content {
+        font-size: 0.85rem;
+        line-height: 1.6;
+        color: var(--text-main);
+      }
+
+      .output-empty {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        font-style: italic;
+        text-align: center;
+        padding: 40px 20px;
+      }
+
+      .code-block {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas,
+          "Liberation Mono", "Courier New", monospace;
+        font-size: 0.85rem;
+        white-space: pre-wrap;
+        background: #0a0e27;
+        color: #e5e7eb;
+        border-radius: 8px;
+        padding: 12px;
+        border: 1px solid var(--border-subtle);
+        margin-top: 8px;
+        overflow-x: auto;
+      }
+
+      .table-wrapper {
+        overflow-x: auto;
+        margin-top: 8px;
+      }
+
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.8rem;
+      }
+
+      table th,
+      table td {
+        padding: 8px;
+        text-align: left;
+        border: 1px solid var(--border-subtle);
+      }
+
+      table th {
+        background: rgba(59, 130, 246, 0.2);
+        color: var(--text-strong);
+        font-weight: 600;
+      }
+
+      table td {
+        background: rgba(15, 23, 42, 0.5);
+      }
+
+      .list-block {
+        margin: 8px 0;
+        padding-left: 20px;
+      }
+
+      .list-block li {
+        margin: 6px 0;
+        line-height: 1.5;
+      }
+
+      .badge {
+        display: inline-block;
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.75rem;
+        font-weight: 500;
+        background: var(--badge-accent-bg);
+        color: white;
+        margin-right: 6px;
+      }
+
+      .error-text {
+        color: var(--error);
+        font-weight: 500;
+      }
+
+      .success-text {
+        color: var(--success);
+        font-weight: 500;
+      }
+
+      /* Mode-specific visibility */
+      .mode-content {
+        display: none;
+      }
+
+      .mode-content.active {
+        display: flex;
+        flex-direction: column;
+        gap: 14px;
+      }
+    </style>
+  </head>
+
+  <body>
+    <main>
+      <header>
+        <div class="header-top">
+          <div>
+            <h1>🚀 AlgoTutor</h1>
+            <p class="tagline">
+              Learn Data Structures & Algorithms with small steps, minimal code,
+              and clear dry-runs
+            </p>
+          </div>
+        </div>
+        <div class="mode-selector">
+          <button class="mode-btn active" data-mode="learn">
+            📚 Learn Mode
+          </button>
+          <button class="mode-btn" data-mode="build">🔨 Build Mode</button>
+          <button class="mode-btn" data-mode="debug">🐛 Debug Mode</button>
+        </div>
+      </header>
+
+      <div class="layout">
+        <!-- LEFT PANE: Inputs -->
+        <section class="pane-left">
+          <!-- LEARN MODE -->
+          <form id="learn-form" class="mode-content active">
+            <h2 class="section-title">Learn Mode</h2>
+
+            <div class="field-block">
+              <label for="learn-topic">Topic</label>
+              <input
+                type="text"
+                id="learn-topic"
+                placeholder="e.g., BFS, heaps, linked lists, dynamic programming"
+              />
+            </div>
+
+            <div class="row">
+              <div class="field-block">
+                <label for="learn-difficulty">Difficulty</label>
+                <select id="learn-difficulty">
+                  <option value="basic">Basic</option>
+                  <option value="normal" selected>Normal</option>
+                  <option value="dumb-it-down">Dumb-It-Down</option>
+                </select>
+              </div>
+              <div class="field-block">
+                <label for="learn-depth">Depth</label>
+                <select id="learn-depth">
+                  <option value="tiny">Tiny (5 steps)</option>
+                  <option value="normal" selected>Normal</option>
+                  <option value="full">Full Walkthrough</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="row">
+              <div class="field-block">
+                <label for="learn-example-size">Example Size</label>
+                <select id="learn-example-size">
+                  <option value="small" selected>Small</option>
+                  <option value="medium">Medium</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="toggles-section">
+              <div class="toggle-item">
+                <input type="checkbox" id="learn-edge-cases" checked />
+                <label for="learn-edge-cases">Show edge cases</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="learn-dry-run" checked />
+                <label for="learn-dry-run">Show dry-run table</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="learn-paper-version" checked />
+                <label for="learn-paper-version">Show paper version</label>
+              </div>
+            </div>
+
+            <div class="submit-section">
+              <button type="submit" class="primary">
+                <span>🚀</span>
+                <span>Learn This Topic</span>
+              </button>
+              <div class="status" id="learn-status">
+                Ready. Enter a topic to learn.
+              </div>
+            </div>
+          </form>
+
+          <!-- BUILD MODE -->
+          <form id="build-form" class="mode-content">
+            <h2 class="section-title">Build Mode</h2>
+
+            <div class="field-block">
+              <label for="build-problem">Problem Description</label>
+              <textarea
+                id="build-problem"
+                placeholder="Paste your coding problem here..."
+              ></textarea>
+            </div>
+
+            <div class="row">
+              <div class="field-block">
+                <label for="build-language">Language</label>
+                <select id="build-language">
+                  <option value="python" selected>Python</option>
+                  <option value="java">Java</option>
+                  <option value="cpp">C++</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="toggles-section">
+              <div class="toggle-item">
+                <input type="checkbox" id="build-recursion" />
+                <label for="build-recursion">Allow recursion</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="build-skeleton" />
+                <label for="build-skeleton">Show skeleton only</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="build-dry-run" checked />
+                <label for="build-dry-run">Include dry-run</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="build-minimal-code" checked />
+                <label for="build-minimal-code">Use minimal code</label>
+              </div>
+            </div>
+
+            <div class="submit-section">
+              <button type="submit" class="primary">
+                <span>🔨</span>
+                <span>Build Solution</span>
+              </button>
+              <div class="status" id="build-status">
+                Ready. Enter a problem to solve.
+              </div>
+            </div>
+          </form>
+
+          <!-- DEBUG MODE -->
+          <form id="debug-form" class="mode-content">
+            <h2 class="section-title">Debug Mode</h2>
+
+            <div class="field-block">
+              <label for="debug-code">Code Snippet</label>
+              <textarea
+                id="debug-code"
+                placeholder="Paste your code here..."
+              ></textarea>
+            </div>
+
+            <div class="field-block">
+              <label for="debug-problem">Problem Description (optional)</label>
+              <textarea
+                id="debug-problem"
+                placeholder="Describe what this code should do..."
+                style="min-height: 80px;"
+              ></textarea>
+              <p class="hint">
+                Explain the problem you're trying to solve so AlgoTutor can debug your code in context.
+              </p>
+            </div>
+
+            <div class="field-block">
+              <label for="debug-language">Language</label>
+              <select id="debug-language">
+                <option value="python" selected>Python</option>
+                <option value="java">Java</option>
+                <option value="cpp">C++</option>
+              </select>
+            </div>
+
+            <div class="toggles-section">
+              <div class="toggle-item">
+                <input type="checkbox" id="debug-show-tests" checked />
+                <label for="debug-show-tests">Generate test cases</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="debug-edge-warnings" checked />
+                <label for="debug-edge-warnings">Show edge case warnings</label>
+              </div>
+            </div>
+
+            <div class="submit-section">
+              <button type="submit" class="primary">
+                <span>🐛</span>
+                <span>Debug This Code</span>
+              </button>
+              <div class="status" id="debug-status">
+                Ready. Paste your code to debug.
+              </div>
+            </div>
+          </form>
+        </section>
+
+        <!-- RIGHT PANE: Outputs -->
+        <section class="pane-right" id="output-container">
+          <div class="output-empty">
+            Select a mode on the left, fill in the details, and submit.<br />
+            All explanations will appear here in structured blocks.
+          </div>
+        </section>
+      </div>
+    </main>
+
+    <script type="module">
+      // State management
+      let currentMode = "learn";
+      let currentState = {
+        mode: null,
+        outputs: null,
+      };
+
+      // DOM Elements
+      const modeBtns = document.querySelectorAll(".mode-btn");
+      const modeForms = {
+        learn: document.querySelector("#learn-form"),
+        build: document.querySelector("#build-form"),
+        debug: document.querySelector("#debug-form"),
+      };
+      const outputContainer = document.querySelector("#output-container");
+
+      // Helper: Get state from ChatGPT
+      const getInitialState = () => {
+        const w = window.openai || {};
+        if (w.globals?.toolOutput) return w.globals.toolOutput;
+        if (w.state?.toolOutput) return w.state.toolOutput;
+        if (w.widgetState?.toolOutput) return w.widgetState.toolOutput;
+        return { mode: null, outputs: null };
+      };
+
+      currentState = getInitialState();
+
+      // Mode switching
+      modeBtns.forEach((btn) => {
+        btn.addEventListener("click", () => {
+          const mode = btn.dataset.mode;
+          currentMode = mode;
+
+          // Update button states
+          modeBtns.forEach((b) => b.classList.remove("active"));
+          btn.classList.add("active");
+
+          // Update form visibility
+          Object.values(modeForms).forEach((form) =>
+            form.classList.remove("active")
+          );
+          modeForms[mode].classList.add("active");
+        });
+      });
+
+      // Send follow-up message to ChatGPT
+      const sendFollowUp = async (prompt) => {
+        if (window.openai?.sendFollowUpMessage) {
+          return await window.openai.sendFollowUpMessage({ prompt });
+        }
+        throw new Error("OpenAI sendFollowUpMessage API not available");
+      };
+
+      // Render outputs
+      const renderOutputs = (outputs) => {
+        outputContainer.innerHTML = "";
+
+        if (!outputs) {
+          outputContainer.innerHTML =
+            '<div class="output-empty">No outputs yet. Submit a query to see results.</div>';
+          return;
+        }
+
+        // Check if outputs is an empty object
+        if (typeof outputs === 'object' && Object.keys(outputs).length === 0) {
+          outputContainer.innerHTML =
+            '<div class="output-empty">⚠️ Received empty outputs. Please try again.</div>';
+          return;
+        }
+
+        // Check if ALL fields are empty/null
+        const hasContent = Object.values(outputs).some(val => {
+          if (val === null || val === undefined) return false;
+          if (typeof val === 'string') return val.trim().length > 0;
+          if (Array.isArray(val)) return val.length > 0;
+          return true;
+        });
+
+        if (!hasContent) {
+          outputContainer.innerHTML =
+            '<div class="output-empty">⚠️ ChatGPT did not generate content. Please try again.<br><small style="color: #9ca3af; margin-top: 8px; display: block;">Tip: Make sure to describe what you want clearly.</small></div>';
+          console.warn("[Widget] All output fields are empty:", outputs);
+          return;
+        }
+
+        const blocks = [];
+
+        // Pattern Detection
+        if (outputs.pattern) {
+          blocks.push({
+            title: "Pattern Detection",
+            content: outputs.pattern,
+            type: "text",
+          });
+        }
+
+        // Step-by-step reasoning
+        if (outputs.stepByStep) {
+          blocks.push({
+            title: "Step-by-Step Reasoning",
+            content: outputs.stepByStep,
+            type: "text",
+          });
+        }
+
+        // Code
+        if (outputs.code) {
+          blocks.push({
+            title: "Code Solution",
+            content: outputs.code,
+            type: "code",
+          });
+        }
+
+        // Dry-run table
+        if (outputs.dryRunTable) {
+          blocks.push({
+            title: "Dry-Run Table",
+            content: outputs.dryRunTable,
+            type: "table",
+          });
+        }
+
+        // Paper version
+        if (outputs.paperVersion) {
+          blocks.push({
+            title: "Paper Version",
+            content: outputs.paperVersion,
+            type: "list",
+          });
+        }
+
+        // Edge cases
+        if (outputs.edgeCases) {
+          blocks.push({
+            title: "Edge Cases",
+            content: outputs.edgeCases,
+            type: "list",
+          });
+        }
+
+        // Complexity analysis
+        if (outputs.complexity) {
+          blocks.push({
+            title: "Time & Space Complexity",
+            content: outputs.complexity,
+            type: "text",
+          });
+        }
+
+        // Bug diagnosis
+        if (outputs.bugDiagnosis) {
+          blocks.push({
+            title: "Bug Diagnosis",
+            content: outputs.bugDiagnosis,
+            type: "text",
+          });
+        }
+
+        // Before/After code
+        if (outputs.beforeCode || outputs.afterCode) {
+          blocks.push({
+            title: "Before & After",
+            content: `<div><strong>Before:</strong><pre class="code-block">${
+              outputs.beforeCode || "N/A"
+            }</pre></div><div><strong>After:</strong><pre class="code-block">${
+              outputs.afterCode || "N/A"
+            }</pre></div>`,
+            type: "html",
+          });
+        }
+
+        // Test cases
+        if (outputs.testCases) {
+          blocks.push({
+            title: "Test Cases",
+            content: outputs.testCases,
+            type: "list",
+          });
+        }
+
+        // Render blocks
+        blocks.forEach((block) => {
+          const blockEl = document.createElement("div");
+          blockEl.className = "output-block";
+
+          const titleEl = document.createElement("h3");
+          titleEl.textContent = block.title;
+          blockEl.appendChild(titleEl);
+
+          const contentEl = document.createElement("div");
+          contentEl.className = "output-content";
+
+          if (block.type === "code") {
+            contentEl.innerHTML = `<pre class="code-block">${escapeHtml(
+              block.content
+            )}</pre>`;
+          } else if (block.type === "table" && Array.isArray(block.content)) {
+            const table = renderTable(block.content);
+            contentEl.appendChild(table);
+          } else if (block.type === "list" && Array.isArray(block.content)) {
+            const ul = document.createElement("ul");
+            ul.className = "list-block";
+            block.content.forEach((item) => {
+              const li = document.createElement("li");
+              li.textContent = item;
+              ul.appendChild(li);
+            });
+            contentEl.appendChild(ul);
+          } else if (block.type === "html") {
+            contentEl.innerHTML = block.content;
+          } else {
+            contentEl.innerHTML = block.content.replace(/\n/g, "<br>");
+          }
+
+          blockEl.appendChild(contentEl);
+          outputContainer.appendChild(blockEl);
+        });
+      };
+
+      const renderTable = (rows) => {
+        if (!rows || rows.length === 0) return null;
+
+        const wrapper = document.createElement("div");
+        wrapper.className = "table-wrapper";
+
+        const table = document.createElement("table");
+        const thead = document.createElement("thead");
+        const tbody = document.createElement("tbody");
+
+        // Header
+        const headerRow = document.createElement("tr");
+        Object.keys(rows[0]).forEach((key) => {
+          const th = document.createElement("th");
+          th.textContent = key;
+          headerRow.appendChild(th);
+        });
+        thead.appendChild(headerRow);
+
+        // Rows
+        rows.forEach((row) => {
+          const tr = document.createElement("tr");
+          Object.values(row).forEach((val) => {
+            const td = document.createElement("td");
+            td.textContent = val;
+            tr.appendChild(td);
+          });
+          tbody.appendChild(tr);
+        });
+
+        table.appendChild(thead);
+        table.appendChild(tbody);
+        wrapper.appendChild(table);
+        return wrapper;
+      };
+
+      const escapeHtml = (str) =>
+        String(str)
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+
+      // Form submissions
+      modeForms.learn.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const statusEl = document.querySelector("#learn-status");
+
+        const topic = document.querySelector("#learn-topic").value.trim();
+        const difficulty = document.querySelector("#learn-difficulty").value;
+        const depth = document.querySelector("#learn-depth").value;
+        const exampleSize = document.querySelector("#learn-example-size").value;
+        const showEdgeCases = document.querySelector("#learn-edge-cases").checked;
+        const showDryRun = document.querySelector("#learn-dry-run").checked;
+        const showPaperVersion = document.querySelector("#learn-paper-version").checked;
+
+        if (!topic) {
+          statusEl.textContent = "Please enter a topic.";
+          return;
+        }
+
+        statusEl.textContent = "Asking ChatGPT...";
+        
+        // Build natural language prompt for ChatGPT
+        let prompt = `Use AlgoTutor Learn Mode to explain ${topic} with ${difficulty} difficulty and ${depth} depth.`;
+        prompt += ` Use ${exampleSize} example size.`;
+        if (showEdgeCases) prompt += ` Show edge cases.`;
+        if (showDryRun) prompt += ` Include dry-run table.`;
+        if (showPaperVersion) prompt += ` Include paper version.`;
+
+        try {
+          await sendFollowUp(prompt);
+          statusEl.textContent = "✅ Request sent to ChatGPT!";
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "Error: " + err.message;
+        }
+      });
+
+      modeForms.build.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const statusEl = document.querySelector("#build-status");
+
+        const problem = document.querySelector("#build-problem").value.trim();
+        const language = document.querySelector("#build-language").value;
+        const allowRecursion = document.querySelector("#build-recursion").checked;
+        const skeletonOnly = document.querySelector("#build-skeleton").checked;
+        const includeDryRun = document.querySelector("#build-dry-run").checked;
+        const minimalCode = document.querySelector("#build-minimal-code").checked;
+
+        if (!problem) {
+          statusEl.textContent = "Please enter a problem.";
+          return;
+        }
+
+        statusEl.textContent = "Asking ChatGPT...";
+        
+        // Build natural language prompt for ChatGPT
+        let prompt = `Use AlgoTutor Build Mode to solve this problem in ${language}: ${problem}.`;
+        if (minimalCode) prompt += ` Use minimal code.`;
+        if (allowRecursion) prompt += ` Recursion is allowed.`;
+        if (skeletonOnly) prompt += ` Show skeleton only.`;
+        if (includeDryRun) prompt += ` Include dry-run.`;
+
+        try {
+          await sendFollowUp(prompt);
+          statusEl.textContent = "✅ Request sent to ChatGPT!";
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "Error: " + err.message;
+        }
+      });
+
+      modeForms.debug.addEventListener("submit", async (e) => {
+        e.preventDefault();
+        const statusEl = document.querySelector("#debug-status");
+
+        const code = document.querySelector("#debug-code").value.trim();
+        const problemDescription = document.querySelector("#debug-problem").value.trim();
+        const language = document.querySelector("#debug-language").value;
+        const generateTests = document.querySelector("#debug-show-tests").checked;
+        const showEdgeWarnings = document.querySelector("#debug-edge-warnings").checked;
+
+        if (!code) {
+          statusEl.textContent = "Please paste your code.";
+          return;
+        }
+
+        statusEl.textContent = "Asking ChatGPT...";
+        
+        // Build natural language prompt for ChatGPT
+        let prompt = `Use AlgoTutor Debug Mode to debug this ${language} code`;
+        if (problemDescription) {
+          prompt += ` for the following problem: ${problemDescription}`;
+        }
+        prompt += `.\n\nCode:\n\`\`\`${language}\n${code}\n\`\`\``;
+        if (generateTests) prompt += `\nGenerate test cases.`;
+        if (showEdgeWarnings) prompt += ` Show edge case warnings.`;
+
+        try {
+          await sendFollowUp(prompt);
+          statusEl.textContent = "✅ Request sent to ChatGPT!";
+        } catch (err) {
+          console.error(err);
+          statusEl.textContent = "Error: " + err.message;
+        }
+      });
+
+      // Listen for state updates from ChatGPT
+      window.addEventListener("openai:set_globals", (ev) => {
+        console.log("[Widget] openai:set_globals event received");
+        console.log("[Widget] Event detail:", JSON.stringify(ev.detail, null, 2));
+        const detail = ev.detail || {};
+        const g = detail.globals || detail.state || detail;
+        console.log("[Widget] Extracted globals:", JSON.stringify(g, null, 2));
+        if (g?.toolOutput) {
+          console.log("[Widget] toolOutput found:", JSON.stringify(g.toolOutput, null, 2));
+          currentState = g.toolOutput;
+          if (currentState.outputs) {
+            console.log("[Widget] Rendering outputs:", JSON.stringify(currentState.outputs, null, 2));
+            renderOutputs(currentState.outputs);
+          } else {
+            console.warn("[Widget] No outputs in toolOutput");
+          }
+        } else {
+          console.warn("[Widget] No toolOutput in globals");
+        }
+      });
+
+      window.addEventListener("openai:state_updated", (ev) => {
+        console.log("[Widget] openai:state_updated event received");
+        console.log("[Widget] Event detail:", JSON.stringify(ev.detail, null, 2));
+        const s = ev.detail?.state;
+        if (!s) {
+          console.warn("[Widget] No state in event detail");
+          return;
+        }
+        const maybe = s.toolOutput || s;
+        console.log("[Widget] Extracted state:", JSON.stringify(maybe, null, 2));
+        if (maybe?.outputs) {
+          console.log("[Widget] Rendering outputs from state_updated:", JSON.stringify(maybe.outputs, null, 2));
+          currentState = maybe;
+          renderOutputs(maybe.outputs);
+        } else {
+          console.warn("[Widget] No outputs in state");
+        }
+      });
+
+      // Initial render
+      if (currentState.outputs) {
+        renderOutputs(currentState.outputs);
+      }
+    </script>
+  </body>
+</html>
+

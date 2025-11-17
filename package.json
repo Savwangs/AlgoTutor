@@ -1,15 +1,33 @@
 {
-    "name": "cs61a-mentor-app",
-    "version": "0.1.0",
-    "type": "module",
-    "description": "CS61A Mentor+ – an Apps SDK app for environment diagrams, recursion traces, and explanations.",
-    "main": "server.js",
-    "scripts": {
-      "start": "node server.js"
-    },
-    "dependencies": {
-      "@modelcontextprotocol/sdk": "^1.0.0",
-      "zod": "^3.23.8"
-    }
-  }
+  "name": "algo-tutor",
+  "version": "1.0.0",
+  "type": "module",
+  "description": "AlgoTutor – A ChatGPT App for learning Data Structures & Algorithms in small steps with minimal code, dry-runs, and clear explanations.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "test": "node test-server.js",
+    "dev": "node --watch server.js"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.0.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "node-fetch": "^3.3.2"
+  },
+  "keywords": [
+    "chatgpt",
+    "gpt",
+    "openai",
+    "mcp",
+    "algorithms",
+    "data-structures",
+    "learning",
+    "education",
+    "dsa"
+  ],
+  "author": "Your Name",
+  "license": "MIT"
+}
   

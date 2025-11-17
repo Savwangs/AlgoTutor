@@ -1,0 +1,31 @@
+{
+  "toolName": "build_mode",
+  "description": "Example request for building Two Sum solution",
+  "input": {
+    "problem": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.",
+    "language": "python",
+    "allowRecursion": false,
+    "skeletonOnly": false,
+    "includeDryRun": true,
+    "minimalCode": true
+  },
+  "expectedOutput": {
+    "pattern": "Hash Map / Dictionary pattern. Store complements while iterating.",
+    "stepByStep": "Step 1: Create empty dictionary to store seen numbers\nStep 2: Loop through array with index and value\nStep 3: Calculate complement = target - current number\nStep 4: Check if complement exists in dictionary\nStep 5: If yes, return [dict[complement], current index]\nStep 6: If no, store current number with its index\nStep 7: Continue to next element",
+    "code": "def two_sum(nums, target):\n    seen = {}\n    \n    for i in range(len(nums)):\n        complement = target - nums[i]\n        \n        if complement in seen:\n            return [seen[complement], i]\n        \n        seen[nums[i]] = i\n    \n    return []",
+    "dryRunTable": [
+      { "step": "1", "i": "0", "nums[i]": "2", "complement": "7", "seen": "{}", "action": "add 2→0" },
+      { "step": "2", "i": "1", "nums[i]": "7", "complement": "2", "seen": "{2:0}", "action": "found! return [0,1]" }
+    ],
+    "paperVersion": [
+      "Create hash map",
+      "For each number, calculate complement",
+      "Check if complement exists",
+      "If yes → return indices",
+      "If no → store current number"
+    ],
+    "complexity": "Time: O(n) - single pass through array\nSpace: O(n) - hash map stores up to n elements"
+  },
+  "chatResponse": "Two Sum solution is ready! The AlgoTutor panel shows the hash map approach with minimal code, step-by-step logic, and a dry-run."
+}
+

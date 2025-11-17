@@ -1,0 +1,39 @@
+{
+  "toolName": "learn_mode",
+  "description": "Example request for learning binary search",
+  "input": {
+    "topic": "binary search",
+    "difficulty": "normal",
+    "depth": "normal",
+    "exampleSize": "small",
+    "showEdgeCases": true,
+    "showDryRun": true,
+    "showPaperVersion": true
+  },
+  "expectedOutput": {
+    "pattern": "This is a divide-and-conquer search algorithm that works on sorted arrays.",
+    "stepByStep": "1. Start with low=0, high=length-1\n2. Calculate mid = (low+high)//2\n3. Compare arr[mid] with target\n4. If equal, return mid\n5. If arr[mid] < target, search right half (low = mid+1)\n6. If arr[mid] > target, search left half (high = mid-1)\n7. Repeat until found or low > high",
+    "code": "def binary_search(arr, target):\n    low = 0\n    high = len(arr) - 1\n    \n    while low <= high:\n        mid = (low + high) // 2\n        \n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    \n    return -1",
+    "dryRunTable": [
+      { "step": "1", "low": "0", "high": "6", "mid": "3", "arr[mid]": "8", "action": "move left" },
+      { "step": "2", "low": "0", "high": "2", "mid": "1", "arr[mid]": "4", "action": "move right" },
+      { "step": "3", "low": "2", "high": "2", "mid": "2", "arr[mid]": "6", "action": "found!" }
+    ],
+    "paperVersion": [
+      "Write initial bounds: low=0, high=n-1",
+      "Calculate mid point",
+      "Compare mid with target",
+      "Move pointer left or right",
+      "Return index or -1"
+    ],
+    "edgeCases": [
+      "Empty array → return -1",
+      "Single element → check if it matches",
+      "Target not in array → return -1",
+      "Target is first element → return 0",
+      "Target is last element → return n-1"
+    ]
+  },
+  "chatResponse": "Binary search explanation is ready! Check the AlgoTutor panel for the complete breakdown with code, dry-run, and edge cases."
+}
+
