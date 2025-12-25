@@ -8,7 +8,19 @@ const MODEL = 'gpt-4o-mini'; // Cheapest GPT-4 model (~$0.00015/1K input tokens)
 
 // Helper function to call OpenAI
 async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
+  console.log('\n' + '='.repeat(80));
+  console.log('[LLM] CALLING OPENAI API');
+  console.log('='.repeat(80));
+  console.log('[LLM] Model:', MODEL);
+  console.log('[LLM] Max tokens:', maxTokens);
+  console.log('[LLM] System prompt length:', systemPrompt.length, 'chars');
+  console.log('[LLM] User prompt length:', userPrompt.length, 'chars');
+  console.log('[LLM] User prompt preview:', userPrompt.substring(0, 150) + '...');
+  
   try {
+    const startTime = Date.now();
+    console.log('[LLM] Sending request to OpenAI...');
+    
     const completion = await openai.chat.completions.create({
       model: MODEL,
       max_tokens: maxTokens,
@@ -19,20 +31,39 @@ async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
       ],
     });
     
+    const duration = Date.now() - startTime;
+    console.log('[LLM] ✓ Response received in', duration, 'ms');
+    console.log('[LLM] Tokens used:', {
+      prompt: completion.usage?.prompt_tokens,
+      completion: completion.usage?.completion_tokens,
+      total: completion.usage?.total_tokens
+    });
+    
     let content = completion.choices[0].message.content;
+    console.log('[LLM] Response length:', content.length, 'chars');
+    console.log('[LLM] Response preview:', content.substring(0, 200) + '...');
     
     // Strip markdown code blocks if present (```json ... ``` or ``` ... ```)
     content = content.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
     
+    console.log('[LLM] ✓ Response cleaned and ready');
+    console.log('='.repeat(80) + '\n');
+    
     return content;
   } catch (error) {
-    console.error('[OpenAI API] Error:', error);
+    console.error('[LLM] ❌ ERROR calling OpenAI API');
+    console.error('[LLM] Error type:', error.constructor.name);
+    console.error('[LLM] Error message:', error.message);
+    console.error('[LLM] Error details:', error);
     throw new Error(`OpenAI API failed: ${error.message}`);
   }
 }
 
 // Generate Learn Mode content
 export async function generateLearnContent(args) {
+  console.log('[generateLearnContent] Starting content generation for:', args.topic);
+  console.log('[generateLearnContent] Args:', JSON.stringify(args, null, 2));
+  
   const systemPrompt = `You are AlgoTutor, an expert CS educator. Generate clear, educational content about data structures and algorithms. You must respond with valid JSON only.`;
   
   const userPrompt = `Generate educational content for: ${args.topic}
@@ -52,13 +83,21 @@ Return ONLY valid JSON.`;
 
   try {
     const response = await callOpenAI(systemPrompt, userPrompt);
-    console.log('[generateLearnContent] Raw response:', response.substring(0, 200) + '...');
-    return JSON.parse(response);
+    console.log('[generateLearnContent] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateLearnContent] ✓ Successfully parsed JSON response');
+    console.log('[generateLearnContent] Response keys:', Object.keys(parsed));
+    
+    return parsed;
   } catch (error) {
-    console.error('[generateLearnContent] Failed:', error);
+    console.error('[generateLearnContent] ❌ Failed:', error);
     if (error instanceof SyntaxError) {
       console.error('[generateLearnContent] Invalid JSON returned by API');
+      console.error('[generateLearnContent] Raw response that failed to parse:', error.message);
     }
+    
+    // Return error fallback
     return {
       pattern: "Error generating content. Please try again.",
       stepByStep: "Content generation failed.",

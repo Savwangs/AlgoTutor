@@ -6,76 +6,76 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { generateLearnContent, generateBuildSolution, generateDebugAnalysis } from './llm.js';
+import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
+
+//
+// 0. Debug Logging Helpers
+//
+const DEBUG = true; // Set to false to disable verbose logging
+
+function logSection(title) {
+  if (!DEBUG) return;
+  console.log('\n' + '='.repeat(80));
+  console.log(`  ${title}`);
+  console.log('='.repeat(80));
+}
+
+function logInfo(label, value) {
+  if (!DEBUG) return;
+  if (typeof value === 'object') {
+    console.log(`[INFO] ${label}:`, JSON.stringify(value, null, 2));
+  } else {
+    console.log(`[INFO] ${label}:`, value);
+  }
+}
+
+function logError(label, error) {
+  console.error(`[ERROR] ${label}:`, error);
+}
+
+function logSuccess(message) {
+  if (!DEBUG) return;
+  console.log(`[SUCCESS] ✓ ${message}`);
+}
 
 //
 // 1. Load widget HTML
 //
 const algoTutorHtml = readFileSync("public/algo-tutor.html", "utf8");
+console.log('[STARTUP] Widget HTML loaded successfully');
 
 //
 // 2. Zod schemas for tool inputs
 //
 
-// Learn Mode Schema
+// Learn Mode Schema - ONLY INPUT FIELDS
 const learnModeInputSchema = z.object({
-  // User inputs
   topic: z.string().min(1).describe("DSA topic to learn (e.g., BFS, heaps, linked lists, dynamic programming)"),
-  difficulty: z.enum(["basic", "normal", "dumb-it-down"]).describe("Difficulty level"),
-  depth: z.enum(["tiny", "normal", "full"]).describe("Explanation depth: tiny (5 steps), normal, or full walkthrough"),
-  exampleSize: z.enum(["small", "medium"]).describe("Size of example to use"),
-  showEdgeCases: z.boolean().describe("Whether to include edge cases"),
-  showDryRun: z.boolean().describe("Whether to include dry-run table"),
-  showPaperVersion: z.boolean().describe("Whether to include paper version summary"),
-  // Generated content (ChatGPT provides these)
-  pattern: z.string().optional().describe("Algorithm pattern identification"),
-  stepByStep: z.string().optional().describe("Numbered step-by-step explanation"),
-  code: z.string().optional().describe("Working code implementation"),
-  dryRunTable: z.array(z.object({
-    step: z.string(),
-    variable: z.string().optional(),
-    value: z.string().optional(),
-    action: z.string()
-  })).optional().describe("Step-by-step execution table"),
-  paperVersion: z.array(z.string()).optional().describe("Interview tips for paper/whiteboard"),
-  edgeCases: z.array(z.string()).optional().describe("Edge cases to consider"),
+  difficulty: z.enum(["basic", "normal", "dumb-it-down"]).default("normal").describe("Difficulty level"),
+  depth: z.enum(["tiny", "normal", "full"]).default("normal").describe("Explanation depth: tiny (5 steps), normal, or full walkthrough"),
+  exampleSize: z.enum(["small", "medium"]).default("small").describe("Size of example to use"),
+  showEdgeCases: z.boolean().default(true).describe("Whether to include edge cases"),
+  showDryRun: z.boolean().default(true).describe("Whether to include dry-run table"),
+  showPaperVersion: z.boolean().default(true).describe("Whether to include paper version summary"),
 });
 
-// Build Mode Schema
+// Build Mode Schema - ONLY INPUT FIELDS
 const buildModeInputSchema = z.object({
-  // User inputs
   problem: z.string().min(1).describe("The coding problem description"),
-  language: z.enum(["python", "java", "cpp"]).describe("Programming language"),
-  allowRecursion: z.boolean().describe("Whether recursion is allowed"),
-  skeletonOnly: z.boolean().describe("Whether to show skeleton only (no full solution)"),
-  includeDryRun: z.boolean().describe("Whether to include dry-run demonstration"),
-  minimalCode: z.boolean().describe("Whether to use minimal code style"),
-  // Generated content (ChatGPT provides these)
-  pattern: z.string().optional().describe("Problem pattern identification"),
-  stepByStep: z.string().optional().describe("Step-by-step solution logic"),
-  code: z.string().optional().describe("Full working solution code"),
-  dryRunTable: z.array(z.object({
-    step: z.string(),
-    state: z.string().optional(),
-    action: z.string()
-  })).optional().describe("Dry-run execution table"),
-  paperVersion: z.array(z.string()).optional().describe("Interview approach steps"),
-  complexity: z.string().optional().describe("Time/space complexity analysis"),
+  language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
+  allowRecursion: z.boolean().default(true).describe("Whether recursion is allowed"),
+  skeletonOnly: z.boolean().default(false).describe("Whether to show skeleton only (no full solution)"),
+  includeDryRun: z.boolean().default(true).describe("Whether to include dry-run demonstration"),
+  minimalCode: z.boolean().default(true).describe("Whether to use minimal code style"),
 });
 
-// Debug Mode Schema
+// Debug Mode Schema - ONLY INPUT FIELDS
 const debugModeInputSchema = z.object({
-  // User inputs
   code: z.string().min(1).describe("The code snippet to debug"),
   problemDescription: z.string().optional().describe("Optional description of what the code should do"),
-  language: z.enum(["python", "java", "cpp"]).describe("Programming language"),
-  generateTests: z.boolean().describe("Whether to generate test cases"),
-  showEdgeWarnings: z.boolean().describe("Whether to show edge case warnings"),
-  // Generated content (ChatGPT provides these)
-  bugDiagnosis: z.string().optional().describe("Bug analysis and explanation"),
-  beforeCode: z.string().optional().describe("Original buggy code"),
-  afterCode: z.string().optional().describe("Fixed code"),
-  testCases: z.array(z.string()).optional().describe("Test cases to verify the fix"),
-  edgeCases: z.array(z.string()).optional().describe("Edge case warnings"),
+  language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
+  generateTests: z.boolean().default(true).describe("Whether to generate test cases"),
+  showEdgeWarnings: z.boolean().default(true).describe("Whether to show edge case warnings"),
 });
 
 //
@@ -145,20 +145,87 @@ function createAlgoTutorServer() {
       },
       annotations: { readOnlyHint: true },
     },
-    async (args) => {
-      const id = `session-${nextId++}`;
-      const session = { id, mode: "learn", timestamp: new Date().toISOString(), input: args };
-      sessions.push(session);
+    async (args, { req }) => {
+      logSection('LEARN MODE TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      logInfo('Request method', req.method);
+      logInfo('Request URL', req.url);
       
-      console.log("[learn_mode] Session created:", id);
-      console.log("[learn_mode] Received args:", JSON.stringify(args, null, 2));
-      
-      // Generate content with Claude
-      const outputs = await generateLearnContent(args);
-      
-      console.log("[learn_mode] Generated outputs:", JSON.stringify(outputs, null, 2));
-      
-      return makeToolOutput("learn", outputs, "");
+      try {
+        // Authenticate and authorize user
+        logInfo('Starting authentication', 'learn mode');
+        const authResult = await authenticateRequest(req, 'learn');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication failed', authResult.error);
+          const errorResponse = {
+            state: "update",
+            content: [{
+              type: "text",
+              text: `❌ ${authResult.error.message}`
+            }],
+            toolOutput: {
+              error: authResult.error,
+              mode: "learn"
+            }
+          };
+          logInfo('Returning error response', errorResponse);
+          return errorResponse;
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}, tier: ${user.subscription_tier}`);
+        
+        const id = `session-${nextId++}`;
+        const session = { id, mode: "learn", timestamp: new Date().toISOString(), input: args, userId: user.id };
+        sessions.push(session);
+        
+        console.log(`[learn_mode] Session created: ${id} for user: ${user.email}`);
+        logInfo("Session ID", id);
+        
+        // Generate content with Claude
+        logSection('CALLING LLM TO GENERATE CONTENT');
+        logInfo('Topic to explain', args.topic);
+        const outputs = await generateLearnContent(args);
+        logSuccess('LLM content generated');
+        logInfo('Generated outputs structure', {
+          hasPattern: !!outputs.pattern,
+          hasStepByStep: !!outputs.stepByStep,
+          hasCode: !!outputs.code,
+          hasDryRunTable: !!outputs.dryRunTable,
+          hasEdgeCases: !!outputs.edgeCases,
+          hasPaperVersion: !!outputs.paperVersion
+        });
+        
+        // Log usage
+        logInfo('Logging usage to Supabase', { userId: user.id, mode: 'learn', topic: args.topic });
+        await logUsage(user, 'learn', args.topic);
+        logSuccess('Usage logged successfully');
+        
+        // Add usage info to response if auth is enabled
+        let message = "";
+        if (isAuthEnabled() && authResult.usageRemaining !== null) {
+          message = `✅ (${authResult.usageRemaining} uses remaining today)`;
+          logInfo('Usage remaining', authResult.usageRemaining);
+        }
+        
+        const finalResponse = makeToolOutput("learn", outputs, message);
+        logSection('FINAL RESPONSE TO CHATGPT');
+        logInfo('Response structure', {
+          state: finalResponse.state,
+          hasContent: !!finalResponse.content,
+          hasToolOutput: !!finalResponse.toolOutput,
+          toolOutputKeys: finalResponse.toolOutput ? Object.keys(finalResponse.toolOutput) : []
+        });
+        logInfo('Complete response', finalResponse);
+        
+        return finalResponse;
+      } catch (error) {
+        logError('LEARN MODE ERROR', error);
+        logError('Error stack', error.stack);
+        throw error;
+      }
     }
   );
 
@@ -180,20 +247,62 @@ function createAlgoTutorServer() {
       },
       annotations: { readOnlyHint: true },
     },
-    async (args) => {
-      const id = `session-${nextId++}`;
-      const session = { id, mode: "build", timestamp: new Date().toISOString(), input: args };
-      sessions.push(session);
+    async (args, { req }) => {
+      logSection('BUILD MODE TOOL CALLED');
+      logInfo('Tool arguments received', args);
       
-      console.log("[build_mode] Session created:", id);
-      console.log("[build_mode] Received args:", JSON.stringify(args, null, 2));
-      
-      // Generate solution with Claude
-      const outputs = await generateBuildSolution(args);
-      
-      console.log("[build_mode] Generated outputs:", JSON.stringify(outputs, null, 2));
-      
-      return makeToolOutput("build", outputs, "");
+      try {
+        // Authenticate and authorize user
+        const authResult = await authenticateRequest(req, 'build');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication/Authorization failed', authResult.error);
+          return {
+            state: "update",
+            content: [{
+              type: "text",
+              text: `❌ ${authResult.error.message}`
+            }],
+            toolOutput: {
+              error: authResult.error,
+              mode: "build"
+            }
+          };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authorized for build mode: ${user.email}`);
+        
+        const id = `session-${nextId++}`;
+        const session = { id, mode: "build", timestamp: new Date().toISOString(), input: args, userId: user.id };
+        sessions.push(session);
+        
+        console.log(`[build_mode] Session created: ${id} for user: ${user.email}`);
+        
+        // Generate solution with Claude
+        logSection('CALLING LLM TO GENERATE SOLUTION');
+        const outputs = await generateBuildSolution(args);
+        logSuccess('Solution generated');
+        
+        // Log usage
+        await logUsage(user, 'build', args.problem);
+        logSuccess('Usage logged');
+        
+        // Add usage info to response if auth is enabled
+        let message = "";
+        if (isAuthEnabled() && authResult.usageRemaining !== null) {
+          message = `✅ (${authResult.usageRemaining} uses remaining today)`;
+        }
+        
+        const finalResponse = makeToolOutput("build", outputs, message);
+        logInfo('Build mode response', finalResponse);
+        
+        return finalResponse;
+      } catch (error) {
+        logError('BUILD MODE ERROR', error);
+        throw error;
+      }
     }
   );
 
@@ -215,20 +324,62 @@ function createAlgoTutorServer() {
       },
       annotations: { readOnlyHint: true },
     },
-    async (args) => {
-      const id = `session-${nextId++}`;
-      const session = { id, mode: "debug", timestamp: new Date().toISOString(), input: args };
-      sessions.push(session);
+    async (args, { req }) => {
+      logSection('DEBUG MODE TOOL CALLED');
+      logInfo('Tool arguments received', args);
       
-      console.log("[debug_mode] Session created:", id);
-      console.log("[debug_mode] Received args:", JSON.stringify(args, null, 2));
-      
-      // Generate debug analysis with Claude
-      const outputs = await generateDebugAnalysis(args);
-      
-      console.log("[debug_mode] Generated outputs:", JSON.stringify(outputs, null, 2));
-      
-      return makeToolOutput("debug", outputs, "");
+      try {
+        // Authenticate and authorize user
+        const authResult = await authenticateRequest(req, 'debug');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication/Authorization failed', authResult.error);
+          return {
+            state: "update",
+            content: [{
+              type: "text",
+              text: `❌ ${authResult.error.message}`
+            }],
+            toolOutput: {
+              error: authResult.error,
+              mode: "debug"
+            }
+          };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authorized for debug mode: ${user.email}`);
+        
+        const id = `session-${nextId++}`;
+        const session = { id, mode: "debug", timestamp: new Date().toISOString(), input: args, userId: user.id };
+        sessions.push(session);
+        
+        console.log(`[debug_mode] Session created: ${id} for user: ${user.email}`);
+        
+        // Generate debug analysis with Claude
+        logSection('CALLING LLM TO DEBUG CODE');
+        const outputs = await generateDebugAnalysis(args);
+        logSuccess('Debug analysis generated');
+        
+        // Log usage
+        await logUsage(user, 'debug', 'code_debug');
+        logSuccess('Usage logged');
+        
+        // Add usage info to response if auth is enabled
+        let message = "";
+        if (isAuthEnabled() && authResult.usageRemaining !== null) {
+          message = `✅ (${authResult.usageRemaining} uses remaining today)`;
+        }
+        
+        const finalResponse = makeToolOutput("debug", outputs, message);
+        logInfo('Debug mode response', finalResponse);
+        
+        return finalResponse;
+      } catch (error) {
+        logError('DEBUG MODE ERROR', error);
+        throw error;
+      }
     }
   );
 
