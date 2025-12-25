@@ -2,11 +2,17 @@
 import 'dotenv/config';
 import { createServer } from "node:http";
 import { readFileSync } from "node:fs";
+import { fileURLToPath } from "node:url";
+import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
 import { generateLearnContent, generateBuildSolution, generateDebugAnalysis } from './llm.js';
 import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
+
+// ES Module __dirname equivalent
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 
 //
 // 0. Debug Logging Helpers
@@ -147,7 +153,7 @@ function createAlgoTutorServer() {
         "Explains any DSA topic in small, clear steps with minimal code, examples, and dry-runs. Perfect for learning algorithms from scratch.",
       inputSchema: learnModeInputSchema,
       _meta: {
-        "openai/outputTemplate": "/algo-tutor.html",
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Preparing your lesson...",
         "openai/toolInvocation/invoked": "Lesson ready! Check the AlgoTutor panel.",
         "openai/instruction": "Use this tool to explain a DSA topic. The server will generate educational content about the requested topic.",
@@ -259,7 +265,7 @@ function createAlgoTutorServer() {
         "Builds a complete solution for a coding problem with step-by-step logic, minimal code, dry-run, and complexity analysis.",
       inputSchema: buildModeInputSchema,
       _meta: {
-        "openai/outputTemplate": "/algo-tutor.html",
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Building your solution...",
         "openai/toolInvocation/invoked": "Solution ready! Check the AlgoTutor panel.",
         "openai/instruction": "Use this tool to build a solution for a coding problem. The server will generate a complete solution with step-by-step logic and complexity analysis.",
@@ -340,7 +346,7 @@ function createAlgoTutorServer() {
         "Diagnoses bugs in code line-by-line, classifies the error type, shows before/after code, and generates test cases.",
       inputSchema: debugModeInputSchema,
       _meta: {
-        "openai/outputTemplate": "/algo-tutor.html",
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Analyzing your code...",
         "openai/toolInvocation/invoked": "Debug complete! Check the AlgoTutor panel.",
         "openai/instruction": "Use this tool to debug code and find errors. The server will analyze the code, identify bugs, and provide fixed versions.",
@@ -420,7 +426,7 @@ function createAlgoTutorServer() {
       description: "Returns recent AlgoTutor sessions for reference.",
       inputSchema: z.object({}),
       _meta: {
-        "openai/outputTemplate": "/algo-tutor.html",
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Loading sessions...",
         "openai/toolInvocation/invoked": "Sessions loaded.",
       },
@@ -536,16 +542,11 @@ const httpServer = createServer(async (req, res) => {
   // Serve widget HTML file
   if (req.method === "GET" && url.pathname === "/algo-tutor.html") {
     console.log('[HTTP] Serving widget HTML file');
-    const fs = require('fs');
-    const path = require('path');
-    const htmlPath = path.join(__dirname, 'public', 'algo-tutor.html');
+    const htmlPath = join(__dirname, 'public', 'algo-tutor.html');
+    console.log('[HTTP] Looking for file at:', htmlPath);
     
-    fs.readFile(htmlPath, (err, data) => {
-      if (err) {
-        console.log('[HTTP] ❌ Widget file not found:', err.message);
-        res.writeHead(404).end("Widget not found");
-        return;
-      }
+    try {
+      const data = readFileSync(htmlPath);
       res.writeHead(200, { 
         "Content-Type": "text/html",
         "Access-Control-Allow-Origin": "*",
@@ -553,7 +554,11 @@ const httpServer = createServer(async (req, res) => {
       });
       console.log('[HTTP] ✓ Widget HTML served successfully');
       res.end(data);
-    });
+    } catch (err) {
+      console.log('[HTTP] ❌ Widget file error:', err.message);
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("Widget not found: " + err.message);
+    }
     return;
   }
 
