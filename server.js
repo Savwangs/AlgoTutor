@@ -85,17 +85,26 @@ let sessions = [];
 let nextId = 1;
 
 //
-// Helper: shape ChatGPT expects for persistent widget state
+// Helper: Create MCP tool response
+// MCP SDK expects content array with text/resource items
 //
 function makeToolOutput(mode, outputs, message) {
+  // Create a structured output for the widget
+  const widgetData = {
+    mode,
+    outputs,
+    sessionId: `session-${nextId - 1}`,
+    message: message || null,
+  };
+  
+  // MCP SDK expects: { content: [{ type: "text", text: "..." }] }
   return {
-    state: "update",
-    content: message ? [{ type: "text", text: message }] : [],
-    toolOutput: {
-      mode,
-      outputs,
-      sessionId: `session-${nextId - 1}`,
-    },
+    content: [
+      {
+        type: "text",
+        text: JSON.stringify(widgetData, null, 2)
+      }
+    ]
   };
 }
 
@@ -138,23 +147,33 @@ function createAlgoTutorServer() {
         "Explains any DSA topic in small, clear steps with minimal code, examples, and dry-runs. Perfect for learning algorithms from scratch.",
       inputSchema: learnModeInputSchema,
       _meta: {
-        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/outputTemplate": "/algo-tutor.html",
         "openai/toolInvocation/invoking": "Preparing your lesson...",
         "openai/toolInvocation/invoked": "Lesson ready! Check the AlgoTutor panel.",
         "openai/instruction": "Use this tool to explain a DSA topic. The server will generate educational content about the requested topic.",
       },
       annotations: { readOnlyHint: true },
     },
-    async (args, { req }) => {
+    async (args, context) => {
       logSection('LEARN MODE TOOL CALLED');
+      console.log('[learn_mode] Raw arguments:', JSON.stringify(args, null, 2));
+      console.log('[learn_mode] Context received:', JSON.stringify(Object.keys(context || {})));
+      console.log('[learn_mode] Has requestInfo?', !!context?.requestInfo);
+      console.log('[learn_mode] Has headers?', !!context?.requestInfo?.headers);
+      
+      // Extract headers from MCP context
+      const headers = context?.requestInfo?.headers || {};
+      console.log('[learn_mode] Headers extracted:', JSON.stringify(headers, null, 2));
+      
+      // Create a mock req object for our auth system
+      const mockReq = { headers };
+      
       logInfo('Tool arguments received', args);
-      logInfo('Request method', req.method);
-      logInfo('Request URL', req.url);
       
       try {
         // Authenticate and authorize user
         logInfo('Starting authentication', 'learn mode');
-        const authResult = await authenticateRequest(req, 'learn');
+        const authResult = await authenticateRequest(mockReq, 'learn');
         logInfo('Authentication result', { success: authResult.success });
         
         if (!authResult.success) {
@@ -240,20 +259,24 @@ function createAlgoTutorServer() {
         "Builds a complete solution for a coding problem with step-by-step logic, minimal code, dry-run, and complexity analysis.",
       inputSchema: buildModeInputSchema,
       _meta: {
-        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/outputTemplate": "/algo-tutor.html",
         "openai/toolInvocation/invoking": "Building your solution...",
         "openai/toolInvocation/invoked": "Solution ready! Check the AlgoTutor panel.",
         "openai/instruction": "Use this tool to build a solution for a coding problem. The server will generate a complete solution with step-by-step logic and complexity analysis.",
       },
       annotations: { readOnlyHint: true },
     },
-    async (args, { req }) => {
+    async (args, context) => {
       logSection('BUILD MODE TOOL CALLED');
       logInfo('Tool arguments received', args);
       
+      // Extract headers from MCP context
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
       try {
         // Authenticate and authorize user
-        const authResult = await authenticateRequest(req, 'build');
+        const authResult = await authenticateRequest(mockReq, 'build');
         logInfo('Authentication result', { success: authResult.success });
         
         if (!authResult.success) {
@@ -317,20 +340,24 @@ function createAlgoTutorServer() {
         "Diagnoses bugs in code line-by-line, classifies the error type, shows before/after code, and generates test cases.",
       inputSchema: debugModeInputSchema,
       _meta: {
-        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/outputTemplate": "/algo-tutor.html",
         "openai/toolInvocation/invoking": "Analyzing your code...",
         "openai/toolInvocation/invoked": "Debug complete! Check the AlgoTutor panel.",
         "openai/instruction": "Use this tool to debug code and find errors. The server will analyze the code, identify bugs, and provide fixed versions.",
       },
       annotations: { readOnlyHint: true },
     },
-    async (args, { req }) => {
+    async (args, context) => {
       logSection('DEBUG MODE TOOL CALLED');
       logInfo('Tool arguments received', args);
       
+      // Extract headers from MCP context
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
       try {
         // Authenticate and authorize user
-        const authResult = await authenticateRequest(req, 'debug');
+        const authResult = await authenticateRequest(mockReq, 'debug');
         logInfo('Authentication result', { success: authResult.success });
         
         if (!authResult.success) {
@@ -393,7 +420,7 @@ function createAlgoTutorServer() {
       description: "Returns recent AlgoTutor sessions for reference.",
       inputSchema: z.object({}),
       _meta: {
-        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/outputTemplate": "/algo-tutor.html",
         "openai/toolInvocation/invoking": "Loading sessions...",
         "openai/toolInvocation/invoked": "Sessions loaded.",
       },
@@ -423,36 +450,53 @@ const port = Number(process.env.PORT ?? 8787);
 const MCP_PATH = "/mcp";
 
 const httpServer = createServer(async (req, res) => {
+  const requestStart = Date.now();
+  console.log('\n' + '█'.repeat(80));
+  console.log('🌐 HTTP REQUEST RECEIVED');
+  console.log('█'.repeat(80));
+  console.log('[HTTP] Method:', req.method);
+  console.log('[HTTP] URL:', req.url);
+  console.log('[HTTP] Headers:', JSON.stringify(req.headers, null, 2));
+  
   if (!req.url) {
+    console.log('[HTTP] ❌ Missing URL');
     res.writeHead(400).end("Missing URL");
     return;
   }
 
   const url = new URL(req.url, `http://${req.headers.host}`);
+  console.log('[HTTP] Parsed path:', url.pathname);
 
   // Preflight
   if (req.method === "OPTIONS" && url.pathname === MCP_PATH) {
+    console.log('[HTTP] Handling OPTIONS preflight');
     res.writeHead(204, {
       "Access-Control-Allow-Origin": "*",
       "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
       "Access-Control-Allow-Headers": "content-type, mcp-session-id",
       "Access-Control-Expose-Headers": "Mcp-Session-Id",
     });
+    console.log('[HTTP] ✓ OPTIONS 204 sent');
     return res.end();
   }
 
   // Health check
   if (req.method === "GET" && url.pathname === "/") {
+    console.log('[HTTP] Health check request');
     res.writeHead(200, { "content-type": "text/plain" });
+    console.log('[HTTP] ✓ Health check 200 OK');
     return res.end("AlgoTutor MCP Server - Learn DSA in small steps!");
   }
 
   // Handle MCP
   const MCP_METHODS = new Set(["POST", "GET", "DELETE"]);
   if (url.pathname === MCP_PATH && MCP_METHODS.has(req.method)) {
+    console.log('[HTTP] ✓ MCP endpoint matched');
+    console.log('[HTTP] Setting CORS headers...');
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Access-Control-Expose-Headers", "Mcp-Session-Id");
 
+    console.log('[HTTP] Creating MCP server instance...');
     const server = createAlgoTutorServer();
     const transport = new StreamableHTTPServerTransport({
       enableJsonResponse: true,
@@ -460,23 +504,62 @@ const httpServer = createServer(async (req, res) => {
     });
 
     res.on("close", () => {
+      console.log('[HTTP] Response closed');
       transport.close();
       server.close();
     });
 
     try {
+      console.log('[HTTP] Connecting MCP server to transport...');
       await server.connect(transport);
+      console.log('[HTTP] ✓ MCP server connected');
+      
+      console.log('[HTTP] Handling MCP request...');
       await transport.handleRequest(req, res);
+      
+      const duration = Date.now() - requestStart;
+      console.log('[HTTP] ✓ MCP request handled successfully');
+      console.log('[HTTP] Request duration:', duration, 'ms');
+      console.log('█'.repeat(80) + '\n');
     } catch (e) {
-      console.error("MCP handler error:", e);
+      console.error("[HTTP] ❌ MCP handler error:", e);
+      console.error("[HTTP] Error stack:", e.stack);
+      console.error("[HTTP] Error type:", e.constructor.name);
       if (!res.headersSent) {
         res.writeHead(500).end("Internal server error");
       }
+      console.log('█'.repeat(80) + '\n');
     }
     return;
   }
 
+  // Serve widget HTML file
+  if (req.method === "GET" && url.pathname === "/algo-tutor.html") {
+    console.log('[HTTP] Serving widget HTML file');
+    const fs = require('fs');
+    const path = require('path');
+    const htmlPath = path.join(__dirname, 'public', 'algo-tutor.html');
+    
+    fs.readFile(htmlPath, (err, data) => {
+      if (err) {
+        console.log('[HTTP] ❌ Widget file not found:', err.message);
+        res.writeHead(404).end("Widget not found");
+        return;
+      }
+      res.writeHead(200, { 
+        "Content-Type": "text/html",
+        "Access-Control-Allow-Origin": "*",
+        "Cache-Control": "no-cache, no-store, must-revalidate"
+      });
+      console.log('[HTTP] ✓ Widget HTML served successfully');
+      res.end(data);
+    });
+    return;
+  }
+
+  console.log('[HTTP] ❌ 404 Not Found - path:', url.pathname);
   res.writeHead(404).end("Not Found");
+  console.log('█'.repeat(80) + '\n');
 });
 
 httpServer.listen(port, () => {

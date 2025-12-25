@@ -633,6 +633,14 @@
     </main>
 
     <script type="module">
+      // DEBUGGING: Log everything available on window
+      console.log("============================================");
+      console.log("[Widget] INITIAL LOAD - Checking window object");
+      console.log("[Widget] window.openai:", window.openai);
+      console.log("[Widget] window.state:", window.state);
+      console.log("[Widget] Full window keys:", Object.keys(window).filter(k => k.includes('openai') || k.includes('state') || k.includes('widget')));
+      console.log("============================================");
+
       // State management
       let currentMode = "learn";
       let currentState = {
@@ -649,16 +657,47 @@
       };
       const outputContainer = document.querySelector("#output-container");
 
-      // Helper: Get state from ChatGPT
+      // Helper: Get state from ChatGPT - with extensive logging
       const getInitialState = () => {
+        console.log("[Widget] getInitialState() called");
+        
+        // Check all possible locations
+        console.log("[Widget] Checking window.openai:", window.openai);
+        console.log("[Widget] Checking window.openai?.globals:", window.openai?.globals);
+        console.log("[Widget] Checking window.openai?.state:", window.openai?.state);
+        console.log("[Widget] Checking window.openai?.widgetState:", window.openai?.widgetState);
+        console.log("[Widget] Checking window.openai?.initialState:", window.openai?.initialState);
+        
         const w = window.openai || {};
-        if (w.globals?.toolOutput) return w.globals.toolOutput;
-        if (w.state?.toolOutput) return w.state.toolOutput;
-        if (w.widgetState?.toolOutput) return w.widgetState.toolOutput;
+        
+        // Try all possible paths
+        if (w.globals?.toolOutput) {
+          console.log("[Widget] ✅ Found state in window.openai.globals.toolOutput");
+          return w.globals.toolOutput;
+        }
+        if (w.state?.toolOutput) {
+          console.log("[Widget] ✅ Found state in window.openai.state.toolOutput");
+          return w.state.toolOutput;
+        }
+        if (w.widgetState?.toolOutput) {
+          console.log("[Widget] ✅ Found state in window.openai.widgetState.toolOutput");
+          return w.widgetState.toolOutput;
+        }
+        if (w.initialState?.toolOutput) {
+          console.log("[Widget] ✅ Found state in window.openai.initialState.toolOutput");
+          return w.initialState.toolOutput;
+        }
+        if (w.toolOutput) {
+          console.log("[Widget] ✅ Found state in window.openai.toolOutput");
+          return w.toolOutput;
+        }
+        
+        console.warn("[Widget] ❌ No initial state found anywhere");
         return { mode: null, outputs: null };
       };
 
       currentState = getInitialState();
+      console.log("[Widget] Initial currentState:", JSON.stringify(currentState, null, 2));
 
       // Mode switching
       modeBtns.forEach((btn) => {
@@ -688,9 +727,15 @@
 
       // Render outputs
       const renderOutputs = (outputs) => {
+        console.log("[Widget] ==================== renderOutputs CALLED ====================");
+        console.log("[Widget] Outputs received:", JSON.stringify(outputs, null, 2));
+        console.log("[Widget] Outputs type:", typeof outputs);
+        console.log("[Widget] Outputs keys:", outputs ? Object.keys(outputs) : "null");
+        
         outputContainer.innerHTML = "";
 
         if (!outputs) {
+          console.warn("[Widget] No outputs provided - showing empty state");
           outputContainer.innerHTML =
             '<div class="output-empty">No outputs yet. Submit a query to see results.</div>';
           return;
@@ -698,6 +743,7 @@
 
         // Check if outputs is an empty object
         if (typeof outputs === 'object' && Object.keys(outputs).length === 0) {
+          console.warn("[Widget] Outputs is an empty object");
           outputContainer.innerHTML =
             '<div class="output-empty">⚠️ Received empty outputs. Please try again.</div>';
           return;
@@ -712,16 +758,18 @@
         });
 
         if (!hasContent) {
+          console.warn("[Widget] All output fields are empty:", outputs);
           outputContainer.innerHTML =
             '<div class="output-empty">⚠️ ChatGPT did not generate content. Please try again.<br><small style="color: #9ca3af; margin-top: 8px; display: block;">Tip: Make sure to describe what you want clearly.</small></div>';
-          console.warn("[Widget] All output fields are empty:", outputs);
           return;
         }
 
+        console.log("[Widget] ✅ Outputs has content, proceeding to render blocks");
         const blocks = [];
 
         // Pattern Detection
         if (outputs.pattern) {
+          console.log("[Widget] ✅ Found pattern:", outputs.pattern.substring(0, 100) + "...");
           blocks.push({
             title: "Pattern Detection",
             content: outputs.pattern,
@@ -731,6 +779,7 @@
 
         // Step-by-step reasoning
         if (outputs.stepByStep) {
+          console.log("[Widget] ✅ Found stepByStep:", outputs.stepByStep.substring(0, 100) + "...");
           blocks.push({
             title: "Step-by-Step Reasoning",
             content: outputs.stepByStep,
@@ -740,6 +789,7 @@
 
         // Code
         if (outputs.code) {
+          console.log("[Widget] ✅ Found code:", outputs.code.substring(0, 100) + "...");
           blocks.push({
             title: "Code Solution",
             content: outputs.code,
@@ -749,6 +799,7 @@
 
         // Dry-run table
         if (outputs.dryRunTable) {
+          console.log("[Widget] ✅ Found dryRunTable:", Array.isArray(outputs.dryRunTable) ? `${outputs.dryRunTable.length} rows` : "not an array");
           blocks.push({
             title: "Dry-Run Table",
             content: outputs.dryRunTable,
@@ -758,6 +809,7 @@
 
         // Paper version
         if (outputs.paperVersion) {
+          console.log("[Widget] ✅ Found paperVersion:", Array.isArray(outputs.paperVersion) ? `${outputs.paperVersion.length} items` : "not an array");
           blocks.push({
             title: "Paper Version",
             content: outputs.paperVersion,
@@ -767,6 +819,7 @@
 
         // Edge cases
         if (outputs.edgeCases) {
+          console.log("[Widget] ✅ Found edgeCases:", Array.isArray(outputs.edgeCases) ? `${outputs.edgeCases.length} items` : "not an array");
           blocks.push({
             title: "Edge Cases",
             content: outputs.edgeCases,
@@ -815,7 +868,18 @@
         }
 
         // Render blocks
-        blocks.forEach((block) => {
+        console.log("[Widget] Total blocks to render:", blocks.length);
+        console.log("[Widget] Block titles:", blocks.map(b => b.title));
+        
+        if (blocks.length === 0) {
+          console.warn("[Widget] No blocks to render - this shouldn't happen if hasContent was true!");
+          outputContainer.innerHTML =
+            '<div class="output-empty">⚠️ Could not extract displayable content from outputs.</div>';
+          return;
+        }
+        
+        blocks.forEach((block, idx) => {
+          console.log(`[Widget] Rendering block ${idx + 1}/${blocks.length}: ${block.title}`);
           const blockEl = document.createElement("div");
           blockEl.className = "output-block";
 
@@ -851,6 +915,9 @@
           blockEl.appendChild(contentEl);
           outputContainer.appendChild(blockEl);
         });
+        
+        console.log("[Widget] ✅✅✅ RENDERING COMPLETE - All blocks added to DOM");
+        console.log("[Widget] outputContainer has", outputContainer.children.length, "children");
       };
 
       const renderTable = (rows) => {
@@ -1001,6 +1068,56 @@
         }
       });
 
+      // Helper: Try to extract outputs from various formats
+      function extractOutputs(data) {
+        console.log("[Widget] extractOutputs called with:", typeof data, data);
+        
+        // If data is a string, try to parse it as JSON
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+            console.log("[Widget] Parsed JSON string:", data);
+          } catch (e) {
+            console.log("[Widget] Not valid JSON string");
+            return null;
+          }
+        }
+        
+        if (!data) return null;
+        
+        // Direct outputs object
+        if (data.outputs) {
+          console.log("[Widget] Found outputs directly");
+          return data.outputs;
+        }
+        
+        // If data itself looks like outputs (has pattern, stepByStep, etc.)
+        if (data.pattern || data.stepByStep || data.code) {
+          console.log("[Widget] Data looks like outputs itself");
+          return data;
+        }
+        
+        // toolOutput wrapper
+        if (data.toolOutput?.outputs) {
+          console.log("[Widget] Found outputs in toolOutput");
+          return data.toolOutput.outputs;
+        }
+        
+        // result wrapper
+        if (data.result?.outputs) {
+          console.log("[Widget] Found outputs in result");
+          return data.result.outputs;
+        }
+        
+        // Nested result.toolOutput
+        if (data.result?.toolOutput?.outputs) {
+          console.log("[Widget] Found outputs in result.toolOutput");
+          return data.result.toolOutput.outputs;
+        }
+        
+        return null;
+      }
+
       // Listen for state updates from ChatGPT
       window.addEventListener("openai:set_globals", (ev) => {
         console.log("[Widget] openai:set_globals event received");
@@ -1010,47 +1127,81 @@
         const g = detail.globals || detail.state || detail;
         console.log("[Widget] Extracted globals:", JSON.stringify(g, null, 2));
         
-        // Handle nested structure from tool responses
-        let toolOutput = g?.toolOutput;
+        // Try to extract outputs from various locations
+        let outputs = null;
         
-        // If toolOutput has a result wrapper, unwrap it
-        if (toolOutput?.result?.toolOutput) {
-          toolOutput = toolOutput.result.toolOutput;
-          console.log("[Widget] Unwrapped nested toolOutput:", JSON.stringify(toolOutput, null, 2));
+        // Try toolOutput first
+        outputs = extractOutputs(g?.toolOutput);
+        
+        // Try toolOutput.text (MCP format - JSON string)
+        if (!outputs && g?.toolOutput?.text) {
+          console.log("[Widget] Trying to parse toolOutput.text as JSON");
+          outputs = extractOutputs(g.toolOutput.text);
         }
         
-        if (toolOutput?.outputs) {
-          console.log("[Widget] Rendering outputs:", JSON.stringify(toolOutput.outputs, null, 2));
-          currentState = toolOutput;
-          renderOutputs(toolOutput.outputs);
+        // Try widget.props.text
+        if (!outputs && g?.widget?.props?.text) {
+          console.log("[Widget] Trying to parse widget.props.text as JSON");
+          outputs = extractOutputs(g.widget.props.text);
+        }
+        
+        // Try widgetState
+        if (!outputs) {
+          outputs = extractOutputs(g?.widgetState);
+        }
+        
+        if (outputs) {
+          console.log("[Widget] ✅ Found outputs, rendering:", JSON.stringify(outputs, null, 2));
+          currentState = { outputs };
+          renderOutputs(outputs);
         } else {
-          console.warn("[Widget] No outputs found in toolOutput");
+          console.warn("[Widget] ❌ No outputs found in any location");
         }
       });
 
       window.addEventListener("openai:state_updated", (ev) => {
         console.log("[Widget] openai:state_updated event received");
         console.log("[Widget] Event detail:", JSON.stringify(ev.detail, null, 2));
+        
         const s = ev.detail?.state;
         if (!s) {
           console.warn("[Widget] No state in event detail");
           return;
         }
-        const maybe = s.toolOutput || s;
-        console.log("[Widget] Extracted state:", JSON.stringify(maybe, null, 2));
-        if (maybe?.outputs) {
-          console.log("[Widget] Rendering outputs from state_updated:", JSON.stringify(maybe.outputs, null, 2));
-          currentState = maybe;
-          renderOutputs(maybe.outputs);
+        
+        // Try to extract outputs from various locations
+        let outputs = extractOutputs(s);
+        
+        if (!outputs) {
+          outputs = extractOutputs(s.toolOutput);
+        }
+        
+        if (!outputs && s.toolOutput?.text) {
+          outputs = extractOutputs(s.toolOutput.text);
+        }
+        
+        if (outputs) {
+          console.log("[Widget] ✅ Rendering outputs from state_updated:", JSON.stringify(outputs, null, 2));
+          currentState = { outputs };
+          renderOutputs(outputs);
         } else {
-          console.warn("[Widget] No outputs in state");
+          console.warn("[Widget] ❌ No outputs found in state");
         }
       });
 
       // Initial render
+      console.log("[Widget] ==================== INITIAL RENDER ====================");
+      console.log("[Widget] currentState:", JSON.stringify(currentState, null, 2));
+      console.log("[Widget] currentState.outputs exists?", !!currentState.outputs);
+      
       if (currentState.outputs) {
+        console.log("[Widget] 🎯 Calling renderOutputs with initial state");
         renderOutputs(currentState.outputs);
+      } else {
+        console.warn("[Widget] ⚠️ No initial outputs found - not calling renderOutputs");
       }
+      
+      console.log("[Widget] ==================== INITIALIZATION COMPLETE ====================");
     </script>
   </body>
 </html>

@@ -281,8 +281,15 @@ export function extractUserIdentifier(req) {
     }
   }
 
+  // Try OpenAI subject from meta (MCP specific)
+  const subject = req.headers['openai/subject'] || req.headers['openai-subject'];
+  if (subject) {
+    console.log(`[Auth] ✓ Found OpenAI subject:`, subject);
+    return subject;
+  }
+
   // Fallback: use IP address as identifier (not ideal, but works for testing)
-  const ip = req.headers['x-forwarded-for'] || req.socket.remoteAddress || 'unknown';
+  const ip = req.headers['x-forwarded-for'] || 'unknown';
   console.log(`[Auth] No user header found, using IP as fallback:`, ip);
   return `ip-${ip}`;
 }
