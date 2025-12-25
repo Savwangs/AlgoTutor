@@ -23,7 +23,7 @@ async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
     
     const completion = await openai.chat.completions.create({
       model: MODEL,
-      max_tokens: maxTokens,
+      max_completion_tokens: maxTokens,
       response_format: { type: "json_object" }, // Force JSON mode for valid output
       messages: [
         { role: 'system', content: systemPrompt },
