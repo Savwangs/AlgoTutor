@@ -134,6 +134,7 @@ function createAlgoTutorServer() {
     "ui://widget/algo-tutor.html",
     {
       _meta: {
+        "openai/widgetDomain": "algo-tutor.org",
         "openai/widgetCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.openai.com",
       }
     },
@@ -145,6 +146,7 @@ function createAlgoTutorServer() {
           text: algoTutorHtml,
           _meta: { 
             "openai/widgetPrefersBorder": true,
+            "openai/widgetDomain": "algo-tutor.org",
             "openai/widgetCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.openai.com",
           },
         },
