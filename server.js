@@ -497,12 +497,12 @@ const httpServer = createServer(async (req, res) => {
     return res.end();
   }
 
-  // Health check
-  if (req.method === "GET" && url.pathname === "/") {
+  // Health check (for Render/monitoring)
+  if (req.method === "GET" && url.pathname === "/health") {
     console.log('[HTTP] Health check request');
     res.writeHead(200, { "content-type": "text/plain" });
     console.log('[HTTP] ✓ Health check 200 OK');
-    return res.end("AlgoTutor MCP Server - Learn DSA in small steps!");
+    return res.end("AlgoTutor MCP Server - Healthy!");
   }
 
   // Handle MCP
