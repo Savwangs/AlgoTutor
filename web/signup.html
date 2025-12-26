@@ -302,9 +302,9 @@
   </div>
 
   <script>
-    // Initialize Supabase - Replace with your actual Supabase URL and anon key
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    // Initialize Supabase
+    const SUPABASE_URL = 'https://tlingzzbcnpekhztapmf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsaW5nenpiY25wZWtoenRhcG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NDc2MTAsImV4cCI6MjA4MjIyMzYxMH0.IkfAgRzwMLyZgMPq4HxKoegnuOkTuzJIF1LA1Ps2TXA';
     
     let supabase;
     if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
@@ -388,8 +388,8 @@
 
       try {
         const redirectUrl = plan === 'premium' 
-          ? window.location.origin + '/checkout.html'
-          : window.location.origin + '/dashboard.html';
+          ? 'https://algo-tutor.org/checkout.html'
+          : 'https://algo-tutor.org/dashboard.html';
 
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',

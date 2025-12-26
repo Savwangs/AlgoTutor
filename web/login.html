@@ -288,9 +288,9 @@
   </div>
 
   <script>
-    // Initialize Supabase - Replace with your actual Supabase URL and anon key
-    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
-    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    // Initialize Supabase
+    const SUPABASE_URL = 'https://tlingzzbcnpekhztapmf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsaW5nenpiY25wZWtoenRhcG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NDc2MTAsImV4cCI6MjA4MjIyMzYxMH0.IkfAgRzwMLyZgMPq4HxKoegnuOkTuzJIF1LA1Ps2TXA';
     
     let supabase;
     if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
@@ -353,7 +353,7 @@
         const { data, error } = await supabase.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: window.location.origin + '/dashboard.html'
+            redirectTo: 'https://algo-tutor.org/dashboard.html'
           }
         });
 
@@ -380,7 +380,7 @@
 
       try {
         const { error } = await supabase.auth.resetPasswordForEmail(email, {
-          redirectTo: window.location.origin + '/reset-password.html'
+          redirectTo: 'https://algo-tutor.org/reset-password.html'
         });
 
         if (error) throw error;
