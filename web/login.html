@@ -292,7 +292,7 @@
     const SUPABASE_URL = 'https://tlingzzbcnpekhztapmf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsaW5nenpiY25wZWtoenRhcG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NDc2MTAsImV4cCI6MjA4MjIyMzYxMH0.IkfAgRzwMLyZgMPq4HxKoegnuOkTuzJIF1LA1Ps2TXA';
     
-    const supabaseClientClient = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const messageEl = document.getElementById('message');
     const form = document.getElementById('login-form');

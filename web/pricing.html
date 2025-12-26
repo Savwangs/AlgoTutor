@@ -323,7 +323,7 @@
     // TODO: Replace with your Stripe price ID
     const STRIPE_PREMIUM_PRICE_ID = 'price_xxxxxxxxxxxxx';
     
-    const supabaseClientClient = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const premiumBtn = document.getElementById('premium-btn');
 
