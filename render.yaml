@@ -1,0 +1,22 @@
+# Render.com configuration for AlgoTutor MCP Server
+# https://render.com/docs/blueprint-spec
+
+services:
+  - type: web
+    name: algotutor
+    runtime: node
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: OPENAI_API_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: SUPABASE_URL
+        sync: false  # Set manually in Render dashboard
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false  # Set manually in Render dashboard
+      - key: REQUIRE_AUTH
+        value: "true"
+

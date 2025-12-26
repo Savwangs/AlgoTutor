@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AlgoTutor - Master DSA with AI-Powered Learning</title>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a1f2e;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.3);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #2d3748;
+      --success: #10b981;
+      --warning: #f59e0b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* Animated background */
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: -1;
+    }
+
+    .bg-glow {
+      position: fixed;
+      width: 600px;
+      height: 600px;
+      background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+      border-radius: 50%;
+      top: -200px;
+      right: -200px;
+      z-index: -1;
+      animation: pulse 8s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.5; transform: scale(1); }
+      50% { opacity: 0.8; transform: scale(1.1); }
+    }
+
+    /* Navigation */
+    nav {
+      position: fixed;
+      top: 0;
+      left: 0;
+      right: 0;
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      background: rgba(10, 14, 23, 0.8);
+      backdrop-filter: blur(12px);
+      border-bottom: 1px solid var(--border);
+      z-index: 100;
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .logo span {
+      color: var(--text-primary);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 2rem;
+      align-items: center;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-weight: 500;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .btn {
+      padding: 0.75rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+      font-size: 1rem;
+      font-family: inherit;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+      box-shadow: 0 0 20px var(--accent-glow);
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--bg-card);
+      border-color: var(--accent);
+    }
+
+    /* Hero Section */
+    .hero {
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      align-items: center;
+      text-align: center;
+      padding: 8rem 2rem 4rem;
+    }
+
+    .hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 0.5rem;
+      padding: 0.5rem 1rem;
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 50px;
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+
+    .hero-badge .dot {
+      width: 8px;
+      height: 8px;
+      background: var(--success);
+      border-radius: 50%;
+      animation: blink 2s ease-in-out infinite;
+    }
+
+    @keyframes blink {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+
+    h1 {
+      font-size: clamp(2.5rem, 6vw, 4.5rem);
+      font-weight: 700;
+      line-height: 1.1;
+      margin-bottom: 1.5rem;
+      max-width: 900px;
+    }
+
+    h1 .highlight {
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .hero p {
+      font-size: 1.25rem;
+      color: var(--text-secondary);
+      max-width: 600px;
+      margin-bottom: 2.5rem;
+      line-height: 1.7;
+    }
+
+    .hero-cta {
+      display: flex;
+      gap: 1rem;
+      flex-wrap: wrap;
+      justify-content: center;
+    }
+
+    /* Features Section */
+    .features {
+      padding: 6rem 2rem;
+      max-width: 1200px;
+      margin: 0 auto;
+    }
+
+    .section-title {
+      text-align: center;
+      font-size: 2.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .section-subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 1.125rem;
+      margin-bottom: 4rem;
+      max-width: 600px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .features-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(320px, 1fr));
+      gap: 2rem;
+    }
+
+    .feature-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2rem;
+      transition: all 0.3s;
+    }
+
+    .feature-card:hover {
+      border-color: var(--accent);
+      transform: translateY(-4px);
+      box-shadow: 0 20px 40px rgba(0, 0, 0, 0.3);
+    }
+
+    .feature-icon {
+      width: 48px;
+      height: 48px;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .feature-card h3 {
+      font-size: 1.25rem;
+      margin-bottom: 0.75rem;
+    }
+
+    .feature-card p {
+      color: var(--text-secondary);
+      line-height: 1.6;
+    }
+
+    /* Pricing Section */
+    .pricing {
+      padding: 6rem 2rem;
+      background: var(--bg-secondary);
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+      max-width: 900px;
+      margin: 0 auto;
+    }
+
+    .pricing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      position: relative;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--accent);
+      box-shadow: 0 0 40px var(--accent-glow);
+    }
+
+    .pricing-card.featured::before {
+      content: 'POPULAR';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: white;
+      padding: 0.25rem 1rem;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .pricing-card h3 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pricing-card .price {
+      font-size: 3rem;
+      font-weight: 700;
+      margin: 1.5rem 0;
+    }
+
+    .pricing-card .price span {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .pricing-card ul {
+      list-style: none;
+      margin: 2rem 0;
+    }
+
+    .pricing-card li {
+      padding: 0.75rem 0;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    .pricing-card li::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .pricing-card .btn {
+      width: 100%;
+      text-align: center;
+    }
+
+    /* Footer */
+    footer {
+      padding: 4rem 2rem;
+      text-align: center;
+      border-top: 1px solid var(--border);
+    }
+
+    footer p {
+      color: var(--text-secondary);
+    }
+
+    /* Code Preview */
+    .code-preview {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.875rem;
+      margin-top: 4rem;
+      max-width: 600px;
+      text-align: left;
+      overflow-x: auto;
+    }
+
+    .code-preview .comment {
+      color: #6b7280;
+    }
+
+    .code-preview .keyword {
+      color: #c084fc;
+    }
+
+    .code-preview .function {
+      color: #60a5fa;
+    }
+
+    .code-preview .string {
+      color: #34d399;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      nav {
+        padding: 1rem;
+      }
+
+      .nav-links {
+        display: none;
+      }
+
+      .hero {
+        padding: 6rem 1rem 3rem;
+      }
+
+      .features, .pricing {
+        padding: 4rem 1rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  <div class="bg-glow"></div>
+
+  <nav>
+    <div class="logo">
+      <span>🚀</span> Algo<span>Tutor</span>
+    </div>
+    <div class="nav-links">
+      <a href="#features">Features</a>
+      <a href="#pricing">Pricing</a>
+      <a href="/login.html">Sign In</a>
+      <a href="/signup.html" class="btn btn-primary">Get Started</a>
+    </div>
+  </nav>
+
+  <section class="hero">
+    <div class="hero-badge">
+      <span class="dot"></span>
+      Now available in ChatGPT
+    </div>
+    <h1>Master <span class="highlight">Data Structures & Algorithms</span> with AI</h1>
+    <p>Learn DSA concepts in small, digestible steps with minimal code, clear dry-runs, and instant feedback. Built for visual learners and interview prep.</p>
+    <div class="hero-cta">
+      <a href="/signup.html" class="btn btn-primary">Start Learning Free</a>
+      <a href="#features" class="btn btn-secondary">See How It Works</a>
+    </div>
+
+    <div class="code-preview">
+      <span class="comment">// Binary Search - Step by Step</span><br>
+      <span class="keyword">def</span> <span class="function">binary_search</span>(arr, target):<br>
+      &nbsp;&nbsp;left, right = <span class="string">0</span>, len(arr) - <span class="string">1</span><br>
+      &nbsp;&nbsp;<span class="keyword">while</span> left <= right:<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;mid = (left + right) // <span class="string">2</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">if</span> arr[mid] == target:<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="keyword">return</span> mid <span class="comment"># Found!</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;<span class="comment"># AlgoTutor: Visualize each step 📊</span>
+    </div>
+  </section>
+
+  <section class="features" id="features">
+    <h2 class="section-title">Three Powerful Learning Modes</h2>
+    <p class="section-subtitle">Whether you're learning new concepts, solving problems, or debugging code, AlgoTutor has you covered.</p>
+
+    <div class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon">📚</div>
+        <h3>Learn Mode</h3>
+        <p>Understand any DSA topic with step-by-step explanations, visual dry-runs, and minimal code examples. Perfect for building strong foundations.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🔨</div>
+        <h3>Build Mode</h3>
+        <p>Get complete solutions to coding problems with pattern recognition, complexity analysis, and detailed walkthroughs. Ace your interviews.</p>
+      </div>
+
+      <div class="feature-card">
+        <div class="feature-icon">🐛</div>
+        <h3>Debug Mode</h3>
+        <p>Paste your buggy code and get line-by-line analysis, error classification, and fixed versions with test cases. Never get stuck again.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="pricing" id="pricing">
+    <h2 class="section-title">Simple, Transparent Pricing</h2>
+    <p class="section-subtitle">Start free, upgrade when you need more.</p>
+
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <h3>Free</h3>
+        <div class="price">$0<span>/month</span></div>
+        <ul>
+          <li>10 requests per day</li>
+          <li>All three learning modes</li>
+          <li>Basic explanations</li>
+          <li>Community support</li>
+        </ul>
+        <a href="/signup.html" class="btn btn-secondary">Get Started</a>
+      </div>
+
+      <div class="pricing-card featured">
+        <h3>Premium</h3>
+        <div class="price">$9<span>/month</span></div>
+        <ul>
+          <li>Unlimited requests</li>
+          <li>All three learning modes</li>
+          <li>Advanced explanations</li>
+          <li>Priority support</li>
+          <li>Interview prep tracks</li>
+        </ul>
+        <a href="/signup.html?plan=premium" class="btn btn-primary">Upgrade Now</a>
+      </div>
+    </div>
+  </section>
+
+  <footer>
+    <p>© 2025 AlgoTutor. Built with ❤️ for learners everywhere.</p>
+  </footer>
+</body>
+</html>
+

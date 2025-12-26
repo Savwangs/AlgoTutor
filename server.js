@@ -127,19 +127,26 @@ function createAlgoTutorServer() {
   });
 
   //
-  // Widget resource
+  // Widget resource with CSP and domain metadata
   //
   server.registerResource(
     "algo-tutor-widget",
     "ui://widget/algo-tutor.html",
-    {},
+    {
+      _meta: {
+        "openai/widgetCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.openai.com",
+      }
+    },
     async () => ({
       contents: [
         {
           uri: "ui://widget/algo-tutor.html",
           mimeType: "text/html+skybridge",
           text: algoTutorHtml,
-          _meta: { "openai/widgetPrefersBorder": true },
+          _meta: { 
+            "openai/widgetPrefersBorder": true,
+            "openai/widgetCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.openai.com",
+          },
         },
       ],
     })
@@ -553,15 +560,40 @@ const httpServer = createServer(async (req, res) => {
       const data = readFileSync(htmlPath);
       res.writeHead(200, { 
         "Content-Type": "text/html",
+        "Content-Security-Policy": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.openai.com",
         "Access-Control-Allow-Origin": "*",
         "Cache-Control": "no-cache, no-store, must-revalidate"
       });
-      console.log('[HTTP] ✓ Widget HTML served successfully');
+      console.log('[HTTP] ✓ Widget HTML served successfully with CSP headers');
       res.end(data);
     } catch (err) {
       console.log('[HTTP] ❌ Widget file error:', err.message);
       res.writeHead(404, { "Content-Type": "text/plain" });
       res.end("Widget not found: " + err.message);
+    }
+    return;
+  }
+
+  // Serve web pages (landing, login, signup, dashboard)
+  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html'];
+  const pagePath = url.pathname === '/' ? '/index.html' : url.pathname;
+  
+  if (req.method === "GET" && webPages.includes(url.pathname)) {
+    console.log('[HTTP] Serving web page:', pagePath);
+    const htmlPath = join(__dirname, 'web', pagePath);
+    
+    try {
+      const data = readFileSync(htmlPath);
+      res.writeHead(200, { 
+        "Content-Type": "text/html",
+        "Cache-Control": "no-cache"
+      });
+      console.log('[HTTP] ✓ Web page served:', pagePath);
+      res.end(data);
+    } catch (err) {
+      console.log('[HTTP] ❌ Web page not found:', err.message);
+      res.writeHead(404, { "Content-Type": "text/plain" });
+      res.end("Page not found");
     }
     return;
   }

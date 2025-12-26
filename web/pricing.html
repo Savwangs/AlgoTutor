@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Pricing - AlgoTutor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a1f2e;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.3);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #2d3748;
+      --success: #10b981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: -1;
+    }
+
+    nav {
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo a {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .logo span {
+      color: var(--text-primary);
+    }
+
+    .container {
+      max-width: 900px;
+      margin: 0 auto;
+      padding: 4rem 2rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      text-align: center;
+      margin-bottom: 1rem;
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      font-size: 1.125rem;
+      margin-bottom: 3rem;
+    }
+
+    .pricing-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+      gap: 2rem;
+    }
+
+    .pricing-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+      position: relative;
+    }
+
+    .pricing-card.featured {
+      border-color: var(--accent);
+      box-shadow: 0 0 40px var(--accent-glow);
+    }
+
+    .pricing-card.featured::before {
+      content: 'RECOMMENDED';
+      position: absolute;
+      top: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--accent);
+      color: white;
+      padding: 0.25rem 1rem;
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    .pricing-card h2 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .pricing-card .description {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .price {
+      font-size: 3rem;
+      font-weight: 700;
+      margin-bottom: 0.5rem;
+    }
+
+    .price span {
+      font-size: 1rem;
+      color: var(--text-secondary);
+      font-weight: 400;
+    }
+
+    .price-note {
+      font-size: 0.8rem;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+
+    ul {
+      list-style: none;
+      margin: 1.5rem 0;
+    }
+
+    li {
+      padding: 0.75rem 0;
+      color: var(--text-secondary);
+      display: flex;
+      align-items: center;
+      gap: 0.75rem;
+    }
+
+    li::before {
+      content: '✓';
+      color: var(--success);
+      font-weight: 600;
+    }
+
+    .btn {
+      width: 100%;
+      padding: 1rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+      font-size: 1rem;
+      font-family: inherit;
+      text-align: center;
+      display: block;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+      transform: translateY(-2px);
+    }
+
+    .btn-secondary {
+      background: transparent;
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      border-color: var(--accent);
+    }
+
+    .guarantee {
+      text-align: center;
+      margin-top: 3rem;
+      padding: 2rem;
+      background: var(--bg-card);
+      border-radius: 12px;
+    }
+
+    .guarantee h3 {
+      margin-bottom: 0.5rem;
+    }
+
+    .guarantee p {
+      color: var(--text-secondary);
+    }
+
+    .faq {
+      margin-top: 4rem;
+    }
+
+    .faq h2 {
+      text-align: center;
+      margin-bottom: 2rem;
+    }
+
+    .faq-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .faq-item h3 {
+      font-size: 1rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .faq-item p {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <nav>
+    <div class="logo">
+      <a href="/">🚀 Algo<span>Tutor</span></a>
+    </div>
+  </nav>
+
+  <div class="container">
+    <h1>Choose Your Plan</h1>
+    <p class="subtitle">Start free, upgrade when you need more power.</p>
+
+    <div class="pricing-grid">
+      <div class="pricing-card">
+        <h2>Free</h2>
+        <p class="description">Perfect for trying out AlgoTutor</p>
+        <div class="price">$0<span>/month</span></div>
+        <p class="price-note">No credit card required</p>
+        <ul>
+          <li>10 requests per day</li>
+          <li>Learn, Build, and Debug modes</li>
+          <li>Basic explanations</li>
+          <li>Community support</li>
+        </ul>
+        <a href="/signup.html" class="btn btn-secondary">Get Started Free</a>
+      </div>
+
+      <div class="pricing-card featured">
+        <h2>Premium</h2>
+        <p class="description">For serious learners and interview prep</p>
+        <div class="price">$9<span>/month</span></div>
+        <p class="price-note">Billed monthly, cancel anytime</p>
+        <ul>
+          <li>Unlimited requests</li>
+          <li>All three learning modes</li>
+          <li>Advanced explanations</li>
+          <li>Priority support</li>
+          <li>Interview prep tracks</li>
+          <li>Early access to new features</li>
+        </ul>
+        <a href="/signup.html?plan=premium" class="btn btn-primary" id="premium-btn">Upgrade to Premium</a>
+      </div>
+    </div>
+
+    <div class="guarantee">
+      <h3>💯 30-Day Money-Back Guarantee</h3>
+      <p>Not satisfied? Get a full refund within 30 days, no questions asked.</p>
+    </div>
+
+    <div class="faq">
+      <h2>Frequently Asked Questions</h2>
+      
+      <div class="faq-item">
+        <h3>How does AlgoTutor work?</h3>
+        <p>AlgoTutor is a ChatGPT app that helps you learn data structures and algorithms through interactive explanations, step-by-step solutions, and code debugging.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Can I cancel my subscription anytime?</h3>
+        <p>Yes! You can cancel your Premium subscription at any time. You'll continue to have access until the end of your billing period.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>What payment methods do you accept?</h3>
+        <p>We accept all major credit cards through Stripe. Your payment information is securely processed and never stored on our servers.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Do I need ChatGPT Plus to use AlgoTutor?</h3>
+        <p>Yes, ChatGPT Apps require a ChatGPT Plus or Team subscription to access third-party apps like AlgoTutor.</p>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Supabase
+    const SUPABASE_URL = 'YOUR_SUPABASE_URL';
+    const SUPABASE_ANON_KEY = 'YOUR_SUPABASE_ANON_KEY';
+    
+    // TODO: Replace with your Stripe price ID
+    const STRIPE_PREMIUM_PRICE_ID = 'price_xxxxxxxxxxxxx';
+    
+    let supabase;
+    if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
+      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    }
+
+    const premiumBtn = document.getElementById('premium-btn');
+
+    premiumBtn.addEventListener('click', async (e) => {
+      if (!supabase) {
+        // Not configured, just redirect to signup
+        return;
+      }
+
+      e.preventDefault();
+
+      // Check if user is logged in
+      const { data: { session } } = await supabase.auth.getSession();
+      
+      if (!session) {
+        // Not logged in, redirect to signup with plan
+        window.location.href = '/signup.html?plan=premium';
+        return;
+      }
+
+      // User is logged in, create Stripe checkout session
+      // This would call your backend to create a Stripe checkout session
+      // For now, redirect to a placeholder
+      alert('Stripe checkout integration coming soon! For now, contact support to upgrade.');
+    });
+  </script>
+</body>
+</html>
+
