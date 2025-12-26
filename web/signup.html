@@ -306,10 +306,7 @@
     const SUPABASE_URL = 'https://tlingzzbcnpekhztapmf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsaW5nenpiY25wZWtoenRhcG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NDc2MTAsImV4cCI6MjA4MjIyMzYxMH0.IkfAgRzwMLyZgMPq4HxKoegnuOkTuzJIF1LA1Ps2TXA';
     
-    let supabase;
-    if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const messageEl = document.getElementById('message');
     const form = document.getElementById('signup-form');
@@ -333,7 +330,7 @@
     form.addEventListener('submit', async (e) => {
       e.preventDefault();
       
-      if (!supabase) {
+      if (!supabaseClient) {
         showMessage('Supabase not configured. Please set your credentials.', 'error');
         return;
       }
@@ -346,7 +343,7 @@
       submitBtn.textContent = 'Creating account...';
 
       try {
-        const { data, error } = await supabase.auth.signUp({
+        const { data, error } = await supabaseClient.auth.signUp({
           email,
           password,
           options: {
@@ -381,7 +378,7 @@
 
     // Google Sign Up
     googleBtn.addEventListener('click', async () => {
-      if (!supabase) {
+      if (!supabaseClient) {
         showMessage('Supabase not configured. Please set your credentials.', 'error');
         return;
       }
@@ -391,7 +388,7 @@
           ? 'https://algo-tutor.org/checkout.html'
           : 'https://algo-tutor.org/dashboard.html';
 
-        const { data, error } = await supabase.auth.signInWithOAuth({
+        const { data, error } = await supabaseClient.auth.signInWithOAuth({
           provider: 'google',
           options: {
             redirectTo: redirectUrl
@@ -405,8 +402,8 @@
     });
 
     // Check if already logged in
-    if (supabase) {
-      supabase.auth.getSession().then(({ data: { session } }) => {
+    if (supabaseClient) {
+      supabaseClient.auth.getSession().then(({ data: { session } }) => {
         if (session) {
           window.location.href = '/dashboard.html';
         }

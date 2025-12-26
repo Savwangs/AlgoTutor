@@ -323,15 +323,12 @@
     // TODO: Replace with your Stripe price ID
     const STRIPE_PREMIUM_PRICE_ID = 'price_xxxxxxxxxxxxx';
     
-    let supabase;
-    if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
+    const supabaseClientClient = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const premiumBtn = document.getElementById('premium-btn');
 
     premiumBtn.addEventListener('click', async (e) => {
-      if (!supabase) {
+      if (!supabaseClient) {
         // Not configured, just redirect to signup
         return;
       }
@@ -339,7 +336,7 @@
       e.preventDefault();
 
       // Check if user is logged in
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       
       if (!session) {
         // Not logged in, redirect to signup with plan

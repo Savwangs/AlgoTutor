@@ -132,12 +132,7 @@ function createAlgoTutorServer() {
   server.registerResource(
     "algo-tutor-widget",
     "ui://widget/algo-tutor.html",
-    {
-      _meta: {
-        "openai/widgetDomain": "algo-tutor.org",
-        "openai/widgetCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.openai.com",
-      }
-    },
+    {},
     async () => ({
       contents: [
         {
@@ -147,7 +142,19 @@ function createAlgoTutorServer() {
           _meta: { 
             "openai/widgetPrefersBorder": true,
             "openai/widgetDomain": "algo-tutor.org",
-            "openai/widgetCsp": "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; connect-src 'self' https://*.supabase.co https://api.openai.com",
+            "openai/widgetCSP": {
+              connect_domains: [
+                "https://algo-tutor.org",
+                "https://*.supabase.co",
+                "https://api.openai.com"
+              ],
+              resource_domains: [
+                "https://cdn.jsdelivr.net",
+                "https://fonts.googleapis.com",
+                "https://fonts.gstatic.com"
+              ]
+            },
+            "openai/widgetDescription": "Interactive DSA learning tool with Learn, Build, and Debug modes."
           },
         },
       ],

@@ -371,17 +371,14 @@
     const SUPABASE_URL = 'https://tlingzzbcnpekhztapmf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsaW5nenpiY25wZWtoenRhcG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NDc2MTAsImV4cCI6MjA4MjIyMzYxMH0.IkfAgRzwMLyZgMPq4HxKoegnuOkTuzJIF1LA1Ps2TXA';
     
-    let supabase;
-    if (SUPABASE_URL !== 'YOUR_SUPABASE_URL') {
-      supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
-    }
+    const supabaseClientClient = window.supabaseClient.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const mainContent = document.getElementById('main-content');
     const userAvatar = document.getElementById('user-avatar');
     const logoutBtn = document.getElementById('logout-btn');
 
     async function loadDashboard() {
-      if (!supabase) {
+      if (!supabaseClient) {
         mainContent.innerHTML = `
           <div class="welcome">
             <h1>Welcome to AlgoTutor!</h1>
@@ -392,7 +389,7 @@
       }
 
       // Check authentication
-      const { data: { session } } = await supabase.auth.getSession();
+      const { data: { session } } = await supabaseClient.auth.getSession();
       
       if (!session) {
         window.location.href = '/login.html';
@@ -409,7 +406,7 @@
       let usageToday = 0;
       
       try {
-        const { data: userRecord } = await supabase
+        const { data: userRecord } = await supabaseClient
           .from('users')
           .select('*')
           .eq('email', user.email)
@@ -419,7 +416,7 @@
 
         // Get today's usage
         const today = new Date().toISOString().split('T')[0];
-        const { count } = await supabase
+        const { count } = await supabaseClient
           .from('usage_logs')
           .select('*', { count: 'exact', head: true })
           .eq('user_id', userRecord?.id)
@@ -531,8 +528,8 @@
 
     // Logout
     logoutBtn.addEventListener('click', async () => {
-      if (supabase) {
-        await supabase.auth.signOut();
+      if (supabaseClient) {
+        await supabaseClient.auth.signOut();
       }
       window.location.href = '/login.html';
     });
