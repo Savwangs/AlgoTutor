@@ -315,7 +315,6 @@ export function extractUserIdentifier(req) {
 
   // Fallback: use IP address as identifier
   // Use cf-connecting-ip (Cloudflare's client IP) or first IP from x-forwarded-for
-  // This is more stable than using the full x-forwarded-for which changes with proxy chains
   let ip = req.headers['cf-connecting-ip'] || req.headers['true-client-ip'];
   
   if (!ip) {
@@ -327,8 +326,22 @@ export function extractUserIdentifier(req) {
   }
   
   ip = ip || 'unknown';
-  console.log(`[Auth] No user header found, using IP as fallback:`, ip);
-  return `ip-${ip}`;
+  
+  // OpenAI's MCP requests come from multiple IPs in the same /24 subnet
+  // Group by first 3 octets (e.g., 20.168.7.205 -> 20.168.7) to treat as same user
+  const ipParts = ip.split('.');
+  let userIdentifier;
+  if (ipParts.length === 4) {
+    // Use /24 subnet (first 3 octets) for OpenAI IPs
+    const subnet = `${ipParts[0]}.${ipParts[1]}.${ipParts[2]}`;
+    userIdentifier = `subnet-${subnet}`;
+    console.log(`[Auth] No user header found, using IP subnet as fallback:`, { fullIp: ip, subnet });
+  } else {
+    userIdentifier = `ip-${ip}`;
+    console.log(`[Auth] No user header found, using IP as fallback:`, ip);
+  }
+  
+  return userIdentifier;
 }
 
 /**
