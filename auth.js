@@ -313,8 +313,20 @@ export function extractUserIdentifier(req) {
     return subject;
   }
 
-  // Fallback: use IP address as identifier (not ideal, but works for testing)
-  const ip = req.headers['x-forwarded-for'] || 'unknown';
+  // Fallback: use IP address as identifier
+  // Use cf-connecting-ip (Cloudflare's client IP) or first IP from x-forwarded-for
+  // This is more stable than using the full x-forwarded-for which changes with proxy chains
+  let ip = req.headers['cf-connecting-ip'] || req.headers['true-client-ip'];
+  
+  if (!ip) {
+    const forwardedFor = req.headers['x-forwarded-for'];
+    if (forwardedFor) {
+      // Take only the first IP (original client), ignore proxy IPs
+      ip = forwardedFor.split(',')[0].trim();
+    }
+  }
+  
+  ip = ip || 'unknown';
   console.log(`[Auth] No user header found, using IP as fallback:`, ip);
   return `ip-${ip}`;
 }

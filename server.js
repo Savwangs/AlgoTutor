@@ -267,10 +267,12 @@ function createAlgoTutorServer() {
         logSuccess('Usage logged successfully');
         
         // Add usage info to response if auth is enabled
+        // Subtract 1 because we just used one (check happens before logging)
         let message = "";
         if (isAuthEnabled() && authResult.usageRemaining !== null) {
-          message = `✅ (${authResult.usageRemaining} uses remaining today)`;
-          logInfo('Usage remaining', authResult.usageRemaining);
+          const actualRemaining = Math.max(0, authResult.usageRemaining - 1);
+          message = `✅ (${actualRemaining} uses remaining today)`;
+          logInfo('Usage remaining', actualRemaining);
         }
         
         const finalResponse = makeToolOutput("learn", outputs, message);
@@ -362,9 +364,11 @@ function createAlgoTutorServer() {
         logSuccess('Usage logged');
         
         // Add usage info to response if auth is enabled
+        // Subtract 1 because we just used one (check happens before logging)
         let message = "";
         if (isAuthEnabled() && authResult.usageRemaining !== null) {
-          message = `✅ (${authResult.usageRemaining} uses remaining today)`;
+          const actualRemaining = Math.max(0, authResult.usageRemaining - 1);
+          message = `✅ (${actualRemaining} uses remaining today)`;
         }
         
         const finalResponse = makeToolOutput("build", outputs, message);
@@ -448,9 +452,11 @@ function createAlgoTutorServer() {
         logSuccess('Usage logged');
         
         // Add usage info to response if auth is enabled
+        // Subtract 1 because we just used one (check happens before logging)
         let message = "";
         if (isAuthEnabled() && authResult.usageRemaining !== null) {
-          message = `✅ (${authResult.usageRemaining} uses remaining today)`;
+          const actualRemaining = Math.max(0, authResult.usageRemaining - 1);
+          message = `✅ (${actualRemaining} uses remaining today)`;
         }
         
         const finalResponse = makeToolOutput("debug", outputs, message);
