@@ -125,7 +125,7 @@ export function canAccessMode(user, mode) {
  * Check if user has exceeded usage limits
  */
 export async function checkUsageLimit(user) {
-  console.log('[Auth] Checking usage limit for user:', { email: user.email, usage_count: user.usage_count });
+  console.log('[Auth] Checking usage limit for user:', { email: user.email, id: user.id });
   
   if (!supabase || !isAuthEnabled()) {
     console.log('[Auth] Auth disabled - no limits');
@@ -133,7 +133,7 @@ export async function checkUsageLimit(user) {
   }
 
   const tier = user.subscription_tier || 'free';
-  const freeLimit = parseInt(process.env.FREE_TIER_LIMIT || '10', 10);
+  const freeLimit = parseInt(process.env.FREE_TIER_LIMIT || '5', 10);
 
   // Premium has unlimited usage
   if (tier === 'premium') {
@@ -141,22 +141,47 @@ export async function checkUsageLimit(user) {
     return { allowed: true, remaining: null };
   }
 
-  // Check free tier usage
-  if (user.usage_count >= freeLimit) {
-    console.log(`[Auth] ❌ Free tier limit exceeded:`, { usage_count: user.usage_count, limit: freeLimit });
-    return {
-      allowed: false,
-      remaining: 0,
-      message: `Free tier limit reached (${freeLimit} uses). Upgrade to Premium for unlimited access.`,
-    };
-  }
+  // Count today's usage from usage_logs (daily reset)
+  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
+  const todayStart = `${today}T00:00:00.000Z`;
+  
+  try {
+    const { count, error } = await supabase
+      .from('usage_logs')
+      .select('*', { count: 'exact', head: true })
+      .eq('user_id', user.id)
+      .gte('created_at', todayStart);
 
-  const remaining = freeLimit - user.usage_count;
-  console.log(`[Auth] ✓ Usage limit OK:`, { usage_count: user.usage_count, limit: freeLimit, remaining });
-  return {
-    allowed: true,
-    remaining,
-  };
+    if (error) {
+      console.error('[Auth] Error counting daily usage:', error);
+      // Fall back to allowing access on error
+      return { allowed: true, remaining: null };
+    }
+
+    const todayUsage = count || 0;
+    console.log(`[Auth] Today's usage count:`, { todayUsage, limit: freeLimit, date: today });
+
+    // Check free tier usage
+    if (todayUsage >= freeLimit) {
+      console.log(`[Auth] ❌ Free tier limit exceeded:`, { todayUsage, limit: freeLimit });
+      return {
+        allowed: false,
+        remaining: 0,
+        message: `Free tier limit reached (${freeLimit} uses per day). Upgrade to Premium for unlimited access.`,
+      };
+    }
+
+    const remaining = freeLimit - todayUsage;
+    console.log(`[Auth] ✓ Usage limit OK:`, { todayUsage, limit: freeLimit, remaining });
+    return {
+      allowed: true,
+      remaining,
+    };
+  } catch (error) {
+    console.error('[Auth] Error in checkUsageLimit:', error);
+    // Fall back to allowing access on error
+    return { allowed: true, remaining: null };
+  }
 }
 
 /**

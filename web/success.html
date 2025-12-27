@@ -1,0 +1,327 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Welcome to Premium - AlgoTutor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a1f2e;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.3);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #2d3748;
+      --success: #10b981;
+      --gold: #f59e0b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: -1;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 500px;
+      padding: 2rem;
+    }
+
+    .success-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 3rem;
+      text-align: center;
+      box-shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+    }
+
+    .success-icon {
+      font-size: 4rem;
+      margin-bottom: 1.5rem;
+      animation: bounce 1s ease-in-out;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-10px); }
+    }
+
+    h1 {
+      font-size: 2rem;
+      margin-bottom: 0.5rem;
+      background: linear-gradient(135deg, var(--gold), #fbbf24);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+
+    .code-section {
+      background: var(--bg-secondary);
+      border: 2px dashed var(--gold);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 2rem;
+    }
+
+    .code-label {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.75rem;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+    }
+
+    .code-display {
+      font-size: 2rem;
+      font-weight: 700;
+      font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      color: var(--gold);
+      letter-spacing: 0.15em;
+      user-select: all;
+    }
+
+    .copy-btn {
+      margin-top: 1rem;
+      padding: 0.5rem 1.5rem;
+      background: var(--gold);
+      color: var(--bg-primary);
+      border: none;
+      border-radius: 8px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .copy-btn:hover {
+      transform: scale(1.05);
+    }
+
+    .copy-btn.copied {
+      background: var(--success);
+    }
+
+    .instructions {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+
+    .instructions h3 {
+      font-size: 1rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    .instructions ol {
+      margin: 0;
+      padding-left: 1.25rem;
+    }
+
+    .instructions li {
+      margin-bottom: 0.75rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .instructions strong {
+      color: var(--text-primary);
+    }
+
+    .back-link {
+      display: inline-block;
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+
+    .back-link:hover {
+      color: var(--accent);
+    }
+
+    .loading {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin-right: 10px;
+      vertical-align: middle;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    .error-message {
+      color: #ef4444;
+      background: rgba(239, 68, 68, 0.1);
+      padding: 1rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <div class="container">
+    <div class="success-card">
+      <div id="loading-state">
+        <div class="success-icon">⏳</div>
+        <p class="loading"><span class="spinner"></span>Loading your premium code...</p>
+      </div>
+
+      <div id="success-state" style="display: none;">
+        <div class="success-icon">🎉</div>
+        <h1>Welcome to Premium!</h1>
+        <p class="subtitle">Thank you for upgrading. You now have unlimited access!</p>
+
+        <div class="code-section">
+          <div class="code-label">Your Activation Code</div>
+          <div class="code-display" id="premium-code">---</div>
+          <button class="copy-btn" id="copy-btn">Copy Code</button>
+        </div>
+
+        <div class="instructions">
+          <h3>📋 How to Activate</h3>
+          <ol>
+            <li>Go back to <strong>ChatGPT</strong></li>
+            <li>Open the <strong>AlgoTutor widget</strong></li>
+            <li>Click <strong>"Activate Premium"</strong> in the header</li>
+            <li>Paste your activation code</li>
+            <li>Enjoy unlimited access! 🚀</li>
+          </ol>
+        </div>
+
+        <a href="/" class="back-link">← Back to Home</a>
+      </div>
+
+      <div id="error-state" style="display: none;">
+        <div class="success-icon">❌</div>
+        <h1>Oops!</h1>
+        <div class="error-message" id="error-message">
+          Something went wrong loading your code.
+        </div>
+        <p class="subtitle">Please contact support if this persists.</p>
+        <a href="/pricing.html" class="back-link">← Back to Pricing</a>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const loadingState = document.getElementById('loading-state');
+    const successState = document.getElementById('success-state');
+    const errorState = document.getElementById('error-state');
+    const codeDisplay = document.getElementById('premium-code');
+    const copyBtn = document.getElementById('copy-btn');
+    const errorMessage = document.getElementById('error-message');
+
+    // Get session ID from URL
+    const urlParams = new URLSearchParams(window.location.search);
+    const sessionId = urlParams.get('session_id');
+
+    async function loadPremiumCode() {
+      if (!sessionId) {
+        showError('No session ID provided.');
+        return;
+      }
+
+      try {
+        const response = await fetch(`/api/get-premium-code?session_id=${sessionId}`);
+        const data = await response.json();
+
+        if (data.error) {
+          showError(data.error);
+          return;
+        }
+
+        codeDisplay.textContent = data.code;
+        loadingState.style.display = 'none';
+        successState.style.display = 'block';
+      } catch (error) {
+        console.error('Error loading code:', error);
+        showError('Failed to load premium code. Please try refreshing the page.');
+      }
+    }
+
+    function showError(message) {
+      loadingState.style.display = 'none';
+      errorMessage.textContent = message;
+      errorState.style.display = 'block';
+    }
+
+    // Copy code functionality
+    copyBtn.addEventListener('click', async () => {
+      const code = codeDisplay.textContent;
+      try {
+        await navigator.clipboard.writeText(code);
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy Code';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      } catch (err) {
+        // Fallback for older browsers
+        const textArea = document.createElement('textarea');
+        textArea.value = code;
+        document.body.appendChild(textArea);
+        textArea.select();
+        document.execCommand('copy');
+        document.body.removeChild(textArea);
+        copyBtn.textContent = 'Copied!';
+        copyBtn.classList.add('copied');
+        setTimeout(() => {
+          copyBtn.textContent = 'Copy Code';
+          copyBtn.classList.remove('copied');
+        }, 2000);
+      }
+    });
+
+    // Load the code on page load
+    loadPremiumCode();
+  </script>
+</body>
+</html>
+

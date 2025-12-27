@@ -9,6 +9,20 @@ import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/
 import { z } from "zod";
 import { generateLearnContent, generateBuildSolution, generateDebugAnalysis } from './llm.js';
 import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
+import Stripe from 'stripe';
+import { createClient } from '@supabase/supabase-js';
+
+// Initialize Stripe
+const stripe = process.env.STRIPE_SECRET_KEY 
+  ? new Stripe(process.env.STRIPE_SECRET_KEY) 
+  : null;
+
+// Initialize Supabase for server-side operations
+const supabaseUrl = process.env.SUPABASE_URL;
+const supabaseKey = process.env.SUPABASE_SERVICE_KEY;
+const supabase = (supabaseUrl && supabaseKey) 
+  ? createClient(supabaseUrl, supabaseKey) 
+  : null;
 
 // ES Module __dirname equivalent
 const __filename = fileURLToPath(import.meta.url);
@@ -203,6 +217,11 @@ function createAlgoTutorServer() {
         
         if (!authResult.success) {
           logError('Authentication failed', authResult.error);
+          // Add upgradeUrl for LIMIT_EXCEEDED errors
+          const errorWithUpgrade = {
+            ...authResult.error,
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+          };
           const errorResponse = {
             state: "update",
             content: [{
@@ -210,7 +229,7 @@ function createAlgoTutorServer() {
               text: `❌ ${authResult.error.message}`
             }],
             toolOutput: {
-              error: authResult.error,
+              error: errorWithUpgrade,
               mode: "learn"
             }
           };
@@ -306,6 +325,11 @@ function createAlgoTutorServer() {
         
         if (!authResult.success) {
           logError('Authentication/Authorization failed', authResult.error);
+          // Add upgradeUrl for LIMIT_EXCEEDED errors
+          const errorWithUpgrade = {
+            ...authResult.error,
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+          };
           return {
             state: "update",
             content: [{
@@ -313,7 +337,7 @@ function createAlgoTutorServer() {
               text: `❌ ${authResult.error.message}`
             }],
             toolOutput: {
-              error: authResult.error,
+              error: errorWithUpgrade,
               mode: "build"
             }
           };
@@ -387,6 +411,11 @@ function createAlgoTutorServer() {
         
         if (!authResult.success) {
           logError('Authentication/Authorization failed', authResult.error);
+          // Add upgradeUrl for LIMIT_EXCEEDED errors
+          const errorWithUpgrade = {
+            ...authResult.error,
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+          };
           return {
             state: "update",
             content: [{
@@ -394,7 +423,7 @@ function createAlgoTutorServer() {
               text: `❌ ${authResult.error.message}`
             }],
             toolOutput: {
-              error: authResult.error,
+              error: errorWithUpgrade,
               mode: "debug"
             }
           };
@@ -514,6 +543,339 @@ const httpServer = createServer(async (req, res) => {
     return res.end("AlgoTutor MCP Server - Healthy!");
   }
 
+  // Helper: Parse JSON body
+  const parseJsonBody = (req) => {
+    return new Promise((resolve, reject) => {
+      let body = '';
+      req.on('data', chunk => body += chunk);
+      req.on('end', () => {
+        try {
+          resolve(body ? JSON.parse(body) : {});
+        } catch (e) {
+          reject(e);
+        }
+      });
+      req.on('error', reject);
+    });
+  };
+
+  // Helper: Generate premium code
+  const generatePremiumCode = () => {
+    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+    let code = 'ALGO-';
+    for (let i = 0; i < 6; i++) {
+      code += chars[Math.floor(Math.random() * chars.length)];
+    }
+    return code;
+  };
+
+  // API: Create Stripe Checkout Session
+  if (req.method === "POST" && url.pathname === "/api/create-checkout") {
+    console.log('[API] Create checkout session request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    if (!stripe) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: 'Stripe not configured' }));
+    }
+
+    try {
+      const body = await parseJsonBody(req);
+      const { email } = body;
+
+      if (!email) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'Email is required' }));
+      }
+
+      const session = await stripe.checkout.sessions.create({
+        payment_method_types: ['card'],
+        mode: 'subscription',
+        customer_email: email,
+        line_items: [{
+          price: process.env.STRIPE_PRICE_ID,
+          quantity: 1,
+        }],
+        success_url: `https://algo-tutor.org/success.html?session_id={CHECKOUT_SESSION_ID}`,
+        cancel_url: `https://algo-tutor.org/pricing.html`,
+        metadata: {
+          email: email
+        }
+      });
+
+      console.log('[API] ✓ Checkout session created:', session.id);
+      res.writeHead(200);
+      return res.end(JSON.stringify({ url: session.url, sessionId: session.id }));
+    } catch (error) {
+      console.error('[API] ❌ Checkout error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  // API: Stripe Webhook
+  if (req.method === "POST" && url.pathname === "/api/stripe-webhook") {
+    console.log('[API] Stripe webhook received');
+
+    if (!stripe || !supabase) {
+      res.writeHead(500);
+      return res.end('Server not configured');
+    }
+
+    try {
+      // Get raw body for signature verification
+      const chunks = [];
+      for await (const chunk of req) {
+        chunks.push(chunk);
+      }
+      const rawBody = Buffer.concat(chunks).toString('utf8');
+      
+      const sig = req.headers['stripe-signature'];
+      let event;
+
+      try {
+        event = stripe.webhooks.constructEvent(
+          rawBody,
+          sig,
+          process.env.STRIPE_WEBHOOK_SECRET
+        );
+      } catch (err) {
+        console.error('[API] ❌ Webhook signature verification failed:', err.message);
+        res.writeHead(400);
+        return res.end(`Webhook Error: ${err.message}`);
+      }
+
+      console.log('[API] Webhook event type:', event.type);
+
+      if (event.type === 'checkout.session.completed') {
+        const session = event.data.object;
+        const email = session.customer_email || session.metadata?.email;
+        const customerId = session.customer;
+        const subscriptionId = session.subscription;
+
+        console.log('[API] Payment completed for:', email);
+
+        // Generate premium code
+        const premiumCode = generatePremiumCode();
+
+        // Store premium code in database
+        const { error: codeError } = await supabase
+          .from('premium_codes')
+          .insert({
+            code: premiumCode,
+            email: email,
+            stripe_session_id: session.id
+          });
+
+        if (codeError) {
+          console.error('[API] Error storing premium code:', codeError);
+        } else {
+          console.log('[API] ✓ Premium code stored:', premiumCode);
+        }
+
+        // Update or create user with premium status
+        const { data: existingUser } = await supabase
+          .from('users')
+          .select('*')
+          .eq('email', email)
+          .single();
+
+        if (existingUser) {
+          await supabase
+            .from('users')
+            .update({
+              subscription_tier: 'premium',
+              subscription_status: 'active',
+              stripe_customer_id: customerId,
+              stripe_subscription_id: subscriptionId
+            })
+            .eq('email', email);
+          console.log('[API] ✓ Updated existing user to premium:', email);
+        } else {
+          await supabase
+            .from('users')
+            .insert({
+              email: email,
+              subscription_tier: 'premium',
+              subscription_status: 'active',
+              stripe_customer_id: customerId,
+              stripe_subscription_id: subscriptionId
+            });
+          console.log('[API] ✓ Created new premium user:', email);
+        }
+      }
+
+      if (event.type === 'customer.subscription.deleted') {
+        const subscription = event.data.object;
+        const customerId = subscription.customer;
+
+        // Find user by stripe_customer_id and downgrade
+        await supabase
+          .from('users')
+          .update({
+            subscription_tier: 'free',
+            subscription_status: 'cancelled'
+          })
+          .eq('stripe_customer_id', customerId);
+        console.log('[API] ✓ Subscription cancelled for customer:', customerId);
+      }
+
+      res.writeHead(200);
+      return res.end(JSON.stringify({ received: true }));
+    } catch (error) {
+      console.error('[API] ❌ Webhook error:', error);
+      res.writeHead(500);
+      return res.end('Webhook handler error');
+    }
+  }
+
+  // API: Get premium code by session ID
+  if (req.method === "GET" && url.pathname === "/api/get-premium-code") {
+    console.log('[API] Get premium code request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    if (!supabase) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: 'Database not configured' }));
+    }
+
+    const sessionId = url.searchParams.get('session_id');
+    if (!sessionId) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'session_id is required' }));
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('premium_codes')
+        .select('code, email')
+        .eq('stripe_session_id', sessionId)
+        .single();
+
+      if (error || !data) {
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'Code not found' }));
+      }
+
+      console.log('[API] ✓ Premium code retrieved for session:', sessionId);
+      res.writeHead(200);
+      return res.end(JSON.stringify({ code: data.code, email: data.email }));
+    } catch (error) {
+      console.error('[API] ❌ Get premium code error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  // API: Activate premium with code
+  if (req.method === "POST" && url.pathname === "/api/activate-premium") {
+    console.log('[API] Activate premium request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    if (!supabase) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: 'Database not configured' }));
+    }
+
+    try {
+      const body = await parseJsonBody(req);
+      const { code, chatgpt_user_id } = body;
+
+      if (!code || !chatgpt_user_id) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'Code and chatgpt_user_id are required' }));
+      }
+
+      // Look up the code
+      const { data: codeData, error: codeError } = await supabase
+        .from('premium_codes')
+        .select('*')
+        .eq('code', code.toUpperCase())
+        .single();
+
+      if (codeError || !codeData) {
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'Invalid code' }));
+      }
+
+      if (codeData.used) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'Code already used' }));
+      }
+
+      // Find or create user with chatgpt_user_id
+      let { data: user } = await supabase
+        .from('users')
+        .select('*')
+        .eq('chatgpt_user_id', chatgpt_user_id)
+        .single();
+
+      if (!user) {
+        // Create new user
+        const { data: newUser, error: createError } = await supabase
+          .from('users')
+          .insert({
+            email: `${chatgpt_user_id}@chatgpt.user`,
+            chatgpt_user_id: chatgpt_user_id,
+            subscription_tier: 'premium',
+            subscription_status: 'active'
+          })
+          .select()
+          .single();
+
+        if (createError) {
+          console.error('[API] Error creating user:', createError);
+          res.writeHead(500);
+          return res.end(JSON.stringify({ error: 'Failed to create user' }));
+        }
+        user = newUser;
+      } else {
+        // Update existing user to premium
+        await supabase
+          .from('users')
+          .update({
+            subscription_tier: 'premium',
+            subscription_status: 'active'
+          })
+          .eq('chatgpt_user_id', chatgpt_user_id);
+      }
+
+      // Mark code as used
+      await supabase
+        .from('premium_codes')
+        .update({
+          used: true,
+          used_by_chatgpt_user_id: chatgpt_user_id,
+          used_at: new Date().toISOString()
+        })
+        .eq('code', code.toUpperCase());
+
+      console.log('[API] ✓ Premium activated for:', chatgpt_user_id);
+      res.writeHead(200);
+      return res.end(JSON.stringify({ 
+        success: true, 
+        message: 'Premium activated! You now have unlimited access.' 
+      }));
+    } catch (error) {
+      console.error('[API] ❌ Activate premium error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  // CORS preflight for API endpoints
+  if (req.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
+    res.writeHead(204, {
+      "Access-Control-Allow-Origin": "*",
+      "Access-Control-Allow-Methods": "POST, GET, OPTIONS",
+      "Access-Control-Allow-Headers": "content-type",
+    });
+    return res.end();
+  }
+
   // Handle MCP
   const MCP_METHODS = new Set(["POST", "GET", "DELETE"]);
   if (url.pathname === MCP_PATH && MCP_METHODS.has(req.method)) {
@@ -583,8 +945,8 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  // Serve web pages (landing, login, signup, dashboard)
-  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html'];
+  // Serve web pages (landing, login, signup, dashboard, success)
+  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html', '/success.html'];
   const pagePath = url.pathname === '/' ? '/index.html' : url.pathname;
   
   if (req.method === "GET" && webPages.includes(url.pathname)) {

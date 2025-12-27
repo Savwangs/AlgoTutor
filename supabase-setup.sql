@@ -35,7 +35,22 @@ CREATE TABLE IF NOT EXISTS usage_logs (
 );
 
 -- ================================================
--- 3. SUBSCRIPTION PLANS TABLE
+-- 3. PREMIUM CODES TABLE
+-- ================================================
+-- Stores premium activation codes for linking ChatGPT users to paid accounts
+CREATE TABLE IF NOT EXISTS premium_codes (
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+  code TEXT UNIQUE NOT NULL,
+  email TEXT NOT NULL,
+  stripe_session_id TEXT,
+  used BOOLEAN DEFAULT false,
+  used_by_chatgpt_user_id TEXT,
+  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
+  used_at TIMESTAMP WITH TIME ZONE
+);
+
+-- ================================================
+-- 4. SUBSCRIPTION PLANS TABLE
 -- ================================================
 -- Defines available subscription tiers
 CREATE TABLE IF NOT EXISTS subscription_plans (
@@ -74,6 +89,9 @@ CREATE INDEX IF NOT EXISTS idx_users_subscription_tier ON users(subscription_tie
 CREATE INDEX IF NOT EXISTS idx_usage_logs_user_id ON usage_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_created_at ON usage_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_mode ON usage_logs(mode);
+CREATE INDEX IF NOT EXISTS idx_premium_codes_code ON premium_codes(code);
+CREATE INDEX IF NOT EXISTS idx_premium_codes_email ON premium_codes(email);
+CREATE INDEX IF NOT EXISTS idx_premium_codes_stripe_session ON premium_codes(stripe_session_id);
 
 -- ================================================
 -- 6. FUNCTION TO UPDATE updated_at TIMESTAMP
@@ -126,6 +144,24 @@ CREATE POLICY usage_logs_select_own ON usage_logs
 CREATE POLICY usage_logs_insert ON usage_logs
   FOR INSERT
   WITH CHECK (true);
+
+-- Enable RLS for premium_codes
+ALTER TABLE premium_codes ENABLE ROW LEVEL SECURITY;
+
+-- Policy: Service role can read all premium codes
+CREATE POLICY premium_codes_select ON premium_codes
+  FOR SELECT
+  USING (true);
+
+-- Policy: Service role can insert premium codes
+CREATE POLICY premium_codes_insert ON premium_codes
+  FOR INSERT
+  WITH CHECK (true);
+
+-- Policy: Service role can update premium codes
+CREATE POLICY premium_codes_update ON premium_codes
+  FOR UPDATE
+  USING (true);
 
 -- ================================================
 -- 9. HELPER VIEWS

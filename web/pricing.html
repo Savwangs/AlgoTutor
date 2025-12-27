@@ -320,19 +320,11 @@
     const SUPABASE_URL = 'https://tlingzzbcnpekhztapmf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsaW5nenpiY25wZWtoenRhcG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NDc2MTAsImV4cCI6MjA4MjIyMzYxMH0.IkfAgRzwMLyZgMPq4HxKoegnuOkTuzJIF1LA1Ps2TXA';
     
-    // TODO: Replace with your Stripe price ID
-    const STRIPE_PREMIUM_PRICE_ID = 'price_xxxxxxxxxxxxx';
-    
     const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
 
     const premiumBtn = document.getElementById('premium-btn');
 
     premiumBtn.addEventListener('click', async (e) => {
-      if (!supabaseClient) {
-        // Not configured, just redirect to signup
-        return;
-      }
-
       e.preventDefault();
 
       // Check if user is logged in
@@ -345,9 +337,40 @@
       }
 
       // User is logged in, create Stripe checkout session
-      // This would call your backend to create a Stripe checkout session
-      // For now, redirect to a placeholder
-      alert('Stripe checkout integration coming soon! For now, contact support to upgrade.');
+      premiumBtn.textContent = 'Redirecting to checkout...';
+      premiumBtn.style.opacity = '0.7';
+      premiumBtn.style.pointerEvents = 'none';
+
+      try {
+        const response = await fetch('/api/create-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: session.user.email
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          alert('Error: ' + data.error);
+          premiumBtn.textContent = 'Upgrade to Premium';
+          premiumBtn.style.opacity = '1';
+          premiumBtn.style.pointerEvents = 'auto';
+          return;
+        }
+
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } catch (error) {
+        console.error('Checkout error:', error);
+        alert('Failed to start checkout. Please try again.');
+        premiumBtn.textContent = 'Upgrade to Premium';
+        premiumBtn.style.opacity = '1';
+        premiumBtn.style.pointerEvents = 'auto';
+      }
     });
   </script>
 </body>
