@@ -222,16 +222,19 @@ function createAlgoTutorServer() {
             ...authResult.error,
             upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
           };
+          // Format error response as JSON in content text (same format as success)
+          // so the widget can parse and display the upgrade button
+          const errorData = {
+            _widgetOnly: true,
+            _instruction: "Display the error in the AlgoTutor panel with upgrade option if available.",
+            mode: "learn",
+            error: errorWithUpgrade
+          };
           const errorResponse = {
-            state: "update",
             content: [{
               type: "text",
-              text: `❌ ${authResult.error.message}`
-            }],
-            toolOutput: {
-              error: errorWithUpgrade,
-              mode: "learn"
-            }
+              text: JSON.stringify(errorData)
+            }]
           };
           logInfo('Returning error response', errorResponse);
           return errorResponse;
@@ -332,16 +335,18 @@ function createAlgoTutorServer() {
             ...authResult.error,
             upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
           };
+          // Format error response as JSON in content text (same format as success)
+          const errorData = {
+            _widgetOnly: true,
+            _instruction: "Display the error in the AlgoTutor panel with upgrade option if available.",
+            mode: "build",
+            error: errorWithUpgrade
+          };
           return {
-            state: "update",
             content: [{
               type: "text",
-              text: `❌ ${authResult.error.message}`
-            }],
-            toolOutput: {
-              error: errorWithUpgrade,
-              mode: "build"
-            }
+              text: JSON.stringify(errorData)
+            }]
           };
         }
         
@@ -420,16 +425,18 @@ function createAlgoTutorServer() {
             ...authResult.error,
             upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
           };
+          // Format error response as JSON in content text (same format as success)
+          const errorData = {
+            _widgetOnly: true,
+            _instruction: "Display the error in the AlgoTutor panel with upgrade option if available.",
+            mode: "debug",
+            error: errorWithUpgrade
+          };
           return {
-            state: "update",
             content: [{
               type: "text",
-              text: `❌ ${authResult.error.message}`
-            }],
-            toolOutput: {
-              error: errorWithUpgrade,
-              mode: "debug"
-            }
+              text: JSON.stringify(errorData)
+            }]
           };
         }
         

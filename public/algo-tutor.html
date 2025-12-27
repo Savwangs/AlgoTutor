@@ -1312,35 +1312,69 @@
 
       // Helper: Check for errors with upgrade URL
       function extractError(data) {
+        console.log("[Widget] extractError called with:", typeof data, data);
+        
         if (typeof data === 'string') {
           try {
             data = JSON.parse(data);
+            console.log("[Widget] extractError: parsed JSON string to:", data);
           } catch (e) {
+            console.log("[Widget] extractError: not valid JSON string");
             return null;
           }
         }
         
         if (!data) return null;
         
-        // Check direct error
-        if (data.error) return data.error;
+        // Check direct error (new format: error is at root level of parsed JSON)
+        if (data.error) {
+          console.log("[Widget] ✅ extractError: found error at data.error:", data.error);
+          return data.error;
+        }
         
         // Check toolOutput.error
-        if (data.toolOutput?.error) return data.toolOutput.error;
+        if (data.toolOutput?.error) {
+          console.log("[Widget] ✅ extractError: found error at data.toolOutput.error:", data.toolOutput.error);
+          return data.toolOutput.error;
+        }
         
         // Check result.error
-        if (data.result?.error) return data.result.error;
+        if (data.result?.error) {
+          console.log("[Widget] ✅ extractError: found error at data.result.error:", data.result.error);
+          return data.result.error;
+        }
         
+        // Check toolOutput.text (might contain JSON with error)
+        if (data.toolOutput?.text) {
+          console.log("[Widget] extractError: checking data.toolOutput.text");
+          return extractError(data.toolOutput.text);
+        }
+        
+        // Check content[0].text (MCP format)
+        if (data.content?.[0]?.text) {
+          console.log("[Widget] extractError: checking data.content[0].text");
+          return extractError(data.content[0].text);
+        }
+        
+        console.log("[Widget] extractError: no error found");
         return null;
       }
 
       // Render error with upgrade button
       function renderError(error) {
-        console.log("[Widget] Rendering error:", error);
+        console.log("[Widget] ==================== renderError ====================");
+        console.log("[Widget] Rendering error:", JSON.stringify(error, null, 2));
         outputContainer.innerHTML = '';
         
         const errorDiv = document.createElement('div');
         errorDiv.className = 'upgrade-container';
+        
+        // Error icon
+        const iconDiv = document.createElement('div');
+        iconDiv.style.fontSize = '3rem';
+        iconDiv.style.marginBottom = '16px';
+        iconDiv.textContent = '⚠️';
+        errorDiv.appendChild(iconDiv);
         
         const messageDiv = document.createElement('div');
         messageDiv.className = 'upgrade-message';
@@ -1348,6 +1382,13 @@
         errorDiv.appendChild(messageDiv);
         
         if (error.upgradeUrl) {
+          console.log("[Widget] ✅ upgradeUrl found, creating button:", error.upgradeUrl);
+          
+          // Add some spacing
+          const spacer = document.createElement('div');
+          spacer.style.marginBottom = '20px';
+          errorDiv.appendChild(spacer);
+          
           const upgradeBtn = document.createElement('a');
           upgradeBtn.className = 'upgrade-btn';
           upgradeBtn.href = error.upgradeUrl;
@@ -1355,17 +1396,29 @@
           upgradeBtn.textContent = '⚡ Upgrade to Premium';
           upgradeBtn.onclick = (e) => {
             e.preventDefault();
+            console.log("[Widget] Upgrade button clicked, opening:", error.upgradeUrl);
             window.open(error.upgradeUrl, '_blank');
           };
           errorDiv.appendChild(upgradeBtn);
+          
+          // Add a note below the button
+          const noteDiv = document.createElement('p');
+          noteDiv.style.marginTop = '16px';
+          noteDiv.style.color = 'var(--text-muted)';
+          noteDiv.style.fontSize = '0.85rem';
+          noteDiv.textContent = 'Get unlimited access to all AlgoTutor modes!';
+          errorDiv.appendChild(noteDiv);
+        } else {
+          console.warn("[Widget] ⚠️ No upgradeUrl in error object");
         }
         
         outputContainer.appendChild(errorDiv);
+        console.log("[Widget] ✅ Error rendered with upgrade container");
       }
 
       // Listen for state updates from ChatGPT
       window.addEventListener("openai:set_globals", (ev) => {
-        console.log("[Widget] openai:set_globals event received");
+        console.log("[Widget] ==================== openai:set_globals ====================");
         console.log("[Widget] Event detail:", JSON.stringify(ev.detail, null, 2));
         
         const detail = ev.detail || {};
@@ -1373,10 +1426,19 @@
         console.log("[Widget] Extracted globals:", JSON.stringify(g, null, 2));
         
         // Check for errors first (including upgrade prompts)
-        let error = extractError(g?.toolOutput);
+        // Try multiple possible locations
+        console.log("[Widget] Checking for errors...");
+        let error = extractError(g);
+        if (!error && g?.toolOutput) {
+          error = extractError(g.toolOutput);
+        }
         if (!error && g?.toolOutput?.text) {
           error = extractError(g.toolOutput.text);
         }
+        if (!error && g?.content?.[0]?.text) {
+          error = extractError(g.content[0].text);
+        }
+        
         if (error) {
           console.log("[Widget] ⚠️ Found error in response:", error);
           renderError(error);
@@ -1393,6 +1455,12 @@
         if (!outputs && g?.toolOutput?.text) {
           console.log("[Widget] Trying to parse toolOutput.text as JSON");
           outputs = extractOutputs(g.toolOutput.text);
+        }
+        
+        // Try content[0].text (MCP format)
+        if (!outputs && g?.content?.[0]?.text) {
+          console.log("[Widget] Trying to parse content[0].text as JSON");
+          outputs = extractOutputs(g.content[0].text);
         }
         
         // Try widget.props.text
@@ -1416,19 +1484,21 @@
       });
 
       window.addEventListener("openai:state_updated", (ev) => {
-        console.log("[Widget] openai:state_updated event received");
+        console.log("[Widget] ==================== openai:state_updated ====================");
         console.log("[Widget] Event detail:", JSON.stringify(ev.detail, null, 2));
         
-        const s = ev.detail?.state;
+        const s = ev.detail?.state || ev.detail;
         if (!s) {
           console.warn("[Widget] No state in event detail");
           return;
         }
         
         // Check for errors first (including upgrade prompts)
+        console.log("[Widget] Checking for errors in state_updated...");
         let error = extractError(s);
-        if (!error) error = extractError(s.toolOutput);
+        if (!error && s.toolOutput) error = extractError(s.toolOutput);
         if (!error && s.toolOutput?.text) error = extractError(s.toolOutput.text);
+        if (!error && s.content?.[0]?.text) error = extractError(s.content[0].text);
         if (error) {
           console.log("[Widget] ⚠️ Found error in state_updated:", error);
           renderError(error);
@@ -1444,6 +1514,10 @@
         
         if (!outputs && s.toolOutput?.text) {
           outputs = extractOutputs(s.toolOutput.text);
+        }
+        
+        if (!outputs && s.content?.[0]?.text) {
+          outputs = extractOutputs(s.content[0].text);
         }
         
         if (outputs) {
