@@ -436,6 +436,7 @@
         const { data: sessionData } = await supabaseClient.auth.getSession();
         
         if (sessionData.session) {
+          // User is signed in (email confirmation disabled)
           if (plan === 'premium') {
             showMessage('Account created! Redirecting to checkout...', 'success');
             setTimeout(() => {
@@ -448,11 +449,11 @@
             }, 1000);
           }
         } else {
-          // Fallback: redirect to login if no session (shouldn't happen with confirmation disabled)
-          showMessage('Account created! Please sign in to continue.', 'success');
-          setTimeout(() => {
-            window.location.href = plan === 'premium' ? '/login.html?plan=premium' : '/login.html';
-          }, 1500);
+          // No session - email confirmation is required
+          showMessage('Account created! Check your email for confirmation.', 'success');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Account';
+          // Don't redirect - user needs to confirm email first
         }
       } catch (error) {
         showMessage(error.message, 'error');

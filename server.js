@@ -958,8 +958,8 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
-  // Serve web pages (landing, login, signup, dashboard, success)
-  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html', '/success.html'];
+  // Serve web pages (landing, login, signup, dashboard, success, auth-callback, reset-password)
+  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html', '/success.html', '/auth-callback.html', '/reset-password.html'];
   const pagePath = url.pathname === '/' ? '/index.html' : url.pathname;
   
   if (req.method === "GET" && webPages.includes(url.pathname)) {
