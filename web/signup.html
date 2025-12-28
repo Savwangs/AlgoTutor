@@ -246,6 +246,38 @@
       color: var(--accent);
       text-decoration: none;
     }
+
+    .auth-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.5rem;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border: none;
+      cursor: pointer;
+    }
+
+    .auth-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .auth-tab.active {
+      background: var(--accent);
+      color: white;
+    }
   </style>
 </head>
 <body>
@@ -260,6 +292,12 @@
       <div id="plan-info" style="text-align: center;"></div>
       <h1>Create your account</h1>
       <p class="subtitle">Start mastering DSA today</p>
+
+      <!-- Auth tabs for switching between sign in and sign up -->
+      <div class="auth-tabs" id="auth-tabs" style="display: none;">
+        <a href="#" class="auth-tab" id="signin-tab">Sign In</a>
+        <button class="auth-tab active" disabled>Create Account</button>
+      </div>
 
       <div id="message" class="message"></div>
 
@@ -317,8 +355,45 @@
     // Check for plan parameter
     const urlParams = new URLSearchParams(window.location.search);
     const plan = urlParams.get('plan');
+    const authTabs = document.getElementById('auth-tabs');
+    const signinTab = document.getElementById('signin-tab');
+    
     if (plan === 'premium') {
       planInfo.innerHTML = '<span class="plan-badge">Premium Plan Selected</span>';
+      // Show auth tabs when premium plan is selected
+      authTabs.style.display = 'flex';
+      // Set the sign-in link to preserve the plan parameter
+      signinTab.href = '/login.html?plan=premium';
+    }
+
+    // Redirect to Stripe checkout
+    async function startCheckout(email) {
+      try {
+        const response = await fetch('/api/create-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          showMessage('Error starting checkout: ' + data.error, 'error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Create Account';
+          return;
+        }
+
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } catch (error) {
+        console.error('Checkout error:', error);
+        showMessage('Failed to start checkout. Please try again.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Create Account';
+      }
     }
 
     function showMessage(text, type) {
@@ -356,17 +431,27 @@
 
         if (error) throw error;
 
-        if (data.user && !data.user.confirmed_at) {
-          showMessage('Check your email to confirm your account!', 'success');
-        } else {
-          showMessage('Account created! Redirecting...', 'success');
-          setTimeout(() => {
-            // If premium plan, redirect to checkout
-            if (plan === 'premium') {
-              window.location.href = '/checkout.html';
-            } else {
+        // With email confirmation disabled, user is auto-signed-in
+        // Check if we have a session (user is signed in)
+        const { data: sessionData } = await supabaseClient.auth.getSession();
+        
+        if (sessionData.session) {
+          if (plan === 'premium') {
+            showMessage('Account created! Redirecting to checkout...', 'success');
+            setTimeout(() => {
+              startCheckout(sessionData.session.user.email);
+            }, 1000);
+          } else {
+            showMessage('Account created! Redirecting...', 'success');
+            setTimeout(() => {
               window.location.href = '/dashboard.html';
-            }
+            }, 1000);
+          }
+        } else {
+          // Fallback: redirect to login if no session (shouldn't happen with confirmation disabled)
+          showMessage('Account created! Please sign in to continue.', 'success');
+          setTimeout(() => {
+            window.location.href = plan === 'premium' ? '/login.html?plan=premium' : '/login.html';
           }, 1500);
         }
       } catch (error) {
@@ -384,8 +469,10 @@
       }
 
       try {
+        // For premium plan, redirect to a page that will handle checkout
+        // For free plan, redirect to dashboard
         const redirectUrl = plan === 'premium' 
-          ? 'https://algo-tutor.org/checkout.html'
+          ? 'https://algo-tutor.org/auth-callback.html?plan=premium'
           : 'https://algo-tutor.org/dashboard.html';
 
         const { data, error } = await supabaseClient.auth.signInWithOAuth({

@@ -239,6 +239,48 @@
     .forgot-password a:hover {
       color: var(--accent);
     }
+
+    .auth-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 1.5rem;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 1px solid var(--border);
+    }
+
+    .auth-tab {
+      flex: 1;
+      padding: 0.75rem 1rem;
+      text-align: center;
+      font-weight: 600;
+      font-size: 0.9rem;
+      text-decoration: none;
+      transition: all 0.2s;
+      background: var(--bg-secondary);
+      color: var(--text-secondary);
+      border: none;
+      cursor: pointer;
+    }
+
+    .auth-tab:hover {
+      color: var(--text-primary);
+    }
+
+    .auth-tab.active {
+      background: var(--accent);
+      color: white;
+    }
+
+    .plan-badge {
+      display: inline-block;
+      padding: 0.25rem 0.75rem;
+      background: linear-gradient(135deg, var(--accent), #8b5cf6);
+      border-radius: 50px;
+      font-size: 0.75rem;
+      font-weight: 600;
+      margin-bottom: 1rem;
+    }
   </style>
 </head>
 <body>
@@ -250,8 +292,15 @@
     </div>
 
     <div class="auth-card">
-      <h1>Welcome back</h1>
-      <p class="subtitle">Sign in to continue learning</p>
+      <div id="plan-info" style="text-align: center;"></div>
+      <h1 id="page-title">Welcome back</h1>
+      <p class="subtitle" id="page-subtitle">Sign in to continue learning</p>
+
+      <!-- Auth tabs for switching between sign in and sign up -->
+      <div class="auth-tabs" id="auth-tabs" style="display: none;">
+        <button class="auth-tab active" disabled>Sign In</button>
+        <a href="#" class="auth-tab" id="signup-tab">Create Account</a>
+      </div>
 
       <div id="message" class="message"></div>
 
@@ -299,10 +348,59 @@
     const submitBtn = document.getElementById('submit-btn');
     const googleBtn = document.getElementById('google-btn');
     const forgotLink = document.getElementById('forgot-link');
+    const planInfo = document.getElementById('plan-info');
+    const pageTitle = document.getElementById('page-title');
+    const pageSubtitle = document.getElementById('page-subtitle');
+    const authTabs = document.getElementById('auth-tabs');
+    const signupTab = document.getElementById('signup-tab');
+
+    // Check for plan parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const plan = urlParams.get('plan');
+    
+    if (plan === 'premium') {
+      planInfo.innerHTML = '<span class="plan-badge">Upgrade to Premium</span>';
+      pageTitle.textContent = 'Sign in or Create Account';
+      pageSubtitle.textContent = 'to upgrade to Premium';
+      // Show auth tabs when premium plan is selected
+      authTabs.style.display = 'flex';
+      // Set the signup link to preserve the plan parameter
+      signupTab.href = '/signup.html?plan=premium';
+    }
 
     function showMessage(text, type) {
       messageEl.textContent = text;
       messageEl.className = `message ${type}`;
+    }
+
+    // Redirect to Stripe checkout
+    async function startCheckout(email) {
+      try {
+        const response = await fetch('/api/create-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          showMessage('Error starting checkout: ' + data.error, 'error');
+          submitBtn.disabled = false;
+          submitBtn.textContent = 'Sign In';
+          return;
+        }
+
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } catch (error) {
+        console.error('Checkout error:', error);
+        showMessage('Failed to start checkout. Please try again.', 'error');
+        submitBtn.disabled = false;
+        submitBtn.textContent = 'Sign In';
+      }
     }
 
     // Email/Password Sign In
@@ -328,10 +426,18 @@
 
         if (error) throw error;
 
-        showMessage('Success! Redirecting...', 'success');
-        setTimeout(() => {
-          window.location.href = '/dashboard.html';
-        }, 1000);
+        // If premium plan, redirect to checkout
+        if (plan === 'premium') {
+          showMessage('Success! Redirecting to checkout...', 'success');
+          setTimeout(() => {
+            startCheckout(email);
+          }, 1000);
+        } else {
+          showMessage('Success! Redirecting...', 'success');
+          setTimeout(() => {
+            window.location.href = '/dashboard.html';
+          }, 1000);
+        }
       } catch (error) {
         showMessage(error.message, 'error');
         submitBtn.disabled = false;
@@ -347,10 +453,15 @@
       }
 
       try {
+        // For premium plan, redirect to a page that will handle checkout
+        const redirectUrl = plan === 'premium' 
+          ? 'https://algo-tutor.org/auth-callback.html?plan=premium'
+          : 'https://algo-tutor.org/dashboard.html';
+
         const { data, error } = await supabaseClient.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: 'https://algo-tutor.org/dashboard.html'
+            redirectTo: redirectUrl
           }
         });
 
@@ -392,9 +503,20 @@
     if (supabaseClient) {
       supabaseClient.auth.getSession().then(({ data: { session } }) => {
         if (session) {
-          window.location.href = '/dashboard.html';
+          // If already logged in and plan=premium, redirect to checkout
+          if (plan === 'premium') {
+            startCheckout(session.user.email);
+          } else {
+            window.location.href = '/dashboard.html';
+          }
         }
       });
+    }
+
+    // Update footer link to preserve plan parameter
+    const footerLink = document.querySelector('.auth-footer a');
+    if (plan === 'premium' && footerLink) {
+      footerLink.href = '/signup.html?plan=premium';
     }
   </script>
 </body>

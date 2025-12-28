@@ -1,0 +1,212 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Redirecting... - AlgoTutor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-card: #1a1f2e;
+      --accent: #3b82f6;
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #2d3748;
+      --success: #10b981;
+      --error: #ef4444;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: -1;
+    }
+
+    .container {
+      text-align: center;
+      padding: 2rem;
+    }
+
+    .logo {
+      font-size: 2rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+    }
+
+    .logo span {
+      color: var(--accent);
+    }
+
+    .spinner {
+      width: 50px;
+      height: 50px;
+      border: 3px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+      margin: 0 auto 1.5rem;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      margin-bottom: 0.5rem;
+    }
+
+    p {
+      color: var(--text-secondary);
+    }
+
+    .message {
+      padding: 0.875rem;
+      border-radius: 8px;
+      margin-top: 1.5rem;
+      font-size: 0.875rem;
+    }
+
+    .message.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+    }
+
+    .message.success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--success);
+      color: var(--success);
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <div class="container">
+    <div class="logo">🚀 Algo<span>Tutor</span></div>
+    <div class="spinner"></div>
+    <h1 id="status-title">Processing...</h1>
+    <p id="status-text">Please wait while we set up your account.</p>
+    <div id="message" class="message" style="display: none;"></div>
+  </div>
+
+  <script>
+    // Initialize Supabase
+    const SUPABASE_URL = 'https://tlingzzbcnpekhztapmf.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsaW5nenpiY25wZWtoenRhcG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NDc2MTAsImV4cCI6MjA4MjIyMzYxMH0.IkfAgRzwMLyZgMPq4HxKoegnuOkTuzJIF1LA1Ps2TXA';
+    
+    const supabaseClient = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    const statusTitle = document.getElementById('status-title');
+    const statusText = document.getElementById('status-text');
+    const messageEl = document.getElementById('message');
+
+    // Check for plan parameter
+    const urlParams = new URLSearchParams(window.location.search);
+    const plan = urlParams.get('plan');
+
+    function showError(text) {
+      messageEl.textContent = text;
+      messageEl.className = 'message error';
+      messageEl.style.display = 'block';
+      statusTitle.textContent = 'Error';
+      statusText.textContent = 'Something went wrong.';
+      document.querySelector('.spinner').style.display = 'none';
+    }
+
+    // Start Stripe checkout
+    async function startCheckout(email) {
+      statusTitle.textContent = 'Redirecting to checkout...';
+      statusText.textContent = 'You will be redirected to Stripe to complete your purchase.';
+
+      try {
+        const response = await fetch('/api/create-checkout', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({ email })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          showError('Error starting checkout: ' + data.error);
+          return;
+        }
+
+        // Redirect to Stripe Checkout
+        window.location.href = data.url;
+      } catch (error) {
+        console.error('Checkout error:', error);
+        showError('Failed to start checkout. Please try again.');
+      }
+    }
+
+    // Main logic
+    async function handleCallback() {
+      try {
+        // Wait for Supabase to process the OAuth callback
+        const { data: { session }, error } = await supabaseClient.auth.getSession();
+
+        if (error) {
+          showError('Authentication error: ' + error.message);
+          return;
+        }
+
+        if (!session) {
+          // No session yet, wait a moment and try again
+          statusText.textContent = 'Waiting for authentication...';
+          setTimeout(handleCallback, 1000);
+          return;
+        }
+
+        // User is authenticated
+        statusTitle.textContent = 'Success!';
+        statusText.textContent = 'You are now signed in.';
+
+        if (plan === 'premium') {
+          // Redirect to Stripe checkout
+          await startCheckout(session.user.email);
+        } else {
+          // Redirect to dashboard
+          statusText.textContent = 'Redirecting to dashboard...';
+          setTimeout(() => {
+            window.location.href = '/dashboard.html';
+          }, 1000);
+        }
+      } catch (error) {
+        console.error('Callback error:', error);
+        showError('An unexpected error occurred. Please try again.');
+      }
+    }
+
+    // Start processing
+    handleCallback();
+  </script>
+</body>
+</html>
+
