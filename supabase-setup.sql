@@ -199,3 +199,14 @@ FROM usage_logs
 GROUP BY DATE(created_at), mode
 ORDER BY date DESC;
 
+-- 1. Reset ALL users to free tier
+UPDATE users 
+SET subscription_tier = 'free', 
+  subscription_status = 'active',
+  usage_count = 0;
+
+-- 2. Delete ALL premium codes (new ones will be generated on checkout)
+DELETE FROM premium_codes;
+
+-- 3. Clear ALL usage logs (so daily limit counter starts fresh)
+DELETE FROM usage_logs;
