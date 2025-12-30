@@ -133,7 +133,7 @@ export async function checkUsageLimit(user) {
   }
 
   const tier = user.subscription_tier || 'free';
-  const freeLimit = parseInt(process.env.FREE_TIER_LIMIT || '5', 10);
+  const freeLimit = parseInt(process.env.FREE_TIER_LIMIT || '1', 10);
 
   // Premium has unlimited usage
   if (tier === 'premium') {
