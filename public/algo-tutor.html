@@ -1612,16 +1612,14 @@
         modalActivate.textContent = 'Activating...';
 
         try {
-          const chatgptUserId = getChatGPTUserId();
-          
+          // Server will identify user from IP headers (same as authentication)
           const response = await fetch('https://algo-tutor.org/api/activate-premium', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              code: code,
-              chatgpt_user_id: chatgptUserId
+              code: code
             })
           });
 

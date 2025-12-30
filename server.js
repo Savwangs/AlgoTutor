@@ -795,12 +795,31 @@ const httpServer = createServer(async (req, res) => {
 
     try {
       const body = await parseJsonBody(req);
-      const { code, chatgpt_user_id } = body;
+      const { code } = body;
 
-      if (!code || !chatgpt_user_id) {
+      if (!code) {
         res.writeHead(400);
-        return res.end(JSON.stringify({ error: 'Code and chatgpt_user_id are required' }));
+        return res.end(JSON.stringify({ error: 'Code is required' }));
       }
+
+      // Extract user identifier from IP (same logic as auth.js)
+      let userIdentifier = null;
+      const ip = req.headers['cf-connecting-ip'] || req.headers['true-client-ip'] || req.headers['x-forwarded-for'];
+      if (ip) {
+        const cleanIp = ip.includes(',') ? ip.split(',')[0].trim() : ip;
+        const ipParts = cleanIp.split('.');
+        if (ipParts.length === 4) {
+          userIdentifier = `subnet-${ipParts.slice(0, 3).join('.')}`;
+        }
+      }
+      
+      if (!userIdentifier) {
+        console.log('[API] Could not determine user identifier from IP');
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'Could not identify user. Please try from the ChatGPT widget.' }));
+      }
+
+      console.log('[API] Activating premium for user:', userIdentifier);
 
       // Look up the code
       const { data: codeData, error: codeError } = await supabase
@@ -819,20 +838,20 @@ const httpServer = createServer(async (req, res) => {
         return res.end(JSON.stringify({ error: 'Code already used' }));
       }
 
-      // Find or create user with chatgpt_user_id
+      // Find or create user with the subnet-based identifier
       let { data: user } = await supabase
         .from('users')
         .select('*')
-        .eq('chatgpt_user_id', chatgpt_user_id)
+        .eq('chatgpt_user_id', userIdentifier)
         .single();
 
       if (!user) {
-        // Create new user
+        // Create new user with premium
         const { data: newUser, error: createError } = await supabase
           .from('users')
           .insert({
-            email: `${chatgpt_user_id}@chatgpt.user`,
-            chatgpt_user_id: chatgpt_user_id,
+            email: `${userIdentifier}@chatgpt.user`,
+            chatgpt_user_id: userIdentifier,
             subscription_tier: 'premium',
             subscription_status: 'active'
           })
@@ -845,6 +864,7 @@ const httpServer = createServer(async (req, res) => {
           return res.end(JSON.stringify({ error: 'Failed to create user' }));
         }
         user = newUser;
+        console.log('[API] Created new premium user:', userIdentifier);
       } else {
         // Update existing user to premium
         await supabase
@@ -853,7 +873,8 @@ const httpServer = createServer(async (req, res) => {
             subscription_tier: 'premium',
             subscription_status: 'active'
           })
-          .eq('chatgpt_user_id', chatgpt_user_id);
+          .eq('chatgpt_user_id', userIdentifier);
+        console.log('[API] Updated existing user to premium:', userIdentifier);
       }
 
       // Mark code as used
@@ -861,12 +882,12 @@ const httpServer = createServer(async (req, res) => {
         .from('premium_codes')
         .update({
           used: true,
-          used_by_chatgpt_user_id: chatgpt_user_id,
+          used_by_chatgpt_user_id: userIdentifier,
           used_at: new Date().toISOString()
         })
         .eq('code', code.toUpperCase());
 
-      console.log('[API] ✓ Premium activated for:', chatgpt_user_id);
+      console.log('[API] ✓ Premium activated for:', userIdentifier);
       res.writeHead(200);
       return res.end(JSON.stringify({ 
         success: true, 
