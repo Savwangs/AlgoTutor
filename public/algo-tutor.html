@@ -587,6 +587,48 @@
         flex-direction: column;
         gap: 14px;
       }
+
+      /* Premium success state */
+      .premium-success-container {
+        text-align: center;
+        padding: 60px 20px;
+      }
+
+      .premium-success-icon {
+        font-size: 4rem;
+        margin-bottom: 20px;
+        animation: pulse 2s ease-in-out infinite;
+      }
+
+      @keyframes pulse {
+        0%, 100% { transform: scale(1); }
+        50% { transform: scale(1.1); }
+      }
+
+      .premium-success-title {
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: var(--success);
+        margin-bottom: 12px;
+      }
+
+      .premium-success-message {
+        font-size: 1rem;
+        color: var(--text-main);
+        margin-bottom: 8px;
+        line-height: 1.6;
+      }
+
+      .premium-success-hint {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 20px;
+        padding: 12px 16px;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 8px;
+        display: inline-block;
+      }
     </style>
   </head>
 
@@ -1634,13 +1676,29 @@
             modalMessage.className = 'modal-message success';
             modalMessage.style.display = 'block';
             
-            // Hide the activate button and close modal after delay
+            // Close modal after brief delay
             setTimeout(() => {
               premiumModal.classList.remove('active');
+              
+              // Update the activate button to show premium is active
               activatePremiumBtn.textContent = '✓ Premium Active';
               activatePremiumBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
               activatePremiumBtn.disabled = true;
-            }, 2000);
+              
+              // Clear any error display and show success state in the output container
+              outputContainer.innerHTML = `
+                <div class="premium-success-container">
+                  <div class="premium-success-icon">🎉</div>
+                  <div class="premium-success-title">Premium Activated!</div>
+                  <div class="premium-success-message">
+                    Your account now has unlimited access to all AlgoTutor modes.
+                  </div>
+                  <div class="premium-success-hint">
+                    💡 Type a new message in ChatGPT to start learning with premium access!
+                  </div>
+                </div>
+              `;
+            }, 1500);
           }
         } catch (error) {
           console.error('Activation error:', error);
