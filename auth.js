@@ -283,6 +283,88 @@ export async function updateSubscription(userId, tier, status = 'active') {
 }
 
 /**
+ * Link a pending premium code to an MCP user
+ * This bridges the gap between widget activation (browser IP) and tool usage (OpenAI proxy IP)
+ */
+export async function linkPendingPremiumCode(user) {
+  if (!supabase) {
+    return user;
+  }
+
+  // If user is already premium, no need to check for pending codes
+  if (user.subscription_tier === 'premium') {
+    console.log('[Auth] User already premium, skipping code linking');
+    return user;
+  }
+
+  try {
+    console.log('[Auth] Checking for pending premium codes to link...');
+    
+    // Look for any premium code that is:
+    // 1. Marked as used (activated in widget)
+    // 2. Not yet linked to an MCP user (mcp_user_id is null)
+    const { data: pendingCode, error } = await supabase
+      .from('premium_codes')
+      .select('*')
+      .eq('used', true)
+      .is('mcp_user_id', null)
+      .order('used_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[Auth] Error checking for pending codes:', error);
+      return user;
+    }
+
+    if (!pendingCode) {
+      console.log('[Auth] No pending premium codes found');
+      return user;
+    }
+
+    console.log('[Auth] Found pending premium code:', pendingCode.code);
+    console.log('[Auth] Linking code to MCP user:', user.chatgpt_user_id);
+
+    // Link the code to this MCP user
+    const { error: linkError } = await supabase
+      .from('premium_codes')
+      .update({ mcp_user_id: user.chatgpt_user_id })
+      .eq('id', pendingCode.id);
+
+    if (linkError) {
+      console.error('[Auth] Error linking code to user:', linkError);
+      return user;
+    }
+
+    // Upgrade the user to premium
+    const { error: upgradeError } = await supabase
+      .from('users')
+      .update({
+        subscription_tier: 'premium',
+        subscription_status: 'active'
+      })
+      .eq('id', user.id);
+
+    if (upgradeError) {
+      console.error('[Auth] Error upgrading user to premium:', upgradeError);
+      return user;
+    }
+
+    // Update the user object in memory
+    user.subscription_tier = 'premium';
+    user.subscription_status = 'active';
+
+    console.log('[Auth] ✓ Successfully linked premium code to user:', user.chatgpt_user_id);
+    console.log('[Auth] ✓ User upgraded to premium!');
+    
+    return user;
+  } catch (error) {
+    console.error('[Auth] Error in linkPendingPremiumCode:', error);
+    return user;
+  }
+}
+
+/**
  * Extract user identifier from request headers
  * ChatGPT sends user info in various ways depending on the setup
  */
@@ -359,13 +441,17 @@ export async function authenticateRequest(req, mode) {
   try {
     // Get or create user
     console.log('[Auth] Step 1: Get or create user...');
-    const user = await getOrCreateUser(userIdentifier);
+    let user = await getOrCreateUser(userIdentifier);
     console.log('[Auth] ✓ User obtained:', { 
       id: user.id, 
       email: user.email, 
       tier: user.subscription_tier,
       usage_count: user.usage_count 
     });
+
+    // Step 1.5: Check for pending premium codes and link if found
+    console.log('[Auth] Step 1.5: Check for pending premium codes...');
+    user = await linkPendingPremiumCode(user);
 
     // Check if user can access this mode
     console.log('[Auth] Step 2: Check mode access...');

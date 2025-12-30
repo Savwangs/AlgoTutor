@@ -45,9 +45,14 @@ CREATE TABLE IF NOT EXISTS premium_codes (
   stripe_session_id TEXT,
   used BOOLEAN DEFAULT false,
   used_by_chatgpt_user_id TEXT,
+  mcp_user_id TEXT,  -- The subnet-based user ID from MCP tool calls (null until linked)
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   used_at TIMESTAMP WITH TIME ZONE
 );
+
+-- Migration: Add mcp_user_id column if table already exists
+-- Run this in Supabase SQL Editor if table already exists:
+-- ALTER TABLE premium_codes ADD COLUMN IF NOT EXISTS mcp_user_id TEXT;
 
 -- ================================================
 -- 4. SUBSCRIPTION PLANS TABLE
