@@ -13,9 +13,15 @@ export function isAuthEnabled() {
 }
 
 // Initialize Supabase client (only if credentials are provided)
+// Use service role key with admin options to bypass RLS
 if (supabaseUrl && supabaseKey) {
-  supabase = createClient(supabaseUrl, supabaseKey);
-  console.log('✅ Supabase authentication initialized');
+  supabase = createClient(supabaseUrl, supabaseKey, {
+    auth: {
+      autoRefreshToken: false,
+      persistSession: false,
+    }
+  });
+  console.log('✅ Supabase authentication initialized with service role key');
 } else {
   console.log('ℹ️  Supabase not configured - running without authentication');
 }
@@ -326,36 +332,55 @@ export async function linkPendingPremiumCode(user) {
     console.log('[Auth] Linking code to MCP user:', user.chatgpt_user_id);
 
     // Link the code to this MCP user
-    const { error: linkError } = await supabase
+    const { data: linkedCode, error: linkError } = await supabase
       .from('premium_codes')
       .update({ mcp_user_id: user.chatgpt_user_id })
-      .eq('id', pendingCode.id);
+      .eq('id', pendingCode.id)
+      .select();
+
+    console.log('[Auth] Code link result:', { linkedCode, linkError, rowsUpdated: linkedCode?.length });
 
     if (linkError) {
       console.error('[Auth] Error linking code to user:', linkError);
       return user;
     }
 
-    // Upgrade the user to premium
-    const { error: upgradeError } = await supabase
+    // Upgrade the user to premium in the database
+    console.log('[Auth] Attempting to upgrade user to premium:', { userId: user.id, userEmail: user.email });
+    
+    const { data: updatedUser, error: upgradeError } = await supabase
       .from('users')
       .update({
         subscription_tier: 'premium',
         subscription_status: 'active'
       })
-      .eq('id', user.id);
+      .eq('id', user.id)
+      .select();
+
+    console.log('[Auth] User upgrade result:', { 
+      updatedUser, 
+      upgradeError, 
+      rowsUpdated: updatedUser?.length,
+      newTier: updatedUser?.[0]?.subscription_tier 
+    });
 
     if (upgradeError) {
       console.error('[Auth] Error upgrading user to premium:', upgradeError);
       return user;
     }
 
-    // Update the user object in memory
-    user.subscription_tier = 'premium';
-    user.subscription_status = 'active';
+    if (!updatedUser || updatedUser.length === 0) {
+      console.error('[Auth] ❌ UPDATE returned 0 rows! User was NOT updated in database.');
+      console.error('[Auth] This may be due to RLS policy blocking the update.');
+      return user;
+    }
+
+    // Update the user object in memory with the returned data
+    user.subscription_tier = updatedUser[0].subscription_tier;
+    user.subscription_status = updatedUser[0].subscription_status;
 
     console.log('[Auth] ✓ Successfully linked premium code to user:', user.chatgpt_user_id);
-    console.log('[Auth] ✓ User upgraded to premium!');
+    console.log('[Auth] ✓ User upgraded to premium! New tier:', user.subscription_tier);
     
     return user;
   } catch (error) {
