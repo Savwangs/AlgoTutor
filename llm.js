@@ -4,7 +4,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MODEL = 'gpt-5.2'; // Cheapest GPT-4 model (~$0.00015/1K input tokens)
+const MODEL = 'gpt-4o-mini'; // Cheapest GPT-4 model (~$0.00015/1K input tokens)
 
 // Helper function to call OpenAI
 async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
