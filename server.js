@@ -801,8 +801,8 @@ const httpServer = createServer(async (req, res) => {
   }
 
   // API: Activate premium with code
-  // This endpoint just marks the code as used. The actual premium linking
-  // happens during authentication when the user makes their first MCP tool call.
+  // This endpoint validates the code and directly upgrades the IP-based user to premium.
+  // This allows cross-session premium access when the widget auto-activates.
   if (req.method === "POST" && url.pathname === "/api/activate-premium") {
     console.log('[API] Activate premium request');
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -837,32 +837,90 @@ const httpServer = createServer(async (req, res) => {
         return res.end(JSON.stringify({ error: 'Invalid code' }));
       }
 
-      if (codeData.used) {
-        // If code is already used but has an mcp_user_id, it's fully claimed
-        if (codeData.mcp_user_id) {
-          console.log('[API] Code already fully claimed:', code);
-          res.writeHead(400);
-          return res.end(JSON.stringify({ error: 'Code already used' }));
-        }
-        // If used but no mcp_user_id, it's pending - that's fine, user is re-activating
-        console.log('[API] Code already activated, waiting for MCP link');
+      // Mark code as used if not already
+      if (!codeData.used) {
+        await supabase
+          .from('premium_codes')
+          .update({
+            used: true,
+            used_at: new Date().toISOString()
+          })
+          .eq('code', code.toUpperCase());
+        console.log('[API] Code marked as used:', code.toUpperCase());
       }
 
-      // Mark code as used (but NOT linked to MCP user yet - that happens during auth)
-      // mcp_user_id remains null until the user makes their first tool call
-      await supabase
-        .from('premium_codes')
-        .update({
-          used: true,
-          used_at: new Date().toISOString()
-        })
-        .eq('code', code.toUpperCase());
+      // Extract user identifier from IP (same logic as auth.js)
+      let userIdentifier = null;
+      const ip = req.headers['cf-connecting-ip'] || req.headers['true-client-ip'] || req.headers['x-forwarded-for'];
+      if (ip) {
+        const cleanIp = ip.includes(',') ? ip.split(',')[0].trim() : ip;
+        const ipParts = cleanIp.split('.');
+        if (ipParts.length === 4) {
+          userIdentifier = `subnet-${ipParts.slice(0, 3).join('.')}`;
+        }
+      }
 
-      console.log('[API] ✓ Premium code activated (pending MCP link):', code.toUpperCase());
+      if (!userIdentifier) {
+        // Even without IP, the code is valid - just can't upgrade a specific user right now
+        console.log('[API] Could not determine user identifier, code is valid for MCP activation');
+        res.writeHead(200);
+        return res.end(JSON.stringify({ 
+          success: true, 
+          message: 'Premium code validated! Your next AlgoTutor request will have premium access.' 
+        }));
+      }
+
+      console.log('[API] User identifier from IP:', userIdentifier);
+
+      // Find or create user with this identifier
+      const email = `${userIdentifier}@chatgpt.user`;
+      
+      // Check if user exists
+      const { data: existingUser } = await supabase
+        .from('users')
+        .select('*')
+        .eq('chatgpt_user_id', userIdentifier)
+        .single();
+
+      if (existingUser) {
+        // Upgrade existing user to premium
+        const { data: updatedUser, error: updateError } = await supabase
+          .from('users')
+          .update({
+            subscription_tier: 'premium',
+            subscription_status: 'active'
+          })
+          .eq('id', existingUser.id)
+          .select();
+
+        if (updateError) {
+          console.error('[API] Error upgrading user:', updateError);
+        } else {
+          console.log('[API] ✓ Existing user upgraded to premium:', userIdentifier, 'rows:', updatedUser?.length);
+        }
+      } else {
+        // Create new premium user
+        const { error: insertError } = await supabase
+          .from('users')
+          .insert({
+            email: email,
+            chatgpt_user_id: userIdentifier,
+            subscription_tier: 'premium',
+            subscription_status: 'active'
+          });
+
+        if (insertError) {
+          console.error('[API] Error creating premium user:', insertError);
+        } else {
+          console.log('[API] ✓ New premium user created:', userIdentifier);
+        }
+      }
+
+      console.log('[API] ✓ Premium activation complete for:', userIdentifier);
       res.writeHead(200);
       return res.end(JSON.stringify({ 
         success: true, 
-        message: 'Premium activated! Use any AlgoTutor tool to complete activation.' 
+        message: 'Premium activated! You now have unlimited access.' 
       }));
     } catch (error) {
       console.error('[API] ❌ Activate premium error:', error);

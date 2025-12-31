@@ -1585,6 +1585,45 @@
       
       console.log("[Widget] ==================== INITIALIZATION COMPLETE ====================");
 
+      // ==================== AUTO-ACTIVATE PREMIUM FROM LOCALSTORAGE ====================
+      // Check if user has a stored premium code and auto-activate it for this session
+      const storedPremiumCode = localStorage.getItem('algotutor_premium_code');
+      if (storedPremiumCode) {
+        console.log('[Widget] Found stored premium code, auto-activating:', storedPremiumCode);
+        
+        // Auto-activate in background (don't block UI)
+        fetch('https://algo-tutor.org/api/activate-premium', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ code: storedPremiumCode })
+        })
+        .then(response => response.json())
+        .then(data => {
+          if (data.error) {
+            console.log('[Widget] Auto-activation failed:', data.error);
+            // If code is invalid (e.g., revoked), remove it from storage
+            if (data.error.includes('Invalid') || data.error.includes('not found')) {
+              localStorage.removeItem('algotutor_premium_code');
+              console.log('[Widget] Removed invalid code from localStorage');
+            }
+          } else {
+            console.log('[Widget] ✓ Auto-activation successful! Premium status restored.');
+            // Update the activate button to show premium is active
+            const activateBtn = document.getElementById('activate-premium-btn');
+            if (activateBtn) {
+              activateBtn.textContent = '✓ Premium Active';
+              activateBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+              activateBtn.disabled = true;
+            }
+          }
+        })
+        .catch(error => {
+          console.error('[Widget] Auto-activation error:', error);
+        });
+      } else {
+        console.log('[Widget] No stored premium code found');
+      }
+
       // ==================== PREMIUM ACTIVATION MODAL ====================
       const premiumModal = document.getElementById('premium-modal');
       const activatePremiumBtn = document.getElementById('activate-premium-btn');
@@ -1675,6 +1714,10 @@
             modalMessage.textContent = '✓ ' + (data.message || 'Premium activated successfully!');
             modalMessage.className = 'modal-message success';
             modalMessage.style.display = 'block';
+            
+            // Store the code in localStorage for cross-session persistence
+            localStorage.setItem('algotutor_premium_code', code);
+            console.log('[Widget] Premium code stored in localStorage:', code);
             
             // Close modal after brief delay
             setTimeout(() => {
