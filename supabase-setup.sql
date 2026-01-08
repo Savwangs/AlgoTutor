@@ -46,13 +46,15 @@ CREATE TABLE IF NOT EXISTS premium_codes (
   used BOOLEAN DEFAULT false,
   used_by_chatgpt_user_id TEXT,
   mcp_user_id TEXT,  -- The subnet-based user ID from MCP tool calls (null until linked)
+  revoked BOOLEAN DEFAULT false,  -- Set to true when subscription is cancelled
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   used_at TIMESTAMP WITH TIME ZONE
 );
 
--- Migration: Add mcp_user_id column if table already exists
--- Run this in Supabase SQL Editor if table already exists:
+-- Migration: Add columns if table already exists
+-- Run these in Supabase SQL Editor if table already exists:
 -- ALTER TABLE premium_codes ADD COLUMN IF NOT EXISTS mcp_user_id TEXT;
+-- ALTER TABLE premium_codes ADD COLUMN IF NOT EXISTS revoked BOOLEAN DEFAULT false;
 
 -- ================================================
 -- 4. SUBSCRIPTION PLANS TABLE

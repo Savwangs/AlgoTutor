@@ -460,6 +460,31 @@
         transform: scale(1.05);
       }
 
+      /* Header buttons container */
+      .header-buttons {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+      }
+
+      /* Cancel subscription button */
+      .cancel-subscription-btn {
+        padding: 6px 10px;
+        background: transparent;
+        color: var(--text-muted);
+        font-size: 0.75rem;
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        cursor: pointer;
+        transition: all 0.2s;
+        display: none;
+      }
+
+      .cancel-subscription-btn:hover {
+        color: var(--error);
+        border-color: var(--error);
+      }
+
       /* Modal styles */
       .modal-overlay {
         display: none;
@@ -643,9 +668,14 @@
               and clear dry-runs
             </p>
           </div>
-          <button class="activate-premium-btn" id="activate-premium-btn">
-            ⚡ Activate Premium
-          </button>
+          <div class="header-buttons">
+            <button class="cancel-subscription-btn" id="cancel-subscription-btn">
+              Cancel Subscription
+            </button>
+            <button class="activate-premium-btn" id="activate-premium-btn">
+              ⚡ Activate Premium
+            </button>
+          </div>
         </div>
         <div class="mode-selector">
           <button class="mode-btn active" data-mode="learn">
@@ -1588,8 +1618,15 @@
       // ==================== AUTO-ACTIVATE PREMIUM FROM LOCALSTORAGE ====================
       // Check if user has a stored premium code and auto-activate it for this session
       const storedPremiumCode = localStorage.getItem('algotutor_premium_code');
+      const cancelBtn = document.getElementById('cancel-subscription-btn');
+      
       if (storedPremiumCode) {
         console.log('[Widget] Found stored premium code, auto-activating:', storedPremiumCode);
+        
+        // Show cancel button since user has a stored code
+        if (cancelBtn) {
+          cancelBtn.style.display = 'inline-block';
+        }
         
         // Auto-activate in background (don't block UI)
         fetch('https://algo-tutor.org/api/activate-premium', {
@@ -1601,10 +1638,14 @@
         .then(data => {
           if (data.error) {
             console.log('[Widget] Auto-activation failed:', data.error);
-            // If code is invalid (e.g., revoked), remove it from storage
-            if (data.error.includes('Invalid') || data.error.includes('not found')) {
+            // If code is invalid or revoked, remove it from storage
+            if (data.error.includes('Invalid') || data.error.includes('not found') || data.error.includes('revoked')) {
               localStorage.removeItem('algotutor_premium_code');
-              console.log('[Widget] Removed invalid code from localStorage');
+              console.log('[Widget] Removed invalid/revoked code from localStorage');
+              // Hide cancel button since code is no longer valid
+              if (cancelBtn) {
+                cancelBtn.style.display = 'none';
+              }
             }
           } else {
             console.log('[Widget] ✓ Auto-activation successful! Premium status restored.');
@@ -1622,6 +1663,18 @@
         });
       } else {
         console.log('[Widget] No stored premium code found');
+        // Hide cancel button if no code stored
+        if (cancelBtn) {
+          cancelBtn.style.display = 'none';
+        }
+      }
+      
+      // Cancel subscription button click handler
+      if (cancelBtn) {
+        cancelBtn.addEventListener('click', () => {
+          console.log('[Widget] Opening cancel subscription page');
+          window.open('https://algo-tutor.org/cancel.html', '_blank');
+        });
       }
 
       // ==================== PREMIUM ACTIVATION MODAL ====================

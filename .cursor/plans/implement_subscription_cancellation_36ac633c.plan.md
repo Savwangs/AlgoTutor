@@ -4,25 +4,25 @@ overview: Add subscription cancellation flow with a Cancel button in the widget,
 todos:
   - id: add-revoked-column
     content: Add 'revoked' column to premium_codes table in Supabase
-    status: pending
+    status: completed
   - id: update-activate-check-revoked
     content: Update /api/activate-premium to reject revoked codes
-    status: pending
+    status: completed
   - id: widget-cancel-button
     content: Add Cancel Subscription button to widget that opens cancel page
-    status: pending
+    status: completed
   - id: widget-check-revoked
     content: Update widget auto-activate to clear localStorage on 'revoked' error
-    status: pending
+    status: completed
   - id: create-cancel-page
     content: Create web/cancel.html with sign-in and cancel subscription UI
-    status: pending
+    status: completed
   - id: add-cancel-endpoint
     content: Add /api/cancel-subscription endpoint to cancel Stripe and revoke code
-    status: pending
+    status: completed
   - id: add-cancel-to-webpages
     content: Add cancel.html to server.js webPages array
-    status: pending
+    status: completed
 ---
 
 # Implement Subscription Cancellation

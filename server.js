@@ -837,6 +837,13 @@ const httpServer = createServer(async (req, res) => {
         return res.end(JSON.stringify({ error: 'Invalid code' }));
       }
 
+      // Check if code has been revoked (subscription cancelled)
+      if (codeData.revoked) {
+        console.log('[API] Code has been revoked:', code);
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'This code has been revoked. Your subscription was cancelled.' }));
+      }
+
       // Mark code as used if not already
       if (!codeData.used) {
         await supabase
@@ -929,6 +936,112 @@ const httpServer = createServer(async (req, res) => {
     }
   }
 
+  // API: Cancel subscription
+  if (req.method === "POST" && url.pathname === "/api/cancel-subscription") {
+    console.log('[API] Cancel subscription request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    if (!supabase) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: 'Database not configured' }));
+    }
+
+    try {
+      const body = await parseJsonBody(req);
+      const { email } = body;
+
+      if (!email) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'Email is required' }));
+      }
+
+      console.log('[API] Processing cancellation for:', email);
+
+      // Find the premium code for this email
+      const { data: codeData, error: codeError } = await supabase
+        .from('premium_codes')
+        .select('*')
+        .eq('email', email)
+        .eq('revoked', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (codeError) {
+        console.error('[API] Error finding premium code:', codeError);
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: 'Failed to find subscription' }));
+      }
+
+      if (!codeData) {
+        console.log('[API] No active premium code found for:', email);
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'No active subscription found for this email' }));
+      }
+
+      console.log('[API] Found premium code:', codeData.code);
+
+      // Cancel Stripe subscription if we have the session ID
+      if (codeData.stripe_session_id && stripe) {
+        try {
+          // Get the checkout session to find the subscription
+          const session = await stripe.checkout.sessions.retrieve(codeData.stripe_session_id);
+          
+          if (session.subscription) {
+            console.log('[API] Cancelling Stripe subscription:', session.subscription);
+            await stripe.subscriptions.cancel(session.subscription);
+            console.log('[API] ✓ Stripe subscription cancelled');
+          }
+        } catch (stripeError) {
+          console.error('[API] Stripe cancellation error (continuing):', stripeError.message);
+          // Continue anyway - we still want to revoke the code
+        }
+      }
+
+      // Mark the premium code as revoked
+      const { error: revokeError } = await supabase
+        .from('premium_codes')
+        .update({ revoked: true })
+        .eq('id', codeData.id);
+
+      if (revokeError) {
+        console.error('[API] Error revoking code:', revokeError);
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: 'Failed to revoke subscription' }));
+      }
+
+      console.log('[API] ✓ Premium code revoked:', codeData.code);
+
+      // If we have an mcp_user_id, downgrade that user to free tier
+      if (codeData.mcp_user_id) {
+        const { error: downgradeError } = await supabase
+          .from('users')
+          .update({
+            subscription_tier: 'free',
+            subscription_status: 'cancelled'
+          })
+          .eq('chatgpt_user_id', codeData.mcp_user_id);
+
+        if (downgradeError) {
+          console.error('[API] Error downgrading user (continuing):', downgradeError);
+        } else {
+          console.log('[API] ✓ User downgraded to free tier:', codeData.mcp_user_id);
+        }
+      }
+
+      res.writeHead(200);
+      return res.end(JSON.stringify({ 
+        success: true, 
+        message: 'Subscription cancelled successfully' 
+      }));
+    } catch (error) {
+      console.error('[API] ❌ Cancel subscription error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
   // CORS preflight for API endpoints
   if (req.method === "OPTIONS" && url.pathname.startsWith("/api/")) {
     res.writeHead(204, {
@@ -1009,7 +1122,7 @@ const httpServer = createServer(async (req, res) => {
   }
 
   // Serve web pages (landing, login, signup, dashboard, success, auth-callback, reset-password)
-  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html', '/success.html', '/auth-callback.html', '/reset-password.html'];
+  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html', '/success.html', '/auth-callback.html', '/reset-password.html', '/cancel.html'];
   const pagePath = url.pathname === '/' ? '/index.html' : url.pathname;
   
   if (req.method === "GET" && webPages.includes(url.pathname)) {

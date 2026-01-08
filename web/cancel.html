@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cancel Subscription - AlgoTutor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a1f2e;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.3);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #2d3748;
+      --success: #10b981;
+      --error: #ef4444;
+      --warning: #f59e0b;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: -1;
+    }
+
+    .container {
+      width: 100%;
+      max-width: 480px;
+      padding: 2rem;
+    }
+
+    .card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 2.5rem;
+    }
+
+    .logo {
+      text-align: center;
+      font-size: 1.75rem;
+      font-weight: 700;
+      margin-bottom: 2rem;
+    }
+
+    .logo a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .logo span {
+      color: var(--text-primary);
+    }
+
+    h1 {
+      font-size: 1.5rem;
+      text-align: center;
+      margin-bottom: 0.5rem;
+      color: var(--warning);
+    }
+
+    .subtitle {
+      text-align: center;
+      color: var(--text-secondary);
+      margin-bottom: 2rem;
+    }
+
+    .form-group {
+      margin-bottom: 1.25rem;
+    }
+
+    label {
+      display: block;
+      font-size: 0.875rem;
+      font-weight: 500;
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+    }
+
+    input {
+      width: 100%;
+      padding: 0.875rem 1rem;
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text-primary);
+      font-size: 1rem;
+      font-family: inherit;
+      transition: border-color 0.2s;
+    }
+
+    input:focus {
+      outline: none;
+      border-color: var(--accent);
+    }
+
+    .btn {
+      width: 100%;
+      padding: 0.875rem 1.5rem;
+      border-radius: 8px;
+      font-weight: 600;
+      text-decoration: none;
+      transition: all 0.2s;
+      cursor: pointer;
+      border: none;
+      font-size: 1rem;
+      font-family: inherit;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 0.5rem;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: white;
+    }
+
+    .btn-primary:hover {
+      background: #2563eb;
+    }
+
+    .btn-primary:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .btn-danger {
+      background: var(--error);
+      color: white;
+    }
+
+    .btn-danger:hover {
+      background: #dc2626;
+    }
+
+    .btn-secondary {
+      background: var(--bg-secondary);
+      color: var(--text-primary);
+      border: 1px solid var(--border);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .message {
+      padding: 0.875rem;
+      border-radius: 8px;
+      margin-bottom: 1rem;
+      font-size: 0.875rem;
+      display: none;
+    }
+
+    .message.error {
+      background: rgba(239, 68, 68, 0.1);
+      border: 1px solid var(--error);
+      color: var(--error);
+      display: block;
+    }
+
+    .message.success {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--success);
+      color: var(--success);
+      display: block;
+    }
+
+    .message.warning {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid var(--warning);
+      color: var(--warning);
+      display: block;
+    }
+
+    .subscription-info {
+      background: var(--bg-secondary);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 1.5rem;
+      margin-bottom: 1.5rem;
+    }
+
+    .subscription-info h3 {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-bottom: 0.5rem;
+    }
+
+    .subscription-info p {
+      font-size: 1.25rem;
+      font-weight: 600;
+      color: var(--success);
+    }
+
+    .subscription-info .email {
+      font-size: 0.875rem;
+      color: var(--text-secondary);
+      margin-top: 0.5rem;
+    }
+
+    .warning-box {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid var(--warning);
+      border-radius: 8px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      font-size: 0.875rem;
+      color: var(--warning);
+    }
+
+    .warning-box h4 {
+      font-size: 0.875rem;
+      margin-bottom: 0.5rem;
+    }
+
+    .warning-box ul {
+      margin-left: 1.25rem;
+      margin-top: 0.5rem;
+    }
+
+    .warning-box li {
+      margin-bottom: 0.25rem;
+    }
+
+    .button-group {
+      display: flex;
+      flex-direction: column;
+      gap: 0.75rem;
+      margin-top: 1.5rem;
+    }
+
+    .footer {
+      text-align: center;
+      margin-top: 1.5rem;
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .hidden {
+      display: none !important;
+    }
+
+    .loading {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-secondary);
+    }
+
+    .spinner {
+      display: inline-block;
+      width: 24px;
+      height: 24px;
+      border: 2px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+  
+  <div class="container">
+    <div class="card">
+      <div class="logo">
+        <a href="/">🚀 Algo<span>Tutor</span></a>
+      </div>
+
+      <!-- Loading State -->
+      <div id="loading-state" class="loading">
+        <div class="spinner"></div>
+        <p style="margin-top: 1rem;">Loading...</p>
+      </div>
+
+      <!-- Sign In State -->
+      <div id="signin-state" class="hidden">
+        <h1>⚠️ Cancel Subscription</h1>
+        <p class="subtitle">Sign in to manage your subscription</p>
+
+        <div id="signin-message" class="message"></div>
+
+        <form id="signin-form">
+          <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" placeholder="your@email.com" required>
+          </div>
+          <div class="form-group">
+            <label for="password">Password</label>
+            <input type="password" id="password" placeholder="••••••••" required>
+          </div>
+          <button type="submit" class="btn btn-primary" id="signin-btn">Sign In</button>
+        </form>
+
+        <div class="footer">
+          <a href="/">← Back to Home</a>
+        </div>
+      </div>
+
+      <!-- Cancel State -->
+      <div id="cancel-state" class="hidden">
+        <h1>⚠️ Cancel Subscription</h1>
+        <p class="subtitle">We're sorry to see you go</p>
+
+        <div id="cancel-message" class="message"></div>
+
+        <div class="subscription-info">
+          <h3>Current Plan</h3>
+          <p>✓ Premium</p>
+          <div class="email" id="user-email"></div>
+        </div>
+
+        <div class="warning-box">
+          <h4>What happens when you cancel:</h4>
+          <ul>
+            <li>Your premium access will end immediately</li>
+            <li>You'll be downgraded to the free tier (1 use/day)</li>
+            <li>Build Mode and Debug Mode will no longer be available</li>
+            <li>Your activation code will be revoked</li>
+          </ul>
+        </div>
+
+        <div class="button-group">
+          <button type="button" class="btn btn-danger" id="confirm-cancel-btn">
+            Cancel My Subscription
+          </button>
+          <button type="button" class="btn btn-secondary" id="keep-btn">
+            Keep My Subscription
+          </button>
+        </div>
+
+        <div class="footer">
+          <a href="/">← Back to Home</a>
+        </div>
+      </div>
+
+      <!-- Success State -->
+      <div id="success-state" class="hidden">
+        <h1 style="color: var(--success);">✓ Subscription Cancelled</h1>
+        <p class="subtitle">Your subscription has been cancelled</p>
+
+        <div class="message success" style="display: block;">
+          <p><strong>What happens now:</strong></p>
+          <ul style="margin-left: 1.25rem; margin-top: 0.5rem;">
+            <li>Your premium access has ended</li>
+            <li>The next time you use AlgoTutor in ChatGPT, you'll be on the free tier</li>
+            <li>You can upgrade again anytime from the pricing page</li>
+          </ul>
+        </div>
+
+        <div class="button-group">
+          <a href="/pricing.html" class="btn btn-primary">View Pricing</a>
+          <a href="/" class="btn btn-secondary">Back to Home</a>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    // Initialize Supabase
+    const SUPABASE_URL = 'https://jqjcqeymomnfvdnplmsp.supabase.co';
+    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxamNxZXltb21uZnZkbnBsbXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDQ3NTMsImV4cCI6MjA1MDQ4MDc1M30.sRhj0BtNBbJOTbgRJ-Ao7W1MnZ91TNq4UBzrqfweFXE';
+    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+
+    // DOM Elements
+    const loadingState = document.getElementById('loading-state');
+    const signinState = document.getElementById('signin-state');
+    const cancelState = document.getElementById('cancel-state');
+    const successState = document.getElementById('success-state');
+    const signinForm = document.getElementById('signin-form');
+    const signinMessage = document.getElementById('signin-message');
+    const cancelMessage = document.getElementById('cancel-message');
+    const userEmailEl = document.getElementById('user-email');
+    const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+    const keepBtn = document.getElementById('keep-btn');
+
+    let currentUser = null;
+
+    // Check auth state on load
+    async function checkAuth() {
+      const { data: { user } } = await supabase.auth.getUser();
+      
+      if (user) {
+        currentUser = user;
+        showCancelState();
+      } else {
+        showSigninState();
+      }
+    }
+
+    function showSigninState() {
+      loadingState.classList.add('hidden');
+      signinState.classList.remove('hidden');
+      cancelState.classList.add('hidden');
+      successState.classList.add('hidden');
+    }
+
+    function showCancelState() {
+      loadingState.classList.add('hidden');
+      signinState.classList.add('hidden');
+      cancelState.classList.remove('hidden');
+      successState.classList.add('hidden');
+      
+      if (currentUser) {
+        userEmailEl.textContent = currentUser.email;
+      }
+    }
+
+    function showSuccessState() {
+      loadingState.classList.add('hidden');
+      signinState.classList.add('hidden');
+      cancelState.classList.add('hidden');
+      successState.classList.remove('hidden');
+    }
+
+    // Sign in handler
+    signinForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      
+      const email = document.getElementById('email').value;
+      const password = document.getElementById('password').value;
+      const btn = document.getElementById('signin-btn');
+      
+      btn.disabled = true;
+      btn.textContent = 'Signing in...';
+      signinMessage.className = 'message';
+      signinMessage.style.display = 'none';
+
+      try {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email,
+          password
+        });
+
+        if (error) throw error;
+
+        currentUser = data.user;
+        showCancelState();
+      } catch (error) {
+        signinMessage.textContent = error.message;
+        signinMessage.className = 'message error';
+      } finally {
+        btn.disabled = false;
+        btn.textContent = 'Sign In';
+      }
+    });
+
+    // Cancel subscription handler
+    confirmCancelBtn.addEventListener('click', async () => {
+      if (!currentUser) {
+        cancelMessage.textContent = 'Please sign in first';
+        cancelMessage.className = 'message error';
+        return;
+      }
+
+      const confirmed = confirm('Are you sure you want to cancel your subscription? This action cannot be undone.');
+      if (!confirmed) return;
+
+      confirmCancelBtn.disabled = true;
+      confirmCancelBtn.textContent = 'Cancelling...';
+      cancelMessage.className = 'message';
+      cancelMessage.style.display = 'none';
+
+      try {
+        const response = await fetch('/api/cancel-subscription', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+          },
+          body: JSON.stringify({
+            email: currentUser.email
+          })
+        });
+
+        const data = await response.json();
+
+        if (data.error) {
+          throw new Error(data.error);
+        }
+
+        showSuccessState();
+      } catch (error) {
+        cancelMessage.textContent = error.message;
+        cancelMessage.className = 'message error';
+        confirmCancelBtn.disabled = false;
+        confirmCancelBtn.textContent = 'Cancel My Subscription';
+      }
+    });
+
+    // Keep subscription handler
+    keepBtn.addEventListener('click', () => {
+      window.location.href = '/dashboard.html';
+    });
+
+    // Initialize
+    checkAuth();
+  </script>
+</body>
+</html>
+
