@@ -321,11 +321,12 @@
     premiumBtn.addEventListener('click', async (e) => {
       e.preventDefault();
 
-      // Check if user is logged in
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      // Check if user is logged in (getUser validates with Supabase servers)
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
       
-      if (!session) {
-        // Not logged in, redirect to login with plan (user can sign in or create account)
+      if (authError || !user) {
+        // Not logged in or session invalid, redirect to login with plan
+        console.log('No valid user session, redirecting to login');
         window.location.href = '/login.html?plan=premium';
         return;
       }
@@ -342,7 +343,7 @@
             'Content-Type': 'application/json',
           },
           body: JSON.stringify({
-            email: session.user.email
+            email: user.email
           })
         });
 
