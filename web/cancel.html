@@ -411,13 +411,26 @@
 
     // Check auth state on load
     async function checkAuth() {
-      const { data: { user } } = await supabase.auth.getUser();
-      
-      if (user) {
-        currentUser = user;
-        showCancelState();
-      } else {
-        showSigninState();
+      try {
+        const { data: { user }, error } = await supabase.auth.getUser();
+        
+        if (error) {
+          console.log('Auth check error:', error.message);
+          showSigninState();
+          return;
+        }
+        
+        if (user) {
+          console.log('User found:', user.email);
+          currentUser = user;
+          showCancelState();
+        } else {
+          console.log('No user session found');
+          showSigninState();
+        }
+      } catch (error) {
+        console.error('Auth check failed:', error);
+        showSigninState(); // Always show sign-in as fallback
       }
     }
 
