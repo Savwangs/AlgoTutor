@@ -388,15 +388,13 @@
         return;
       }
 
-      // Check authentication
-      const { data: { session } } = await supabaseClient.auth.getSession();
+      // Check authentication (getUser validates with server)
+      const { data: { user }, error: authError } = await supabaseClient.auth.getUser();
       
-      if (!session) {
+      if (authError || !user) {
         window.location.href = '/login.html';
         return;
       }
-
-      const user = session.user;
       const name = user.user_metadata?.full_name || user.email.split('@')[0];
       const initial = name.charAt(0).toUpperCase();
       userAvatar.textContent = initial;

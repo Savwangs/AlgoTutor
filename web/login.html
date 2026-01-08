@@ -499,13 +499,13 @@
       }
     });
 
-    // Check if already logged in
+    // Check if already logged in (getUser validates with server)
     if (supabaseClient) {
-      supabaseClient.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
+      supabaseClient.auth.getUser().then(({ data: { user }, error }) => {
+        if (!error && user) {
           // If already logged in and plan=premium, redirect to checkout
           if (plan === 'premium') {
-            startCheckout(session.user.email);
+            startCheckout(user.email);
           } else {
             window.location.href = '/dashboard.html';
           }

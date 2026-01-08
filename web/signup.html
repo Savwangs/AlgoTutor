@@ -432,15 +432,15 @@
         if (error) throw error;
 
         // With email confirmation disabled, user is auto-signed-in
-        // Check if we have a session (user is signed in)
-        const { data: sessionData } = await supabaseClient.auth.getSession();
+        // Check if we have a valid user (validates with server)
+        const { data: { user: signedInUser }, error: userError } = await supabaseClient.auth.getUser();
         
-        if (sessionData.session) {
+        if (!userError && signedInUser) {
           // User is signed in (email confirmation disabled)
           if (plan === 'premium') {
             showMessage('Account created! Redirecting to checkout...', 'success');
             setTimeout(() => {
-              startCheckout(sessionData.session.user.email);
+              startCheckout(signedInUser.email);
             }, 1000);
           } else {
             showMessage('Account created! Redirecting...', 'success');
@@ -489,10 +489,10 @@
       }
     });
 
-    // Check if already logged in
+    // Check if already logged in (getUser validates with server)
     if (supabaseClient) {
-      supabaseClient.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
+      supabaseClient.auth.getUser().then(({ data: { user }, error }) => {
+        if (!error && user) {
           window.location.href = '/dashboard.html';
         }
       });
