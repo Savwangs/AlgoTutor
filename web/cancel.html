@@ -390,156 +390,181 @@
   </div>
 
   <script>
-    // Initialize Supabase
-    const SUPABASE_URL = 'https://jqjcqeymomnfvdnplmsp.supabase.co';
-    const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxamNxZXltb21uZnZkbnBsbXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDQ3NTMsImV4cCI6MjA1MDQ4MDc1M30.sRhj0BtNBbJOTbgRJ-Ao7W1MnZ91TNq4UBzrqfweFXE';
-    const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+    // Wait for DOM to be ready before initializing
+    document.addEventListener('DOMContentLoaded', () => {
+      // DOM Elements (get these first so we can show errors)
+      const loadingState = document.getElementById('loading-state');
+      const signinState = document.getElementById('signin-state');
+      const cancelState = document.getElementById('cancel-state');
+      const successState = document.getElementById('success-state');
+      const signinForm = document.getElementById('signin-form');
+      const signinMessage = document.getElementById('signin-message');
+      const cancelMessage = document.getElementById('cancel-message');
+      const userEmailEl = document.getElementById('user-email');
+      const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
+      const keepBtn = document.getElementById('keep-btn');
 
-    // DOM Elements
-    const loadingState = document.getElementById('loading-state');
-    const signinState = document.getElementById('signin-state');
-    const cancelState = document.getElementById('cancel-state');
-    const successState = document.getElementById('success-state');
-    const signinForm = document.getElementById('signin-form');
-    const signinMessage = document.getElementById('signin-message');
-    const cancelMessage = document.getElementById('cancel-message');
-    const userEmailEl = document.getElementById('user-email');
-    const confirmCancelBtn = document.getElementById('confirm-cancel-btn');
-    const keepBtn = document.getElementById('keep-btn');
-
-    let currentUser = null;
-
-    // Check auth state on load
-    async function checkAuth() {
-      try {
-        const { data: { user }, error } = await supabase.auth.getUser();
-        
-        if (error) {
-          console.log('Auth check error:', error.message);
-          showSigninState();
-          return;
-        }
-        
-        if (user) {
-          console.log('User found:', user.email);
-          currentUser = user;
-          showCancelState();
-        } else {
-          console.log('No user session found');
-          showSigninState();
-        }
-      } catch (error) {
-        console.error('Auth check failed:', error);
-        showSigninState(); // Always show sign-in as fallback
-      }
-    }
-
-    function showSigninState() {
-      loadingState.classList.add('hidden');
-      signinState.classList.remove('hidden');
-      cancelState.classList.add('hidden');
-      successState.classList.add('hidden');
-    }
-
-    function showCancelState() {
-      loadingState.classList.add('hidden');
-      signinState.classList.add('hidden');
-      cancelState.classList.remove('hidden');
-      successState.classList.add('hidden');
-      
-      if (currentUser) {
-        userEmailEl.textContent = currentUser.email;
-      }
-    }
-
-    function showSuccessState() {
-      loadingState.classList.add('hidden');
-      signinState.classList.add('hidden');
-      cancelState.classList.add('hidden');
-      successState.classList.remove('hidden');
-    }
-
-    // Sign in handler
-    signinForm.addEventListener('submit', async (e) => {
-      e.preventDefault();
-      
-      const email = document.getElementById('email').value;
-      const password = document.getElementById('password').value;
-      const btn = document.getElementById('signin-btn');
-      
-      btn.disabled = true;
-      btn.textContent = 'Signing in...';
-      signinMessage.className = 'message';
-      signinMessage.style.display = 'none';
-
-      try {
-        const { data, error } = await supabase.auth.signInWithPassword({
-          email,
-          password
-        });
-
-        if (error) throw error;
-
-        currentUser = data.user;
-        showCancelState();
-      } catch (error) {
-        signinMessage.textContent = error.message;
+      // Check if Supabase SDK loaded
+      if (!window.supabase) {
+        console.error('Supabase SDK failed to load');
+        loadingState.classList.add('hidden');
+        signinState.classList.remove('hidden');
+        signinMessage.textContent = 'Failed to load authentication. Please refresh the page.';
         signinMessage.className = 'message error';
-      } finally {
-        btn.disabled = false;
-        btn.textContent = 'Sign In';
-      }
-    });
-
-    // Cancel subscription handler
-    confirmCancelBtn.addEventListener('click', async () => {
-      if (!currentUser) {
-        cancelMessage.textContent = 'Please sign in first';
-        cancelMessage.className = 'message error';
         return;
       }
 
-      const confirmed = confirm('Are you sure you want to cancel your subscription? This action cannot be undone.');
-      if (!confirmed) return;
-
-      confirmCancelBtn.disabled = true;
-      confirmCancelBtn.textContent = 'Cancelling...';
-      cancelMessage.className = 'message';
-      cancelMessage.style.display = 'none';
-
+      // Initialize Supabase
+      const SUPABASE_URL = 'https://jqjcqeymomnfvdnplmsp.supabase.co';
+      const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImpxamNxZXltb21uZnZkbnBsbXNwIiwicm9sZSI6ImFub24iLCJpYXQiOjE3MzQ5MDQ3NTMsImV4cCI6MjA1MDQ4MDc1M30.sRhj0BtNBbJOTbgRJ-Ao7W1MnZ91TNq4UBzrqfweFXE';
+      
+      let supabase;
       try {
-        const response = await fetch('/api/cancel-subscription', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({
-            email: currentUser.email
-          })
-        });
+        supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+        console.log('Supabase initialized successfully');
+      } catch (error) {
+        console.error('Failed to initialize Supabase:', error);
+        loadingState.classList.add('hidden');
+        signinState.classList.remove('hidden');
+        signinMessage.textContent = 'Failed to initialize authentication. Please refresh the page.';
+        signinMessage.className = 'message error';
+        return;
+      }
 
-        const data = await response.json();
+      let currentUser = null;
 
-        if (data.error) {
-          throw new Error(data.error);
+      // Check auth state on load
+      async function checkAuth() {
+        try {
+          const { data: { user }, error } = await supabase.auth.getUser();
+          
+          if (error) {
+            console.log('Auth check error:', error.message);
+            showSigninState();
+            return;
+          }
+          
+          if (user) {
+            console.log('User found:', user.email);
+            currentUser = user;
+            showCancelState();
+          } else {
+            console.log('No user session found');
+            showSigninState();
+          }
+        } catch (error) {
+          console.error('Auth check failed:', error);
+          showSigninState(); // Always show sign-in as fallback
+        }
+      }
+
+      function showSigninState() {
+        loadingState.classList.add('hidden');
+        signinState.classList.remove('hidden');
+        cancelState.classList.add('hidden');
+        successState.classList.add('hidden');
+      }
+
+      function showCancelState() {
+        loadingState.classList.add('hidden');
+        signinState.classList.add('hidden');
+        cancelState.classList.remove('hidden');
+        successState.classList.add('hidden');
+        
+        if (currentUser) {
+          userEmailEl.textContent = currentUser.email;
+        }
+      }
+
+      function showSuccessState() {
+        loadingState.classList.add('hidden');
+        signinState.classList.add('hidden');
+        cancelState.classList.add('hidden');
+        successState.classList.remove('hidden');
+      }
+
+      // Sign in handler
+      signinForm.addEventListener('submit', async (e) => {
+        e.preventDefault();
+        
+        const email = document.getElementById('email').value;
+        const password = document.getElementById('password').value;
+        const btn = document.getElementById('signin-btn');
+        
+        btn.disabled = true;
+        btn.textContent = 'Signing in...';
+        signinMessage.className = 'message';
+        signinMessage.style.display = 'none';
+
+        try {
+          const { data, error } = await supabase.auth.signInWithPassword({
+            email,
+            password
+          });
+
+          if (error) throw error;
+
+          currentUser = data.user;
+          showCancelState();
+        } catch (error) {
+          signinMessage.textContent = error.message;
+          signinMessage.className = 'message error';
+        } finally {
+          btn.disabled = false;
+          btn.textContent = 'Sign In';
+        }
+      });
+
+      // Cancel subscription handler
+      confirmCancelBtn.addEventListener('click', async () => {
+        if (!currentUser) {
+          cancelMessage.textContent = 'Please sign in first';
+          cancelMessage.className = 'message error';
+          return;
         }
 
-        showSuccessState();
-      } catch (error) {
-        cancelMessage.textContent = error.message;
-        cancelMessage.className = 'message error';
-        confirmCancelBtn.disabled = false;
-        confirmCancelBtn.textContent = 'Cancel My Subscription';
-      }
-    });
+        const confirmed = confirm('Are you sure you want to cancel your subscription? This action cannot be undone.');
+        if (!confirmed) return;
 
-    // Keep subscription handler
-    keepBtn.addEventListener('click', () => {
-      window.location.href = '/dashboard.html';
-    });
+        confirmCancelBtn.disabled = true;
+        confirmCancelBtn.textContent = 'Cancelling...';
+        cancelMessage.className = 'message';
+        cancelMessage.style.display = 'none';
 
-    // Initialize
-    checkAuth();
+        try {
+          const response = await fetch('/api/cancel-subscription', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+              email: currentUser.email
+            })
+          });
+
+          const data = await response.json();
+
+          if (data.error) {
+            throw new Error(data.error);
+          }
+
+          showSuccessState();
+        } catch (error) {
+          cancelMessage.textContent = error.message;
+          cancelMessage.className = 'message error';
+          confirmCancelBtn.disabled = false;
+          confirmCancelBtn.textContent = 'Cancel My Subscription';
+        }
+      });
+
+      // Keep subscription handler
+      keepBtn.addEventListener('click', () => {
+        window.location.href = '/dashboard.html';
+      });
+
+      // Initialize - check auth state
+      checkAuth();
+    });
   </script>
 </body>
 </html>
