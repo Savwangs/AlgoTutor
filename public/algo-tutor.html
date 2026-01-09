@@ -1466,11 +1466,7 @@
           upgradeBtn.href = error.upgradeUrl;
           upgradeBtn.target = '_blank';
           upgradeBtn.textContent = '⚡ Upgrade to Premium';
-          upgradeBtn.onclick = (e) => {
-            e.preventDefault();
-            console.log("[Widget] Upgrade button clicked, opening:", error.upgradeUrl);
-            window.open(error.upgradeUrl, '_blank');
-          };
+          // No onclick handler needed - anchor tag handles navigation naturally
           errorDiv.appendChild(upgradeBtn);
           
           // Add a note below the button
