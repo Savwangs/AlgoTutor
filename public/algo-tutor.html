@@ -1803,6 +1803,32 @@
         return storedId;
       }
 
+      // ==================== REGISTER SESSION FOR FREE TIER TRACKING ====================
+      // Register this widget session with the server so usage can be tracked across IP changes
+      // This runs on every widget load to keep the session linked
+      (async function registerSession() {
+        const widgetId = getChatGPTUserId();
+        console.log('[Widget] Registering session with widget ID:', widgetId);
+        
+        try {
+          const response = await fetch('https://algo-tutor.org/api/register-session', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ widgetId })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            console.log('[Widget] ✓ Session registered successfully');
+          } else {
+            console.log('[Widget] Session registration response:', data);
+          }
+        } catch (error) {
+          console.error('[Widget] Session registration error:', error);
+          // Non-critical error - don't block widget functionality
+        }
+      })();
+
       // Activate premium
       modalActivate.addEventListener('click', async () => {
         const code = premiumCodeInput.value.trim().toUpperCase();

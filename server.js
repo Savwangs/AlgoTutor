@@ -282,9 +282,9 @@ function createAlgoTutorServer() {
           hasPaperVersion: !!outputs.paperVersion
         });
         
-        // Log usage
-        logInfo('Logging usage to Supabase', { userId: user.id, mode: 'learn', topic: args.topic });
-        await logUsage(user, 'learn', args.topic);
+        // Log usage (include widgetId for tracking across IP changes)
+        logInfo('Logging usage to Supabase', { userId: user.id, mode: 'learn', topic: args.topic, widgetId: authResult.widgetId });
+        await logUsage(user, 'learn', args.topic, authResult.widgetId);
         logSuccess('Usage logged successfully');
         
         // Add usage info to response if auth is enabled
@@ -388,8 +388,8 @@ function createAlgoTutorServer() {
         const outputs = await generateBuildSolution(args);
         logSuccess('Solution generated');
         
-        // Log usage
-        await logUsage(user, 'build', args.problem);
+        // Log usage (include widgetId for tracking across IP changes)
+        await logUsage(user, 'build', args.problem, authResult.widgetId);
         logSuccess('Usage logged');
         
         // Add usage info to response if auth is enabled
@@ -484,8 +484,8 @@ function createAlgoTutorServer() {
         const outputs = await generateDebugAnalysis(args);
         logSuccess('Debug analysis generated');
         
-        // Log usage
-        await logUsage(user, 'debug', 'code_debug');
+        // Log usage (include widgetId for tracking across IP changes)
+        await logUsage(user, 'debug', 'code_debug', authResult.widgetId);
         logSuccess('Usage logged');
         
         // Add usage info to response if auth is enabled
@@ -943,6 +943,66 @@ const httpServer = createServer(async (req, res) => {
       }));
     } catch (error) {
       console.error('[API] ❌ Activate premium error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  // API: Register widget session for free tier tracking
+  // This endpoint links a widget_id (from browser localStorage) to the browser's IP
+  // so we can track usage across OpenAI proxy IP changes
+  if (req.method === "POST" && url.pathname === "/api/register-session") {
+    console.log('[API] Register session request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    if (!supabase) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: 'Database not configured' }));
+    }
+
+    try {
+      const body = await parseJsonBody(req);
+      const { widgetId } = body;
+
+      if (!widgetId) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'widgetId is required' }));
+      }
+
+      // Get browser IP (real user IP, not OpenAI proxy)
+      const ip = req.headers['cf-connecting-ip'] || req.headers['true-client-ip'] || req.headers['x-forwarded-for'];
+      let browserIp = 'unknown';
+      if (ip) {
+        browserIp = ip.includes(',') ? ip.split(',')[0].trim() : ip;
+      }
+
+      console.log('[API] Registering session:', { widgetId, browserIp });
+
+      // Upsert into free_sessions table
+      const { data, error } = await supabase
+        .from('free_sessions')
+        .upsert({
+          widget_id: widgetId,
+          browser_ip: browserIp,
+          last_seen_at: new Date().toISOString()
+        }, {
+          onConflict: 'widget_id',
+          ignoreDuplicates: false
+        })
+        .select();
+
+      if (error) {
+        console.error('[API] Error registering session:', error);
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: 'Failed to register session' }));
+      }
+
+      console.log('[API] ✓ Session registered:', widgetId);
+      res.writeHead(200);
+      return res.end(JSON.stringify({ success: true, widgetId }));
+    } catch (error) {
+      console.error('[API] ❌ Register session error:', error);
       res.writeHead(500);
       return res.end(JSON.stringify({ error: error.message }));
     }

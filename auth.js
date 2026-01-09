@@ -130,9 +130,10 @@ export function canAccessMode(user, mode) {
 /**
  * Check if user has exceeded usage limits
  * Uses a rolling 24-hour window instead of daily reset at midnight
+ * Checks both user_id and widget_id for accurate tracking across IP changes
  */
-export async function checkUsageLimit(user) {
-  console.log('[Auth] Checking usage limit for user:', { email: user.email, id: user.id });
+export async function checkUsageLimit(user, widgetId = null) {
+  console.log('[Auth] Checking usage limit for user:', { email: user.email, id: user.id, widgetId });
   
   if (!supabase || !isAuthEnabled()) {
     console.log('[Auth] Auth disabled - no limits');
@@ -153,37 +154,77 @@ export async function checkUsageLimit(user) {
   const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
   
   try {
-    // First, count usage in the last 24 hours
-    const { count, error: countError } = await supabase
+    // Count usage by user_id in the last 24 hours
+    const { count: userCount, error: userCountError } = await supabase
       .from('usage_logs')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
       .gte('created_at', twentyFourHoursAgo);
 
-    if (countError) {
-      console.error('[Auth] Error counting usage:', countError);
-      // Fall back to allowing access on error
-      return { allowed: true, remaining: null };
+    if (userCountError) {
+      console.error('[Auth] Error counting user usage:', userCountError);
     }
 
-    const recentUsage = count || 0;
-    console.log(`[Auth] Usage in last 24h:`, { recentUsage, limit: freeLimit, since: twentyFourHoursAgo });
+    let widgetCount = 0;
+    // Also count usage by widget_id if available (more reliable across IP changes)
+    if (widgetId) {
+      const { count, error: widgetCountError } = await supabase
+        .from('usage_logs')
+        .select('*', { count: 'exact', head: true })
+        .eq('widget_id', widgetId)
+        .gte('created_at', twentyFourHoursAgo);
+
+      if (widgetCountError) {
+        console.error('[Auth] Error counting widget usage:', widgetCountError);
+      } else {
+        widgetCount = count || 0;
+      }
+    }
+
+    // Use the maximum of both counts to ensure accurate tracking
+    const recentUsage = Math.max(userCount || 0, widgetCount);
+    console.log(`[Auth] Usage in last 24h:`, { 
+      userCount: userCount || 0, 
+      widgetCount, 
+      effectiveCount: recentUsage,
+      limit: freeLimit, 
+      since: twentyFourHoursAgo 
+    });
 
     // Check free tier usage
     if (recentUsage >= freeLimit) {
       // Get the most recent usage log to calculate when cooldown expires
-      const { data: lastUsage, error: lastError } = await supabase
+      // Check both user_id and widget_id for the most recent
+      let lastUsageTime = 0;
+
+      const { data: lastUserUsage } = await supabase
         .from('usage_logs')
         .select('created_at')
         .eq('user_id', user.id)
         .order('created_at', { ascending: false })
         .limit(1)
-        .single();
+        .maybeSingle();
+
+      if (lastUserUsage) {
+        lastUsageTime = Math.max(lastUsageTime, new Date(lastUserUsage.created_at).getTime());
+      }
+
+      if (widgetId) {
+        const { data: lastWidgetUsage } = await supabase
+          .from('usage_logs')
+          .select('created_at')
+          .eq('widget_id', widgetId)
+          .order('created_at', { ascending: false })
+          .limit(1)
+          .maybeSingle();
+
+        if (lastWidgetUsage) {
+          lastUsageTime = Math.max(lastUsageTime, new Date(lastWidgetUsage.created_at).getTime());
+        }
+      }
 
       let cooldownExpiresAt = null;
-      if (!lastError && lastUsage) {
-        // Cooldown expires 24 hours after the most recent usage
-        const lastUsageTime = new Date(lastUsage.created_at).getTime();
+      if (lastUsageTime > 0) {
         cooldownExpiresAt = new Date(lastUsageTime + 24 * 60 * 60 * 1000).toISOString();
         console.log(`[Auth] Cooldown expires at:`, cooldownExpiresAt);
       }
@@ -193,7 +234,7 @@ export async function checkUsageLimit(user) {
         allowed: false,
         remaining: 0,
         cooldownExpiresAt,
-        message: `Free tier limit reached (${freeLimit} use per day).`,
+        message: `Free tier limit reached (${freeLimit} use per 24 hours). Upgrade to Premium for unlimited access.`,
       };
     }
 
@@ -213,20 +254,25 @@ export async function checkUsageLimit(user) {
 /**
  * Log usage for a user
  */
-export async function logUsage(user, mode, topic = null) {
+export async function logUsage(user, mode, topic = null, widgetId = null) {
   if (!supabase) {
     return; // Skip logging if Supabase not configured
   }
 
   try {
-    // Insert usage log
-    const { error: logError } = await supabase.from('usage_logs').insert([
-      {
-        user_id: user.id,
-        mode,
-        topic,
-      },
-    ]);
+    // Insert usage log (include widget_id for tracking across IP changes)
+    const logEntry = {
+      user_id: user.id,
+      mode,
+      topic,
+    };
+    
+    // Add widget_id if available
+    if (widgetId) {
+      logEntry.widget_id = widgetId;
+    }
+
+    const { error: logError } = await supabase.from('usage_logs').insert([logEntry]);
 
     if (logError) {
       console.error('[Auth] Error logging usage:', logError);
@@ -242,7 +288,7 @@ export async function logUsage(user, mode, topic = null) {
       console.error('[Auth] Error updating usage count:', updateError);
     }
 
-    console.log(`[Auth] Logged usage for user ${user.email}: ${mode}`);
+    console.log(`[Auth] Logged usage for user ${user.email}: ${mode}`, widgetId ? `(widget: ${widgetId})` : '');
   } catch (error) {
     console.error('[Auth] Error in logUsage:', error);
   }
@@ -410,6 +456,85 @@ export async function linkPendingPremiumCode(user) {
 }
 
 /**
+ * Link a pending free session to an MCP user
+ * This bridges the gap between widget registration (browser IP) and tool usage (OpenAI proxy IP)
+ * Returns the linked widget_id so we can track usage by widget_id
+ */
+export async function linkPendingFreeSession(user) {
+  if (!supabase) {
+    return { user, widgetId: null };
+  }
+
+  // Premium users don't need free tier tracking
+  if (user.subscription_tier === 'premium') {
+    console.log('[Auth] Premium user, skipping free session linking');
+    return { user, widgetId: null };
+  }
+
+  try {
+    console.log('[Auth] Checking for pending free sessions to link...');
+    
+    // Look for any free session that is:
+    // 1. Not yet linked to an MCP user (mcp_user_id is null)
+    // 2. Recently registered (within last 5 minutes to handle timing)
+    const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000).toISOString();
+    
+    const { data: pendingSession, error } = await supabase
+      .from('free_sessions')
+      .select('*')
+      .is('mcp_user_id', null)
+      .gte('last_seen_at', fiveMinutesAgo)
+      .order('last_seen_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+
+    if (error) {
+      console.error('[Auth] Error checking for pending sessions:', error);
+      return { user, widgetId: null };
+    }
+
+    if (!pendingSession) {
+      // No pending session, check if user already has a linked session
+      const { data: existingSession } = await supabase
+        .from('free_sessions')
+        .select('widget_id')
+        .eq('mcp_user_id', user.chatgpt_user_id)
+        .order('last_seen_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (existingSession) {
+        console.log('[Auth] Found existing linked session:', existingSession.widget_id);
+        return { user, widgetId: existingSession.widget_id };
+      }
+
+      console.log('[Auth] No pending or linked free sessions found');
+      return { user, widgetId: null };
+    }
+
+    console.log('[Auth] Found pending free session:', pendingSession.widget_id);
+    console.log('[Auth] Linking session to MCP user:', user.chatgpt_user_id);
+
+    // Link the session to this MCP user
+    const { error: linkError } = await supabase
+      .from('free_sessions')
+      .update({ mcp_user_id: user.chatgpt_user_id })
+      .eq('widget_id', pendingSession.widget_id);
+
+    if (linkError) {
+      console.error('[Auth] Error linking session to user:', linkError);
+      return { user, widgetId: null };
+    }
+
+    console.log('[Auth] ✓ Successfully linked free session to user:', user.chatgpt_user_id);
+    return { user, widgetId: pendingSession.widget_id };
+  } catch (error) {
+    console.error('[Auth] Error in linkPendingFreeSession:', error);
+    return { user, widgetId: null };
+  }
+}
+
+/**
  * Extract user identifier from request headers
  * ChatGPT sends user info in various ways depending on the setup
  */
@@ -498,6 +623,13 @@ export async function authenticateRequest(req, mode) {
     console.log('[Auth] Step 1.5: Check for pending premium codes...');
     user = await linkPendingPremiumCode(user);
 
+    // Step 1.6: Check for pending free sessions and link if found
+    console.log('[Auth] Step 1.6: Check for pending free sessions...');
+    const { widgetId } = await linkPendingFreeSession(user);
+    if (widgetId) {
+      console.log('[Auth] ✓ Widget ID linked:', widgetId);
+    }
+
     // Check if user can access this mode
     console.log('[Auth] Step 2: Check mode access...');
     if (!canAccessMode(user, mode)) {
@@ -512,9 +644,9 @@ export async function authenticateRequest(req, mode) {
     }
     console.log('[Auth] ✓ Mode access granted');
 
-    // Check usage limits
+    // Check usage limits (pass widgetId for accurate tracking across IP changes)
     console.log('[Auth] Step 3: Check usage limits...');
-    const usageCheck = await checkUsageLimit(user);
+    const usageCheck = await checkUsageLimit(user, widgetId);
     console.log('[Auth] Usage check result:', usageCheck);
     
     if (!usageCheck.allowed) {
@@ -536,6 +668,7 @@ export async function authenticateRequest(req, mode) {
     return {
       success: true,
       user,
+      widgetId,
       usageRemaining: usageCheck.remaining,
     };
   } catch (error) {
