@@ -1461,12 +1461,11 @@
           spacer.style.marginBottom = '20px';
           errorDiv.appendChild(spacer);
           
-          const upgradeBtn = document.createElement('button');
+          const upgradeBtn = document.createElement('a');
           upgradeBtn.className = 'upgrade-btn';
+          upgradeBtn.href = error.upgradeUrl;
+          upgradeBtn.target = '_blank';
           upgradeBtn.textContent = '⚡ Upgrade to Premium';
-          upgradeBtn.onclick = () => {
-            window.open(error.upgradeUrl, '_blank');
-          };
           errorDiv.appendChild(upgradeBtn);
           
           // Add a note below the button
