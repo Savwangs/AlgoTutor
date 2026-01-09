@@ -1461,12 +1461,12 @@
           spacer.style.marginBottom = '20px';
           errorDiv.appendChild(spacer);
           
-          const upgradeBtn = document.createElement('a');
+          const upgradeBtn = document.createElement('button');
           upgradeBtn.className = 'upgrade-btn';
-          upgradeBtn.href = error.upgradeUrl;
-          upgradeBtn.target = '_blank';
           upgradeBtn.textContent = '⚡ Upgrade to Premium';
-          // No onclick handler needed - anchor tag handles navigation naturally
+          upgradeBtn.onclick = () => {
+            window.open(error.upgradeUrl, '_blank');
+          };
           errorDiv.appendChild(upgradeBtn);
           
           // Add a note below the button
