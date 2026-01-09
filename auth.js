@@ -193,7 +193,7 @@ export async function checkUsageLimit(user) {
         allowed: false,
         remaining: 0,
         cooldownExpiresAt,
-        message: `Free tier limit reached (${freeLimit} use per 24 hours). Upgrade to Premium for unlimited access.`,
+        message: `Free tier limit reached (${freeLimit} use per day).`,
       };
     }
 
