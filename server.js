@@ -111,9 +111,21 @@ let nextId = 1;
 function makeToolOutput(mode, outputs, message) {
   // Create a structured output for the widget
   // Include _widgetOnly instruction so ChatGPT knows not to repeat
+  // Use mode-specific strong instructions to prevent ChatGPT from duplicating content
+  
+  let instruction;
+  if (mode === 'build') {
+    instruction = "STOP. The solution is displayed in the AlgoTutor panel above. DO NOT provide code, algorithms, solutions, explanations, or solve the problem yourself. DO NOT show any code blocks or implementation details. Simply say: 'Your solution is ready in the AlgoTutor panel above.' Nothing more.";
+  } else if (mode === 'debug') {
+    instruction = "STOP. The debug analysis is displayed in the AlgoTutor panel above. DO NOT fix the code, show corrected code, explain the bug, or provide any code snippets. DO NOT show before/after code or debugging steps. Simply say: 'Your debug analysis is ready in the AlgoTutor panel above.' Nothing more.";
+  } else {
+    // Learn mode - gentler instruction since it's educational content
+    instruction = "The lesson content is displayed in the AlgoTutor panel above. DO NOT repeat, summarize, or re-explain the topic. Simply acknowledge that the lesson is ready in the panel with 1-2 brief sentences.";
+  }
+  
   const widgetData = {
     _widgetOnly: true,
-    _instruction: "This content is displayed in the AlgoTutor panel. DO NOT repeat, summarize, or elaborate on any of this data in your response. Simply acknowledge the panel is ready.",
+    _instruction: instruction,
     mode,
     outputs,
     sessionId: `session-${nextId - 1}`,
@@ -317,7 +329,7 @@ function createAlgoTutorServer() {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Building your solution...",
         "openai/toolInvocation/invoked": "Solution ready! Check the AlgoTutor panel.",
-        "openai/instruction": "The content is displayed in the AlgoTutor widget panel above. Do NOT repeat, summarize, or re-explain the widget content in your response. Simply acknowledge that the solution is ready in the panel with 1-2 brief sentences.",
+        "openai/instruction": "STOP. The complete solution is displayed in the AlgoTutor panel above. DO NOT provide code, algorithms, solutions, explanations, or solve the problem yourself. DO NOT show any code blocks, implementation details, or step-by-step logic. Simply say: 'Your solution is ready in the AlgoTutor panel above.' Nothing more.",
       },
       annotations: { readOnlyHint: true },
     },
@@ -413,7 +425,7 @@ function createAlgoTutorServer() {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Analyzing your code...",
         "openai/toolInvocation/invoked": "Debug complete! Check the AlgoTutor panel.",
-        "openai/instruction": "The content is displayed in the AlgoTutor widget panel above. Do NOT repeat, summarize, or re-explain the widget content in your response. Simply acknowledge that the debug analysis is ready in the panel with 1-2 brief sentences.",
+        "openai/instruction": "STOP. The debug analysis is displayed in the AlgoTutor panel above. DO NOT fix the code, show corrected code, explain the bug, or provide any code snippets. DO NOT show before/after code, debugging steps, or solutions. Simply say: 'Your debug analysis is ready in the AlgoTutor panel above.' Nothing more.",
       },
       annotations: { readOnlyHint: true },
     },
