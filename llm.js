@@ -64,22 +64,56 @@ export async function generateLearnContent(args) {
   console.log('[generateLearnContent] Starting content generation for:', args.topic);
   console.log('[generateLearnContent] Args:', JSON.stringify(args, null, 2));
   
-  const systemPrompt = `You are AlgoTutor, an expert CS educator. Generate clear, educational content about data structures and algorithms. You must respond with valid JSON only.`;
+  const systemPrompt = `You are AlgoTutor, an expert CS educator. Generate clear, educational content about data structures and algorithms. You MUST follow the difficulty, depth, and content settings exactly as specified. Respond with valid JSON only.`;
+  
+  // Build difficulty instruction
+  let difficultyInstruction = '';
+  if (args.difficulty === 'basic') {
+    difficultyInstruction = 'Use simple vocabulary, avoid jargon, explain like teaching a beginner. Keep sentences short and clear.';
+  } else if (args.difficulty === 'dumb-it-down') {
+    difficultyInstruction = 'Use extremely simple language, many analogies and real-world comparisons. Assume zero prior CS knowledge. Explain every term.';
+  } else {
+    difficultyInstruction = 'Use standard CS terminology. Assume basic programming knowledge.';
+  }
+  
+  // Build depth instruction
+  let depthInstruction = '';
+  if (args.depth === 'tiny') {
+    depthInstruction = 'Keep explanation to EXACTLY 5 short steps. Be concise.';
+  } else if (args.depth === 'full') {
+    depthInstruction = 'Provide 10-15 comprehensive steps with full detail and examples.';
+  } else {
+    depthInstruction = 'Provide 7-10 detailed steps.';
+  }
+  
+  // Build example size instruction
+  let exampleInstruction = '';
+  if (args.exampleSize === 'small') {
+    exampleInstruction = 'Use small arrays/inputs with 3-5 elements maximum in all examples.';
+  } else {
+    exampleInstruction = 'Use medium arrays/inputs with 5-8 elements in examples.';
+  }
   
   const userPrompt = `Generate educational content for: ${args.topic}
-Difficulty: ${args.difficulty}
-Depth: ${args.depth} (tiny=5 steps, normal=7-10, full=10-15)
-Example size: ${args.exampleSize}
 
-Provide a JSON response with these fields:
-- pattern: 1-2 sentences identifying the algorithm pattern
-- stepByStep: Numbered explanation (use \\n for line breaks)
-- code: Working Python code (5-15 lines, minimal style, no fancy syntax)
-${args.showDryRun ? '- dryRunTable: Array of {step, variable, value, action} objects showing execution' : ''}
-${args.showPaperVersion ? '- paperVersion: Array of 3-5 interview tips' : ''}
-${args.showEdgeCases ? '- edgeCases: Array of 3 specific edge cases' : ''}
+DIFFICULTY LEVEL: ${args.difficulty}
+${difficultyInstruction}
 
-Return ONLY valid JSON.`;
+DEPTH: ${args.depth}
+${depthInstruction}
+
+EXAMPLE SIZE: ${args.exampleSize}
+${exampleInstruction}
+
+REQUIRED JSON SECTIONS (include ONLY these fields):
+- pattern: REQUIRED - 1-2 sentences identifying the algorithm pattern
+- stepByStep: REQUIRED - Numbered explanation (use \\n for line breaks)
+- code: REQUIRED - Working Python code (5-15 lines, minimal style, no fancy syntax)
+${args.showDryRun ? '- dryRunTable: REQUIRED - Array of {step, variable, value, action} objects showing execution trace' : '- dryRunTable: DO NOT INCLUDE THIS FIELD'}
+${args.showPaperVersion ? '- paperVersion: REQUIRED - Array of 3-5 interview tips for solving on paper' : '- paperVersion: DO NOT INCLUDE THIS FIELD'}
+${args.showEdgeCases ? '- edgeCases: REQUIRED - Array of 3 specific edge cases to consider' : '- edgeCases: DO NOT INCLUDE THIS FIELD'}
+
+Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
 
   try {
     const response = await callOpenAI(systemPrompt, userPrompt);
@@ -111,23 +145,55 @@ Return ONLY valid JSON.`;
 
 // Generate Build Mode solution
 export async function generateBuildSolution(args) {
-  const systemPrompt = `You are AlgoTutor, an expert problem solver. Generate complete coding solutions. You must respond with valid JSON only.`;
+  const systemPrompt = `You are AlgoTutor, an expert problem solver. Generate coding solutions following the exact constraints specified. You MUST follow the code style, recursion, and content settings exactly as specified. Respond with valid JSON only.`;
+  
+  // Build code style instruction
+  let codeStyleInstruction = '';
+  if (args.minimalCode) {
+    codeStyleInstruction = 'Use MINIMAL code style: no comments in code, no docstrings, shortest possible solution. Prioritize brevity.';
+  } else {
+    codeStyleInstruction = 'Include helpful comments explaining key steps in the code.';
+  }
+  
+  // Build skeleton instruction
+  let skeletonInstruction = '';
+  if (args.skeletonOnly) {
+    skeletonInstruction = 'IMPORTANT: Provide ONLY the function signature with TODO comments. DO NOT write any implementation code. Just the skeleton structure.';
+  } else {
+    skeletonInstruction = 'Provide a full working implementation with complete logic.';
+  }
+  
+  // Build recursion instruction
+  let recursionInstruction = '';
+  if (args.allowRecursion) {
+    recursionInstruction = 'Recursion IS allowed. Use recursive approach if it provides a cleaner or more elegant solution.';
+  } else {
+    recursionInstruction = 'DO NOT use recursion. Use ONLY iterative approaches (loops, stacks, queues). No recursive function calls allowed.';
+  }
   
   const userPrompt = `Solve this problem: ${args.problem}
-Language: ${args.language}
-Minimal code: ${args.minimalCode}
-Skeleton only: ${args.skeletonOnly}
-Allow recursion: ${args.allowRecursion}
 
-Provide a JSON response with:
-- pattern: Problem pattern (1-2 sentences)
-- stepByStep: Numbered solution logic (use \\n for line breaks), 5-10 steps
-- code: ${args.skeletonOnly ? 'Function signature with TODO comments' : 'Full working solution'} in ${args.language}
-${args.includeDryRun ? '- dryRunTable: Array of {step, state, action} objects' : ''}
-- paperVersion: Array of 4-6 interview steps
-- complexity: Time and space complexity analysis
+LANGUAGE: ${args.language}
+Write all code in ${args.language}.
 
-Return ONLY valid JSON.`;
+CODE STYLE CONSTRAINTS:
+${codeStyleInstruction}
+
+SKELETON VS FULL SOLUTION:
+${skeletonInstruction}
+
+RECURSION CONSTRAINT:
+${recursionInstruction}
+
+REQUIRED JSON SECTIONS (include ONLY these fields):
+- pattern: REQUIRED - Problem pattern identification (1-2 sentences)
+- stepByStep: REQUIRED - Numbered solution logic (use \\n for line breaks), 5-10 steps
+- code: REQUIRED - ${args.skeletonOnly ? 'Function skeleton with TODO comments only, NO implementation' : 'Full working solution'} in ${args.language}
+${args.includeDryRun ? '- dryRunTable: REQUIRED - Array of {step, state, action} objects showing execution trace' : '- dryRunTable: DO NOT INCLUDE THIS FIELD'}
+- paperVersion: REQUIRED - Array of 4-6 steps for solving on paper in an interview
+- complexity: REQUIRED - Time and space complexity analysis (e.g., "O(n) time, O(1) space")
+
+Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
 
   try {
     const response = await callOpenAI(systemPrompt, userPrompt);
@@ -151,23 +217,23 @@ Return ONLY valid JSON.`;
 
 // Generate Debug Mode analysis
 export async function generateDebugAnalysis(args) {
-  const systemPrompt = `You are AlgoTutor, an expert code debugger. Identify bugs and provide fixes. You must respond with valid JSON only.`;
+  const systemPrompt = `You are AlgoTutor, an expert code debugger. Identify bugs and provide fixes. You MUST follow the content settings exactly as specified. Respond with valid JSON only.`;
   
   const userPrompt = `Debug this ${args.language} code:
-\`\`\`
+\`\`\`${args.language}
 ${args.code}
 \`\`\`
 
-${args.problemDescription ? `Problem: ${args.problemDescription}` : ''}
+${args.problemDescription ? `PROBLEM DESCRIPTION: ${args.problemDescription}` : 'No problem description provided. Analyze the code for common bugs.'}
 
-Provide a JSON response with:
-- bugDiagnosis: Detailed analysis with problem type, location, and explanation (use \\n for line breaks)
-- beforeCode: Original code with "# BUG HERE" or "// BUG HERE" comment on problematic line
-- afterCode: Fixed code with "# FIXED" or "// FIXED" comment on corrected line
-${args.generateTests ? '- testCases: Array of 3 test case strings' : ''}
-${args.showEdgeWarnings ? '- edgeCases: Array of 3 edge case warnings' : ''}
+REQUIRED JSON SECTIONS (include ONLY these fields):
+- bugDiagnosis: REQUIRED - Detailed analysis with problem type, location, and explanation (use \\n for line breaks). Be specific about what's wrong and why.
+- beforeCode: REQUIRED - The original code with "${args.language === 'python' ? '# BUG HERE' : '// BUG HERE'}" comment on the problematic line(s)
+- afterCode: REQUIRED - The fixed code with "${args.language === 'python' ? '# FIXED' : '// FIXED'}" comment on the corrected line(s)
+${args.generateTests ? '- testCases: REQUIRED - Array of exactly 3 test case strings that verify the fix works' : '- testCases: DO NOT INCLUDE THIS FIELD'}
+${args.showEdgeWarnings ? '- edgeCases: REQUIRED - Array of exactly 3 edge case warnings the user should be aware of' : '- edgeCases: DO NOT INCLUDE THIS FIELD'}
 
-Return ONLY valid JSON.`;
+Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
 
   try {
     const response = await callOpenAI(systemPrompt, userPrompt);

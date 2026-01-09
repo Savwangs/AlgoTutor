@@ -426,7 +426,7 @@
       }
 
       const tier = userData?.subscription_tier || 'free';
-      const dailyLimit = tier === 'premium' ? 'Unlimited' : 5;
+      const dailyLimit = tier === 'premium' ? 'Unlimited' : 3;
       const usagePercent = tier === 'premium' ? 0 : Math.min((usageToday / 10) * 100, 100);
       const progressClass = usagePercent >= 90 ? 'danger' : usagePercent >= 70 ? 'warning' : '';
 
