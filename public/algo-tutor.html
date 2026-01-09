@@ -1466,6 +1466,11 @@
           upgradeBtn.href = error.upgradeUrl;
           upgradeBtn.target = '_blank';
           upgradeBtn.textContent = '⚡ Upgrade to Premium';
+          upgradeBtn.onclick = (e) => {
+            e.preventDefault();
+            console.log("[Widget] Upgrade button clicked, opening:", error.upgradeUrl);
+            window.open(error.upgradeUrl, '_blank');
+          };
           errorDiv.appendChild(upgradeBtn);
           
           // Add a note below the button
