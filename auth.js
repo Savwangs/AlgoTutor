@@ -129,6 +129,7 @@ export function canAccessMode(user, mode) {
 
 /**
  * Check if user has exceeded usage limits
+ * Uses a rolling 24-hour window instead of daily reset at midnight
  */
 export async function checkUsageLimit(user) {
   console.log('[Auth] Checking usage limit for user:', { email: user.email, id: user.id });
@@ -147,38 +148,57 @@ export async function checkUsageLimit(user) {
     return { allowed: true, remaining: null };
   }
 
-  // Count today's usage from usage_logs (daily reset)
-  const today = new Date().toISOString().split('T')[0]; // YYYY-MM-DD format
-  const todayStart = `${today}T00:00:00.000Z`;
+  // Rolling 24-hour window: count usage from exactly 24 hours ago
+  const now = Date.now();
+  const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
   
   try {
-    const { count, error } = await supabase
+    // First, count usage in the last 24 hours
+    const { count, error: countError } = await supabase
       .from('usage_logs')
       .select('*', { count: 'exact', head: true })
       .eq('user_id', user.id)
-      .gte('created_at', todayStart);
+      .gte('created_at', twentyFourHoursAgo);
 
-    if (error) {
-      console.error('[Auth] Error counting daily usage:', error);
+    if (countError) {
+      console.error('[Auth] Error counting usage:', countError);
       // Fall back to allowing access on error
       return { allowed: true, remaining: null };
     }
 
-    const todayUsage = count || 0;
-    console.log(`[Auth] Today's usage count:`, { todayUsage, limit: freeLimit, date: today });
+    const recentUsage = count || 0;
+    console.log(`[Auth] Usage in last 24h:`, { recentUsage, limit: freeLimit, since: twentyFourHoursAgo });
 
     // Check free tier usage
-    if (todayUsage >= freeLimit) {
-      console.log(`[Auth] ❌ Free tier limit exceeded:`, { todayUsage, limit: freeLimit });
+    if (recentUsage >= freeLimit) {
+      // Get the most recent usage log to calculate when cooldown expires
+      const { data: lastUsage, error: lastError } = await supabase
+        .from('usage_logs')
+        .select('created_at')
+        .eq('user_id', user.id)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .single();
+
+      let cooldownExpiresAt = null;
+      if (!lastError && lastUsage) {
+        // Cooldown expires 24 hours after the most recent usage
+        const lastUsageTime = new Date(lastUsage.created_at).getTime();
+        cooldownExpiresAt = new Date(lastUsageTime + 24 * 60 * 60 * 1000).toISOString();
+        console.log(`[Auth] Cooldown expires at:`, cooldownExpiresAt);
+      }
+
+      console.log(`[Auth] ❌ Free tier limit exceeded:`, { recentUsage, limit: freeLimit });
       return {
         allowed: false,
         remaining: 0,
-        message: `Free tier limit reached (${freeLimit} uses per day). Upgrade to Premium for unlimited access.`,
+        cooldownExpiresAt,
+        message: `Free tier limit reached (${freeLimit} use per 24 hours). Upgrade to Premium for unlimited access.`,
       };
     }
 
-    const remaining = freeLimit - todayUsage;
-    console.log(`[Auth] ✓ Usage limit OK:`, { todayUsage, limit: freeLimit, remaining });
+    const remaining = freeLimit - recentUsage;
+    console.log(`[Auth] ✓ Usage limit OK:`, { recentUsage, limit: freeLimit, remaining });
     return {
       allowed: true,
       remaining,
@@ -504,6 +524,7 @@ export async function authenticateRequest(req, mode) {
         error: {
           code: 'LIMIT_EXCEEDED',
           message: usageCheck.message,
+          cooldownExpiresAt: usageCheck.cooldownExpiresAt,
         },
       };
     }

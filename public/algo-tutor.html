@@ -1432,11 +1432,34 @@
         return null;
       }
 
+      // Helper: Format remaining time for countdown
+      function formatCountdown(expiresAt) {
+        const now = Date.now();
+        const expires = new Date(expiresAt).getTime();
+        const remaining = expires - now;
+        
+        if (remaining <= 0) return null; // Expired
+        
+        const hours = Math.floor(remaining / (1000 * 60 * 60));
+        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
+        
+        if (hours > 0) {
+          return `${hours}h ${minutes}m`;
+        }
+        return `${minutes}m`;
+      }
+
       // Render error with upgrade button
       function renderError(error) {
         console.log("[Widget] ==================== renderError ====================");
         console.log("[Widget] Rendering error:", JSON.stringify(error, null, 2));
         outputContainer.innerHTML = '';
+        
+        // Store cooldown expiry in localStorage if present
+        if (error.cooldownExpiresAt) {
+          localStorage.setItem('algotutor_cooldown_expires', error.cooldownExpiresAt);
+          console.log("[Widget] Stored cooldown expires at:", error.cooldownExpiresAt);
+        }
         
         const errorDiv = document.createElement('div');
         errorDiv.className = 'upgrade-container';
@@ -1452,6 +1475,39 @@
         messageDiv.className = 'upgrade-message';
         messageDiv.textContent = error.message || 'An error occurred.';
         errorDiv.appendChild(messageDiv);
+        
+        // Show countdown timer if cooldown is active
+        if (error.cooldownExpiresAt) {
+          const countdownDiv = document.createElement('div');
+          countdownDiv.id = 'cooldown-timer';
+          countdownDiv.style.marginTop = '12px';
+          countdownDiv.style.padding = '8px 16px';
+          countdownDiv.style.background = 'rgba(59, 130, 246, 0.1)';
+          countdownDiv.style.borderRadius = '8px';
+          countdownDiv.style.color = 'var(--accent)';
+          countdownDiv.style.fontSize = '0.9rem';
+          countdownDiv.style.fontWeight = '500';
+          
+          const updateCountdown = () => {
+            const formatted = formatCountdown(error.cooldownExpiresAt);
+            if (formatted) {
+              countdownDiv.textContent = `⏱️ Try again in ${formatted}`;
+            } else {
+              countdownDiv.textContent = '✅ You can try again now!';
+              countdownDiv.style.background = 'rgba(16, 185, 129, 0.1)';
+              countdownDiv.style.color = '#10b981';
+              localStorage.removeItem('algotutor_cooldown_expires');
+            }
+          };
+          
+          updateCountdown();
+          // Update every minute
+          const intervalId = setInterval(updateCountdown, 60000);
+          // Store interval ID so we can clear it later
+          countdownDiv.dataset.intervalId = intervalId;
+          
+          errorDiv.appendChild(countdownDiv);
+        }
         
         if (error.upgradeUrl) {
           console.log("[Widget] ✅ upgradeUrl found, creating button:", error.upgradeUrl);
@@ -1672,6 +1728,25 @@
           console.log('[Widget] Opening cancel subscription page');
           window.open('https://algo-tutor.org/cancel.html', '_blank');
         });
+      }
+
+      // ==================== CHECK COOLDOWN FROM LOCALSTORAGE ====================
+      // If user has an active cooldown from a previous session, show it
+      const storedCooldown = localStorage.getItem('algotutor_cooldown_expires');
+      if (storedCooldown && !storedPremiumCode) {
+        const now = Date.now();
+        const expires = new Date(storedCooldown).getTime();
+        const remaining = expires - now;
+        
+        if (remaining > 0) {
+          console.log('[Widget] Active cooldown found, expires at:', storedCooldown);
+          // Don't show cooldown UI on init - it will show when user tries to use the tool
+          // Just log that we have an active cooldown
+        } else {
+          // Cooldown expired, clean up localStorage
+          localStorage.removeItem('algotutor_cooldown_expires');
+          console.log('[Widget] Cooldown expired, removed from localStorage');
+        }
       }
 
       // ==================== PREMIUM ACTIVATION MODAL ====================
