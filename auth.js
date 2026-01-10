@@ -355,10 +355,20 @@ export async function updateSubscription(userId, tier, status = 'active') {
 }
 
 /**
- * Link a pending premium code to an MCP user
- * This bridges the gap between widget activation (browser IP) and tool usage (OpenAI proxy IP)
+ * Link a premium code to an MCP user using deterministic widget_id lookup
+ * 
+ * NEW APPROACH (fixes race condition):
+ * Instead of grabbing ANY pending code, we now use the widget_id to find the specific
+ * code that belongs to this user. The flow is:
+ * 
+ * 1. Widget activates code → claimed_by_widget_id is set on the code
+ * 2. Widget registers session → free_sessions links widget_id to mcp_user_id  
+ * 3. MCP request comes in → we look up widget_id from free_sessions
+ * 4. We find the code by claimed_by_widget_id → deterministic, no race condition
+ * 
+ * This ensures each user only gets linked to their own code.
  */
-export async function linkPendingPremiumCode(user) {
+export async function linkPendingPremiumCode(user, widgetId = null) {
   if (!supabase) {
     return user;
   }
@@ -370,49 +380,82 @@ export async function linkPendingPremiumCode(user) {
   }
 
   try {
-    console.log('[Auth] Checking for pending premium codes to link...');
+    console.log('[Auth] Checking for premium codes to link for user:', user.chatgpt_user_id);
     
-    // Look for any premium code that is:
-    // 1. Marked as used (activated in widget)
-    // 2. Not yet linked to an MCP user (mcp_user_id is null)
-    const { data: pendingCode, error } = await supabase
+    // Step 1: Get the widget_id for this MCP user from free_sessions
+    // This was linked when the widget called /api/register-session
+    let effectiveWidgetId = widgetId;
+    
+    if (!effectiveWidgetId) {
+      const { data: session, error: sessionError } = await supabase
+        .from('free_sessions')
+        .select('widget_id')
+        .eq('mcp_user_id', user.chatgpt_user_id)
+        .order('last_seen_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (sessionError) {
+        console.error('[Auth] Error looking up widget_id from free_sessions:', sessionError);
+        return user;
+      }
+
+      if (!session) {
+        console.log('[Auth] No linked free_session found for this MCP user, cannot determine widget_id');
+        return user;
+      }
+
+      effectiveWidgetId = session.widget_id;
+    }
+    
+    console.log('[Auth] Found widget_id for user:', effectiveWidgetId);
+
+    // Step 2: Find premium code claimed by this specific widget_id
+    // This is deterministic - each code is bound to exactly one widget
+    const { data: code, error: codeError } = await supabase
       .from('premium_codes')
       .select('*')
+      .eq('claimed_by_widget_id', effectiveWidgetId)
       .eq('used', true)
-      .is('mcp_user_id', null)
-      .order('used_at', { ascending: false })
-      .limit(1)
+      .eq('revoked', false)
       .maybeSingle();
 
-    if (error) {
-      console.error('[Auth] Error checking for pending codes:', error);
+    if (codeError) {
+      console.error('[Auth] Error looking up premium code by widget_id:', codeError);
       return user;
     }
 
-    if (!pendingCode) {
-      console.log('[Auth] No pending premium codes found');
+    if (!code) {
+      console.log('[Auth] No premium code found for widget_id:', effectiveWidgetId);
       return user;
     }
 
-    console.log('[Auth] Found pending premium code:', pendingCode.code);
-    console.log('[Auth] Linking code to MCP user:', user.chatgpt_user_id);
+    console.log('[Auth] Found premium code for widget:', code.code);
 
-    // Link the code to this MCP user
-    const { data: linkedCode, error: linkError } = await supabase
-      .from('premium_codes')
-      .update({ mcp_user_id: user.chatgpt_user_id })
-      .eq('id', pendingCode.id)
-      .select();
-
-    console.log('[Auth] Code link result:', { linkedCode, linkError, rowsUpdated: linkedCode?.length });
-
-    if (linkError) {
-      console.error('[Auth] Error linking code to user:', linkError);
-      return user;
+    // Step 3: Check if already linked to this user (just update premium status)
+    // or if not linked yet (link it now)
+    if (code.mcp_user_id && code.mcp_user_id !== user.chatgpt_user_id) {
+      // Code is linked to a different MCP user - this shouldn't happen but handle it
+      console.log('[Auth] Code is linked to different MCP user:', code.mcp_user_id, 'current user:', user.chatgpt_user_id);
+      // Still upgrade this user since they have the widget with the code
     }
 
-    // Upgrade the user to premium in the database
-    console.log('[Auth] Attempting to upgrade user to premium:', { userId: user.id, userEmail: user.email });
+    // Link the code to this MCP user if not already linked
+    if (!code.mcp_user_id) {
+      const { error: linkError } = await supabase
+        .from('premium_codes')
+        .update({ mcp_user_id: user.chatgpt_user_id })
+        .eq('id', code.id);
+
+      if (linkError) {
+        console.error('[Auth] Error linking code to MCP user:', linkError);
+      } else {
+        console.log('[Auth] ✓ Linked code to MCP user:', user.chatgpt_user_id);
+      }
+    }
+
+    // Step 4: Upgrade the user to premium in the database
+    console.log('[Auth] Upgrading user to premium:', { userId: user.id, userEmail: user.email });
     
     const { data: updatedUser, error: upgradeError } = await supabase
       .from('users')
@@ -619,16 +662,18 @@ export async function authenticateRequest(req, mode) {
       usage_count: user.usage_count 
     });
 
-    // Step 1.5: Check for pending premium codes and link if found
-    console.log('[Auth] Step 1.5: Check for pending premium codes...');
-    user = await linkPendingPremiumCode(user);
-
-    // Step 1.6: Check for pending free sessions and link if found
-    console.log('[Auth] Step 1.6: Check for pending free sessions...');
+    // Step 1.5: Check for pending free sessions and link if found
+    // This must happen BEFORE premium code linking so we have the widget_id
+    console.log('[Auth] Step 1.5: Check for pending free sessions...');
     const { widgetId } = await linkPendingFreeSession(user);
     if (widgetId) {
       console.log('[Auth] ✓ Widget ID linked:', widgetId);
     }
+
+    // Step 1.6: Check for premium codes and link if found
+    // Uses widget_id for deterministic lookup (fixes race condition)
+    console.log('[Auth] Step 1.6: Check for premium codes...');
+    user = await linkPendingPremiumCode(user, widgetId);
 
     // Check if user can access this mode
     console.log('[Auth] Step 2: Check mode access...');

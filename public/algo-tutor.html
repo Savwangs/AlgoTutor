@@ -1672,9 +1672,10 @@
       // Check if user has a stored premium code and auto-activate it for this session
       const storedPremiumCode = localStorage.getItem('algotutor_premium_code');
       const cancelBtn = document.getElementById('cancel-subscription-btn');
+      const currentWidgetId = getChatGPTUserId(); // Get widget ID for device binding
       
       if (storedPremiumCode) {
-        console.log('[Widget] Found stored premium code, auto-activating:', storedPremiumCode);
+        console.log('[Widget] Found stored premium code, auto-activating:', storedPremiumCode, 'widgetId:', currentWidgetId);
         
         // Show cancel button since user has a stored code
         if (cancelBtn) {
@@ -1682,19 +1683,20 @@
         }
         
         // Auto-activate in background (don't block UI)
+        // Include widgetId to verify this device is the one that claimed the code
         fetch('https://algo-tutor.org/api/activate-premium', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: storedPremiumCode })
+          body: JSON.stringify({ code: storedPremiumCode, widgetId: currentWidgetId })
         })
         .then(response => response.json())
         .then(data => {
           if (data.error) {
             console.log('[Widget] Auto-activation failed:', data.error);
-            // If code is invalid or revoked, remove it from storage
-            if (data.error.includes('Invalid') || data.error.includes('not found') || data.error.includes('revoked')) {
+            // If code is invalid, revoked, or claimed by another device, remove it from storage
+            if (data.error.includes('Invalid') || data.error.includes('not found') || data.error.includes('revoked') || data.error.includes('another device')) {
               localStorage.removeItem('algotutor_premium_code');
-              console.log('[Widget] Removed invalid/revoked code from localStorage');
+              console.log('[Widget] Removed invalid/revoked/claimed code from localStorage');
               // Hide cancel button since code is no longer valid
               if (cancelBtn) {
                 cancelBtn.style.display = 'none';
@@ -1844,14 +1846,18 @@
         modalActivate.textContent = 'Activating...';
 
         try {
-          // Server will identify user from IP headers (same as authentication)
+          // Get widget ID for device binding - this binds the code to this specific device
+          const widgetId = getChatGPTUserId();
+          console.log('[Widget] Activating premium with widgetId:', widgetId);
+          
           const response = await fetch('https://algo-tutor.org/api/activate-premium', {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify({
-              code: code
+              code: code,
+              widgetId: widgetId
             })
           });
 
@@ -1869,6 +1875,12 @@
             // Store the code in localStorage for cross-session persistence
             localStorage.setItem('algotutor_premium_code', code);
             console.log('[Widget] Premium code stored in localStorage:', code);
+            
+            // Show cancel button now that user has activated premium
+            const cancelBtn = document.getElementById('cancel-subscription-btn');
+            if (cancelBtn) {
+              cancelBtn.style.display = 'inline-block';
+            }
             
             // Close modal after brief delay
             setTimeout(() => {

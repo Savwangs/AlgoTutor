@@ -815,6 +815,7 @@ const httpServer = createServer(async (req, res) => {
   // API: Activate premium with code
   // This endpoint validates the code and directly upgrades the IP-based user to premium.
   // This allows cross-session premium access when the widget auto-activates.
+  // Security: Codes are bound to the first widget_id that claims them to prevent code sharing.
   if (req.method === "POST" && url.pathname === "/api/activate-premium") {
     console.log('[API] Activate premium request');
     res.setHeader("Access-Control-Allow-Origin", "*");
@@ -827,14 +828,19 @@ const httpServer = createServer(async (req, res) => {
 
     try {
       const body = await parseJsonBody(req);
-      const { code } = body;
+      const { code, widgetId } = body;
 
       if (!code) {
         res.writeHead(400);
         return res.end(JSON.stringify({ error: 'Code is required' }));
       }
 
-      console.log('[API] Processing premium code activation:', code.toUpperCase());
+      if (!widgetId) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'Widget ID is required for activation' }));
+      }
+
+      console.log('[API] Processing premium code activation:', code.toUpperCase(), 'widgetId:', widgetId);
 
       // Look up the code
       const { data: codeData, error: codeError } = await supabase
@@ -856,16 +862,31 @@ const httpServer = createServer(async (req, res) => {
         return res.end(JSON.stringify({ error: 'This code has been revoked. Your subscription was cancelled.' }));
       }
 
-      // Mark code as used if not already
-      if (!codeData.used) {
+      // SECURITY CHECK: Verify code ownership
+      // If the code has already been claimed by a different widget, reject the activation
+      if (codeData.claimed_by_widget_id && codeData.claimed_by_widget_id !== widgetId) {
+        console.log('[API] Code already claimed by different device:', code, 'claimed by:', codeData.claimed_by_widget_id, 'attempted by:', widgetId);
+        res.writeHead(403);
+        return res.end(JSON.stringify({ 
+          error: 'This code has already been activated on another device. Each code can only be used on one device.' 
+        }));
+      }
+
+      // Mark code as used and bind to this widget_id if not already
+      if (!codeData.used || !codeData.claimed_by_widget_id) {
+        const updateData = {
+          used: true,
+          used_at: codeData.used_at || new Date().toISOString(),
+          claimed_by_widget_id: codeData.claimed_by_widget_id || widgetId
+        };
+        
         await supabase
           .from('premium_codes')
-          .update({
-            used: true,
-            used_at: new Date().toISOString()
-          })
+          .update(updateData)
           .eq('code', code.toUpperCase());
-        console.log('[API] Code marked as used:', code.toUpperCase());
+        console.log('[API] Code marked as used and claimed by widget:', code.toUpperCase(), widgetId);
+      } else {
+        console.log('[API] Code already claimed by this widget, allowing re-activation:', widgetId);
       }
 
       // Extract user identifier from IP (same logic as auth.js)
