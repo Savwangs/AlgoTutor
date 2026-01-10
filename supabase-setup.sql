@@ -212,3 +212,6 @@ DELETE FROM premium_codes;
 
 -- 3. Clear ALL usage logs (so daily limit counter starts fresh)
 DELETE FROM usage_logs;
+
+-- 4. Clear ALL free sessions (so widget_id → mcp_user_id links are reset)
+DELETE FROM free_sessions;
