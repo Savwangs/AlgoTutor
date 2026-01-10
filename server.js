@@ -812,6 +812,57 @@ const httpServer = createServer(async (req, res) => {
     }
   }
 
+  // API: Lookup premium code by email (for code recovery)
+  // This allows users to retrieve their premium code if they switch browsers or clear localStorage
+  if (req.method === "GET" && url.pathname === "/api/lookup-code") {
+    console.log('[API] Lookup code by email request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    if (!supabase) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: 'Database not configured' }));
+    }
+
+    const email = url.searchParams.get('email');
+    if (!email) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'Email is required' }));
+    }
+
+    try {
+      // Look up the most recent non-revoked premium code for this email
+      const { data, error } = await supabase
+        .from('premium_codes')
+        .select('code, created_at')
+        .eq('email', email.toLowerCase())
+        .eq('revoked', false)
+        .order('created_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (error) {
+        console.error('[API] Error looking up code:', error);
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: 'Failed to lookup code' }));
+      }
+
+      if (!data) {
+        console.log('[API] No premium code found for email:', email);
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'No premium code found for this email' }));
+      }
+
+      console.log('[API] ✓ Premium code found for email:', email);
+      res.writeHead(200);
+      return res.end(JSON.stringify({ code: data.code }));
+    } catch (error) {
+      console.error('[API] ❌ Lookup code error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
   // API: Activate premium with code
   // This endpoint validates the code and directly upgrades the IP-based user to premium.
   // This allows cross-session premium access when the widget auto-activates.

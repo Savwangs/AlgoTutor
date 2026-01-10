@@ -418,6 +418,11 @@
       submitBtn.textContent = 'Creating account...';
 
       try {
+        // Build redirect URL - include plan param so auth-callback knows to redirect to checkout
+        const redirectUrl = plan === 'premium' 
+          ? 'https://algo-tutor.org/auth-callback.html?plan=premium'
+          : 'https://algo-tutor.org/auth-callback.html';
+        
         const { data, error } = await supabaseClient.auth.signUp({
           email,
           password,
@@ -426,7 +431,7 @@
               full_name: name,
               plan: plan || 'free'
             },
-            emailRedirectTo: 'https://algo-tutor.org/dashboard.html'
+            emailRedirectTo: redirectUrl
           }
         });
 
