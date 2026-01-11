@@ -7,7 +7,7 @@ const openai = new OpenAI({
 const MODEL = 'gpt-4o-mini'; // Cheapest GPT-4 model (~$0.00015/1K input tokens)
 
 // Helper function to call OpenAI
-async function callOpenAI(systemPrompt, userPrompt, maxTokens = 1024) {
+async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
   console.log('\n' + '='.repeat(80));
   console.log('[LLM] CALLING OPENAI API');
   console.log('='.repeat(80));
@@ -172,6 +172,11 @@ export async function generateBuildSolution(args) {
   }
   
   const userPrompt = `Solve this problem: ${args.problem}
+
+${args.testCases ? `TEST CASES TO PASS:
+${args.testCases}
+
+Ensure your solution passes ALL the provided test cases.` : ''}
 
 LANGUAGE: ${args.language}
 Write all code in ${args.language}.

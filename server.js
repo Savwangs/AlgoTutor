@@ -82,6 +82,7 @@ const learnModeInputSchema = z.object({
 // Build Mode Schema - ONLY INPUT FIELDS
 const buildModeInputSchema = z.object({
   problem: z.string().min(1).describe("The coding problem description"),
+  testCases: z.string().optional().describe("Optional test cases or doctests the solution should pass"),
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
   allowRecursion: z.boolean().default(true).describe("Whether recursion is allowed"),
   skeletonOnly: z.boolean().default(false).describe("Whether to show skeleton only (no full solution)"),
@@ -1219,6 +1220,14 @@ const httpServer = createServer(async (req, res) => {
               cancel_at_period_end: true
             });
             accessUntil = subscription.current_period_end;
+            
+            // If current_period_end not in update response, retrieve subscription separately
+            if (!accessUntil) {
+              console.log('[API] current_period_end not in update response, retrieving subscription...');
+              const fullSubscription = await stripe.subscriptions.retrieve(session.subscription);
+              accessUntil = fullSubscription.current_period_end;
+            }
+            
             console.log('[API] ✓ Subscription set to cancel at:', accessUntil ? new Date(accessUntil * 1000).toISOString() : 'unknown');
           }
         } catch (stripeError) {

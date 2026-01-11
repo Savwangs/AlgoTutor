@@ -769,6 +769,18 @@
               ></textarea>
             </div>
 
+            <div class="field-block">
+              <label for="build-testcases">Test Cases / Doctests (optional)</label>
+              <textarea
+                id="build-testcases"
+                placeholder="Enter test cases or doctests to validate the solution..."
+                style="min-height: 80px;"
+              ></textarea>
+              <p class="hint">
+                Provide example inputs/outputs or doctests that the solution should pass.
+              </p>
+            </div>
+
             <div class="row">
               <div class="field-block">
                 <label for="build-language">Language</label>
@@ -1268,6 +1280,7 @@
         const statusEl = document.querySelector("#build-status");
 
         const problem = document.querySelector("#build-problem").value.trim();
+        const testCases = document.querySelector("#build-testcases").value.trim();
         const language = document.querySelector("#build-language").value;
         const allowRecursion = document.querySelector("#build-recursion").checked;
         const skeletonOnly = document.querySelector("#build-skeleton").checked;
@@ -1283,6 +1296,7 @@
         
         // Build natural language prompt for ChatGPT
         let prompt = `Use AlgoTutor Build Mode to solve this problem in ${language}: ${problem}.`;
+        if (testCases) prompt += ` The solution must pass these test cases: ${testCases}.`;
         if (minimalCode) prompt += ` Use minimal code.`;
         if (allowRecursion) prompt += ` Recursion is allowed.`;
         if (skeletonOnly) prompt += ` Show skeleton only.`;
