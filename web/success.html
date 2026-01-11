@@ -200,6 +200,70 @@
       border-radius: 8px;
       margin-bottom: 1rem;
     }
+
+    .save-warning {
+      background: rgba(245, 158, 11, 0.15);
+      border: 2px solid var(--gold);
+      border-radius: 10px;
+      padding: 1rem;
+      margin-bottom: 1.5rem;
+      text-align: center;
+    }
+
+    .save-warning-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: var(--gold);
+      margin-bottom: 0.5rem;
+    }
+
+    .save-warning-text {
+      font-size: 0.9rem;
+      color: var(--text-secondary);
+      line-height: 1.5;
+    }
+
+    .dashboard-info {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      text-align: left;
+      margin-bottom: 2rem;
+    }
+
+    .dashboard-info h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--accent);
+    }
+
+    .dashboard-info ul {
+      margin: 0 0 1rem 0;
+      padding-left: 1.25rem;
+    }
+
+    .dashboard-info li {
+      margin-bottom: 0.5rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .dashboard-link {
+      display: inline-block;
+      padding: 0.5rem 1rem;
+      background: var(--accent);
+      color: white;
+      text-decoration: none;
+      border-radius: 6px;
+      font-size: 0.85rem;
+      font-weight: 500;
+      transition: background 0.2s;
+    }
+
+    .dashboard-link:hover {
+      background: #2563eb;
+    }
   </style>
 </head>
 <body>
@@ -217,6 +281,14 @@
         <h1>Welcome to Premium!</h1>
         <p class="subtitle">Thank you for upgrading. You now have unlimited access!</p>
 
+        <div class="save-warning">
+          <div class="save-warning-title">⚠️ IMPORTANT: Save This Code!</div>
+          <div class="save-warning-text">
+            Write this code down or save it somewhere safe. You'll need it to activate premium in ChatGPT.
+            <br><strong>Do NOT share this code with anyone!</strong>
+          </div>
+        </div>
+
         <div class="code-section">
           <div class="code-label">Your Activation Code</div>
           <div class="code-display" id="premium-code">---</div>
@@ -232,6 +304,16 @@
             <li>Paste your activation code</li>
             <li>Enjoy unlimited access! 🚀</li>
           </ol>
+        </div>
+
+        <div class="dashboard-info">
+          <h3>📊 Your AlgoTutor Dashboard</h3>
+          <ul>
+            <li>Recover your activation code if you forget it</li>
+            <li>View setup instructions anytime</li>
+            <li>Manage your subscription</li>
+          </ul>
+          <a href="/login.html" class="dashboard-link">Go to Dashboard →</a>
         </div>
 
         <a href="/" class="back-link">← Back to Home</a>

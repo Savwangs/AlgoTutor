@@ -388,10 +388,10 @@
         <div class="warning-box">
           <h4>What happens when you cancel:</h4>
           <ul>
-            <li>Your premium access will end immediately</li>
-            <li>You'll be downgraded to the free tier (1 use/day)</li>
-            <li>Build Mode and Debug Mode will no longer be available</li>
-            <li>Your activation code will be revoked</li>
+            <li>Your premium access will continue until the end of your billing period</li>
+            <li>You won't be charged again</li>
+            <li>After the billing period ends, you'll be downgraded to the free tier</li>
+            <li>Your activation code will be revoked at that time</li>
           </ul>
         </div>
 
@@ -411,14 +411,20 @@
 
       <!-- Success State -->
       <div id="success-state" class="hidden">
-        <h1 style="color: var(--success);">✓ Subscription Cancelled</h1>
-        <p class="subtitle">Your subscription has been cancelled</p>
+        <h1 style="color: var(--success);">✓ Cancellation Scheduled</h1>
+        <p class="subtitle">Your subscription will not renew</p>
+
+        <div class="subscription-info" id="access-until-box" style="border-color: var(--success);">
+          <h3>Premium Access Until</h3>
+          <p id="access-until-date">Loading...</p>
+        </div>
 
         <div class="message success" style="display: block;">
           <p><strong>What happens now:</strong></p>
           <ul style="margin-left: 1.25rem; margin-top: 0.5rem;">
-            <li>Your premium access has ended</li>
-            <li>The next time you use AlgoTutor in ChatGPT, you'll be on the free tier</li>
+            <li>You will NOT be charged again</li>
+            <li>You keep premium access until the date shown above</li>
+            <li>After that date, you'll be moved to the free tier</li>
             <li>You can upgrade again anytime from the pricing page</li>
           </ul>
         </div>
@@ -518,11 +524,22 @@
         }
       }
 
-      function showSuccessState() {
+      function showSuccessState(accessUntil) {
         loadingState.classList.add('hidden');
         signinState.classList.add('hidden');
         cancelState.classList.add('hidden');
         successState.classList.remove('hidden');
+
+        // Display the access-until date
+        const accessUntilDateEl = document.getElementById('access-until-date');
+        if (accessUntil) {
+          const date = new Date(accessUntil * 1000);
+          const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+          accessUntilDateEl.textContent = date.toLocaleDateString('en-US', options);
+        } else {
+          // Hide the access-until box if no date available
+          document.getElementById('access-until-box').style.display = 'none';
+        }
       }
 
       // Sign in handler
@@ -610,7 +627,7 @@
             throw new Error(data.error);
           }
 
-          showSuccessState();
+          showSuccessState(data.accessUntil);
         } catch (error) {
           cancelMessage.textContent = error.message;
           cancelMessage.className = 'message error';

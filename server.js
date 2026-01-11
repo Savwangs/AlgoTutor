@@ -753,15 +753,66 @@ const httpServer = createServer(async (req, res) => {
         const subscription = event.data.object;
         const customerId = subscription.customer;
 
+        console.log('[API] Subscription deleted for customer:', customerId);
+
         // Find user by stripe_customer_id and downgrade
-        await supabase
+        const { data: userData, error: userFetchError } = await supabase
+          .from('users')
+          .select('email, chatgpt_user_id')
+          .eq('stripe_customer_id', customerId)
+          .maybeSingle();
+
+        if (userFetchError) {
+          console.error('[API] Error fetching user by customer ID:', userFetchError);
+        }
+
+        // Downgrade user to free tier
+        const { error: downgradeError } = await supabase
           .from('users')
           .update({
             subscription_tier: 'free',
             subscription_status: 'cancelled'
           })
           .eq('stripe_customer_id', customerId);
-        console.log('[API] ✓ Subscription cancelled for customer:', customerId);
+
+        if (downgradeError) {
+          console.error('[API] Error downgrading user:', downgradeError);
+        } else {
+          console.log('[API] ✓ User downgraded to free tier');
+        }
+
+        // Also find and revoke the premium code associated with this customer
+        // We look up by the user's email or by mcp_user_id
+        if (userData?.email) {
+          const { error: revokeError } = await supabase
+            .from('premium_codes')
+            .update({ revoked: true })
+            .eq('email', userData.email)
+            .eq('revoked', false);
+
+          if (revokeError) {
+            console.error('[API] Error revoking premium code by email:', revokeError);
+          } else {
+            console.log('[API] ✓ Premium code revoked for email:', userData.email);
+          }
+        }
+
+        // Also try to revoke by mcp_user_id if available
+        if (userData?.chatgpt_user_id) {
+          const { error: revokeByMcpError } = await supabase
+            .from('premium_codes')
+            .update({ revoked: true })
+            .eq('mcp_user_id', userData.chatgpt_user_id)
+            .eq('revoked', false);
+
+          if (revokeByMcpError) {
+            console.error('[API] Error revoking premium code by mcp_user_id:', revokeByMcpError);
+          } else {
+            console.log('[API] ✓ Premium code revoked for mcp_user_id:', userData.chatgpt_user_id);
+          }
+        }
+
+        console.log('[API] ✓ Subscription deletion processed for customer:', customerId);
       }
 
       res.writeHead(200);
@@ -1126,58 +1177,41 @@ const httpServer = createServer(async (req, res) => {
 
       console.log('[API] Found premium code:', codeData.code);
 
-      // Cancel Stripe subscription if we have the session ID
+      // Cancel Stripe subscription at end of billing period (not immediately)
+      let accessUntil = null;
       if (codeData.stripe_session_id && stripe) {
         try {
           // Get the checkout session to find the subscription
           const session = await stripe.checkout.sessions.retrieve(codeData.stripe_session_id);
           
           if (session.subscription) {
-            console.log('[API] Cancelling Stripe subscription:', session.subscription);
-            await stripe.subscriptions.cancel(session.subscription);
-            console.log('[API] ✓ Stripe subscription cancelled');
+            console.log('[API] Setting subscription to cancel at period end:', session.subscription);
+            // Use cancel_at_period_end instead of immediate cancel
+            // This keeps premium active until billing period ends
+            const subscription = await stripe.subscriptions.update(session.subscription, {
+              cancel_at_period_end: true
+            });
+            accessUntil = subscription.current_period_end;
+            console.log('[API] ✓ Subscription set to cancel at:', new Date(accessUntil * 1000).toISOString());
           }
         } catch (stripeError) {
-          console.error('[API] Stripe cancellation error (continuing):', stripeError.message);
-          // Continue anyway - we still want to revoke the code
+          console.error('[API] Stripe cancellation error:', stripeError.message);
+          res.writeHead(500);
+          return res.end(JSON.stringify({ error: 'Failed to cancel subscription with Stripe: ' + stripeError.message }));
         }
       }
 
-      // Mark the premium code as revoked
-      const { error: revokeError } = await supabase
-        .from('premium_codes')
-        .update({ revoked: true })
-        .eq('id', codeData.id);
-
-      if (revokeError) {
-        console.error('[API] Error revoking code:', revokeError);
-        res.writeHead(500);
-        return res.end(JSON.stringify({ error: 'Failed to revoke subscription' }));
-      }
-
-      console.log('[API] ✓ Premium code revoked:', codeData.code);
-
-      // If we have an mcp_user_id, downgrade that user to free tier
-      if (codeData.mcp_user_id) {
-        const { error: downgradeError } = await supabase
-          .from('users')
-          .update({
-            subscription_tier: 'free',
-            subscription_status: 'cancelled'
-          })
-          .eq('chatgpt_user_id', codeData.mcp_user_id);
-
-        if (downgradeError) {
-          console.error('[API] Error downgrading user (continuing):', downgradeError);
-        } else {
-          console.log('[API] ✓ User downgraded to free tier:', codeData.mcp_user_id);
-        }
-      }
+      // Do NOT revoke the code immediately - the webhook will handle this when subscription actually ends
+      // Do NOT downgrade the user immediately - they keep premium until billing period ends
+      // Just log that cancellation is scheduled
+      console.log('[API] ✓ Subscription scheduled to cancel at period end');
+      console.log('[API] User will retain premium access until:', accessUntil ? new Date(accessUntil * 1000).toISOString() : 'unknown');
 
       res.writeHead(200);
       return res.end(JSON.stringify({ 
         success: true, 
-        message: 'Subscription cancelled successfully' 
+        message: 'Subscription will cancel at end of billing period',
+        accessUntil: accessUntil // Unix timestamp (seconds)
       }));
     } catch (error) {
       console.error('[API] ❌ Cancel subscription error:', error);
