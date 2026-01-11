@@ -525,6 +525,8 @@
       }
 
       function showSuccessState(accessUntil) {
+        console.log('[Cancel] showSuccessState called with accessUntil:', accessUntil);
+        
         loadingState.classList.add('hidden');
         signinState.classList.add('hidden');
         cancelState.classList.add('hidden');
@@ -532,14 +534,20 @@
 
         // Display the access-until date
         const accessUntilDateEl = document.getElementById('access-until-date');
+        const accessUntilBox = document.getElementById('access-until-box');
+        
         if (accessUntil) {
           const date = new Date(accessUntil * 1000);
           const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
           accessUntilDateEl.textContent = date.toLocaleDateString('en-US', options);
+          console.log('[Cancel] Access until date:', accessUntilDateEl.textContent);
         } else {
-          // Hide the access-until box if no date available
-          document.getElementById('access-until-box').style.display = 'none';
+          // Show a fallback message if no date available
+          accessUntilDateEl.textContent = 'End of current billing period';
+          console.log('[Cancel] No accessUntil provided, showing fallback');
         }
+        
+        console.log('[Cancel] Success state is now visible');
       }
 
       // Sign in handler
@@ -607,10 +615,12 @@
 
         confirmCancelBtn.disabled = true;
         confirmCancelBtn.textContent = 'Cancelling...';
-        cancelMessage.className = 'message';
-        cancelMessage.style.display = 'none';
+        // Clear any previous messages - use classList and clear inline style
+        cancelMessage.classList.remove('error', 'success', 'warning');
+        cancelMessage.style.display = '';
 
         try {
+          console.log('[Cancel] Calling /api/cancel-subscription for:', currentUser.email);
           const response = await fetch('/api/cancel-subscription', {
             method: 'POST',
             headers: {
@@ -622,17 +632,27 @@
           });
 
           const data = await response.json();
+          console.log('[Cancel] Response:', data);
 
           if (data.error) {
             throw new Error(data.error);
           }
 
+          console.log('[Cancel] Success! Showing success state with accessUntil:', data.accessUntil);
           showSuccessState(data.accessUntil);
         } catch (error) {
+          console.error('[Cancel] Error:', error);
           cancelMessage.textContent = error.message;
           cancelMessage.className = 'message error';
-          confirmCancelBtn.disabled = false;
-          confirmCancelBtn.textContent = 'Cancel My Subscription';
+          cancelMessage.style.display = '';  // Clear inline style so CSS takes over
+        } finally {
+          // Always reset button state (unless we're showing success state)
+          if (!successState.classList.contains('hidden')) {
+            // Success state is showing, don't reset button
+          } else {
+            confirmCancelBtn.disabled = false;
+            confirmCancelBtn.textContent = 'Cancel My Subscription';
+          }
         }
       });
 
