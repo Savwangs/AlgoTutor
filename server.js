@@ -795,6 +795,33 @@ const httpServer = createServer(async (req, res) => {
           } else {
             console.log('[API] ✓ Premium code revoked for email:', userData.email);
           }
+
+          // IMPORTANT: Also downgrade MCP users that were linked via the revoked premium codes
+          // These are users created when the widget activated the code (identified by mcp_user_id)
+          const { data: revokedCodes, error: revokedCodesError } = await supabase
+            .from('premium_codes')
+            .select('mcp_user_id')
+            .eq('email', userData.email)
+            .eq('revoked', true)
+            .not('mcp_user_id', 'is', null);
+
+          if (revokedCodesError) {
+            console.error('[API] Error fetching revoked codes for MCP user downgrade:', revokedCodesError);
+          } else if (revokedCodes && revokedCodes.length > 0) {
+            const mcpUserIds = revokedCodes.map(c => c.mcp_user_id);
+            console.log('[API] Downgrading MCP users linked to revoked codes:', mcpUserIds);
+
+            const { error: mcpDowngradeError } = await supabase
+              .from('users')
+              .update({ subscription_tier: 'free', subscription_status: 'cancelled' })
+              .in('chatgpt_user_id', mcpUserIds);
+
+            if (mcpDowngradeError) {
+              console.error('[API] Error downgrading MCP users:', mcpDowngradeError);
+            } else {
+              console.log('[API] ✓ MCP users downgraded to free tier:', mcpUserIds.length);
+            }
+          }
         }
 
         // Also try to revoke by mcp_user_id if available
@@ -1192,7 +1219,7 @@ const httpServer = createServer(async (req, res) => {
               cancel_at_period_end: true
             });
             accessUntil = subscription.current_period_end;
-            console.log('[API] ✓ Subscription set to cancel at:', new Date(accessUntil * 1000).toISOString());
+            console.log('[API] ✓ Subscription set to cancel at:', accessUntil ? new Date(accessUntil * 1000).toISOString() : 'unknown');
           }
         } catch (stripeError) {
           console.error('[API] Stripe cancellation error:', stripeError.message);
