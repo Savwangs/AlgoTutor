@@ -1207,34 +1207,61 @@ const httpServer = createServer(async (req, res) => {
 
       // Cancel Stripe subscription at end of billing period (not immediately)
       let accessUntil = null;
+      let subscriptionId = null;
+
+      // Method 1: Try to get subscription from checkout session
       if (codeData.stripe_session_id && stripe) {
         try {
-          // Get the checkout session to find the subscription
+          console.log('[API] Trying to get subscription from checkout session:', codeData.stripe_session_id);
           const session = await stripe.checkout.sessions.retrieve(codeData.stripe_session_id);
+          subscriptionId = session.subscription;
+          console.log('[API] Got subscription ID from checkout session:', subscriptionId);
+        } catch (err) {
+          console.log('[API] Could not retrieve checkout session:', err.message);
+        }
+      }
+
+      // Method 2: Fallback - get subscription from users table
+      if (!subscriptionId && stripe) {
+        console.log('[API] Trying fallback: getting subscription from users table...');
+        const { data: userData } = await supabase
+          .from('users')
+          .select('stripe_subscription_id')
+          .eq('email', email)
+          .maybeSingle();
+        
+        if (userData?.stripe_subscription_id) {
+          subscriptionId = userData.stripe_subscription_id;
+          console.log('[API] Using subscription ID from users table:', subscriptionId);
+        } else {
+          console.log('[API] No subscription ID found in users table for:', email);
+        }
+      }
+
+      // Now cancel the subscription if we found one
+      if (subscriptionId && stripe) {
+        try {
+          console.log('[API] Setting subscription to cancel at period end:', subscriptionId);
+          const subscription = await stripe.subscriptions.update(subscriptionId, {
+            cancel_at_period_end: true
+          });
+          accessUntil = subscription.current_period_end;
           
-          if (session.subscription) {
-            console.log('[API] Setting subscription to cancel at period end:', session.subscription);
-            // Use cancel_at_period_end instead of immediate cancel
-            // This keeps premium active until billing period ends
-            const subscription = await stripe.subscriptions.update(session.subscription, {
-              cancel_at_period_end: true
-            });
-            accessUntil = subscription.current_period_end;
-            
-            // If current_period_end not in update response, retrieve subscription separately
-            if (!accessUntil) {
-              console.log('[API] current_period_end not in update response, retrieving subscription...');
-              const fullSubscription = await stripe.subscriptions.retrieve(session.subscription);
-              accessUntil = fullSubscription.current_period_end;
-            }
-            
-            console.log('[API] ✓ Subscription set to cancel at:', accessUntil ? new Date(accessUntil * 1000).toISOString() : 'unknown');
+          // Fallback: retrieve subscription if current_period_end not in response
+          if (!accessUntil) {
+            console.log('[API] current_period_end not in update response, retrieving subscription...');
+            const fullSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+            accessUntil = fullSubscription.current_period_end;
           }
+          
+          console.log('[API] ✓ Subscription set to cancel at:', accessUntil ? new Date(accessUntil * 1000).toISOString() : 'unknown');
         } catch (stripeError) {
           console.error('[API] Stripe cancellation error:', stripeError.message);
           res.writeHead(500);
           return res.end(JSON.stringify({ error: 'Failed to cancel subscription with Stripe: ' + stripeError.message }));
         }
+      } else if (!subscriptionId) {
+        console.log('[API] No subscription ID found - cannot cancel via Stripe');
       }
 
       // Do NOT revoke the code immediately - the webhook will handle this when subscription actually ends

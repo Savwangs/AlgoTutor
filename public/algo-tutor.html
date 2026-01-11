@@ -469,12 +469,15 @@
 
       /* Help link */
       .help-link {
+        background: transparent;
+        border: none;
         color: var(--text-muted);
         font-size: 0.75rem;
-        text-decoration: none;
         padding: 6px 10px;
         border-radius: 6px;
+        cursor: pointer;
         transition: all 0.2s;
+        font-family: inherit;
       }
 
       .help-link:hover {
@@ -684,9 +687,9 @@
             </p>
           </div>
           <div class="header-buttons">
-            <a href="mailto:support@algo-tutor.org" class="help-link" title="Contact support">
+            <button class="help-link" id="help-btn" title="Contact support">
               Need Help?
-            </a>
+            </button>
             <button class="cancel-subscription-btn" id="cancel-subscription-btn">
               Cancel Subscription
             </button>
@@ -922,6 +925,31 @@
         <div class="modal-buttons">
           <button class="modal-btn modal-btn-secondary" id="modal-cancel">Cancel</button>
           <button class="modal-btn modal-btn-primary" id="modal-activate">Activate</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Help Modal -->
+    <div class="modal-overlay" id="help-modal">
+      <div class="modal">
+        <h2>Need Help?</h2>
+        <p>Have questions, concerns, or running into issues? We're here to help!</p>
+        <div style="background: rgba(59, 130, 246, 0.1); padding: 16px; border-radius: 8px; margin: 16px 0;">
+          <p style="margin: 0; color: var(--text-main);">
+            Contact us at:<br>
+            <a href="mailto:support@algo-tutor.org" style="color: var(--accent); font-weight: 600; font-size: 1.1rem;">
+              support@algo-tutor.org
+            </a>
+          </p>
+        </div>
+        <p style="font-size: 0.85rem; color: var(--text-muted);">
+          We typically respond within 24 hours.
+        </p>
+        <div class="modal-buttons">
+          <button class="modal-btn modal-btn-secondary" id="help-modal-close">Close</button>
+          <a href="mailto:support@algo-tutor.org" class="modal-btn modal-btn-primary" style="text-decoration: none; text-align: center;">
+            Send Email
+          </a>
         </div>
       </div>
     </div>
@@ -1808,6 +1836,28 @@
       premiumModal.addEventListener('click', (e) => {
         if (e.target === premiumModal) {
           premiumModal.classList.remove('active');
+        }
+      });
+
+      // ==================== HELP MODAL ====================
+      const helpModal = document.getElementById('help-modal');
+      const helpBtn = document.getElementById('help-btn');
+      const helpModalClose = document.getElementById('help-modal-close');
+
+      // Open help modal
+      helpBtn.addEventListener('click', () => {
+        helpModal.classList.add('active');
+      });
+
+      // Close help modal
+      helpModalClose.addEventListener('click', () => {
+        helpModal.classList.remove('active');
+      });
+
+      // Close on overlay click
+      helpModal.addEventListener('click', (e) => {
+        if (e.target === helpModal) {
+          helpModal.classList.remove('active');
         }
       });
 
