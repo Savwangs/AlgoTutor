@@ -278,6 +278,16 @@ function createAlgoTutorServer() {
         logInfo('Topic to explain', args.topic);
         const outputs = await generateLearnContent(args);
         logSuccess('LLM content generated');
+        
+        // Check for validation errors (invalid/irrelevant input)
+        if (outputs.error === 'INVALID_INPUT') {
+          logInfo('Invalid input detected', outputs.message);
+          return makeToolOutput("learn", {
+            invalidInput: true,
+            message: outputs.message || 'Please enter a valid DSA topic (e.g., binary search, BFS, linked lists).'
+          });
+        }
+        
         logInfo('Generated outputs structure', {
           hasPattern: !!outputs.pattern,
           hasStepByStep: !!outputs.stepByStep,
@@ -287,10 +297,30 @@ function createAlgoTutorServer() {
           hasPaperVersion: !!outputs.paperVersion
         });
         
-        // Log usage (include widgetId for tracking across IP changes)
+        // Log usage with V2 personalization metadata (for premium users)
+        const learnMetadata = {
+          patternDetected: outputs.theTrick ? outputs.theTrick.split('.')[0] : null, // First sentence as pattern
+          trickShown: outputs.theTrick || null,
+          requestData: {
+            topic: args.topic,
+            difficulty: args.difficulty,
+            depth: args.depth,
+            exampleSize: args.exampleSize,
+            showPatternKeywords: args.showPatternKeywords,
+            showDryRun: args.showDryRun,
+            showPaperVersion: args.showPaperVersion
+          },
+          responseSummary: {
+            hasPatternSignature: !!(outputs.patternSignature && outputs.patternSignature.length > 0),
+            hasMemorableTemplate: !!outputs.memorableTemplate,
+            hasDryRunTable: !!(outputs.dryRunTable && outputs.dryRunTable.length > 0),
+            hasPaperSummary: !!(outputs.paperSummary || outputs.paperVersion)
+          }
+        };
+        
         logInfo('Logging usage to Supabase', { userId: user.id, mode: 'learn', topic: args.topic, widgetId: authResult.widgetId });
-        await logUsage(user, 'learn', args.topic, authResult.widgetId);
-        logSuccess('Usage logged successfully');
+        await logUsage(user, 'learn', args.topic, authResult.widgetId, learnMetadata);
+        logSuccess('Usage logged successfully with V2 metadata');
         
         // Add usage info to response if auth is enabled
         // Subtract 1 because we just used one (check happens before logging)
@@ -393,9 +423,56 @@ function createAlgoTutorServer() {
         const outputs = await generateBuildSolution(args);
         logSuccess('Solution generated');
         
-        // Log usage (include widgetId for tracking across IP changes)
-        await logUsage(user, 'build', args.problem, authResult.widgetId);
-        logSuccess('Usage logged');
+        // Check for validation errors (invalid/irrelevant input)
+        if (outputs.error === 'INVALID_INPUT') {
+          logInfo('Invalid input detected', outputs.message);
+          return makeToolOutput("build", {
+            invalidInput: true,
+            message: outputs.message || 'Please enter a valid coding problem description.'
+          });
+        }
+        
+        // Helper function to detect data structures from code
+        const detectDataStructures = (code) => {
+          if (!code) return [];
+          const structures = [];
+          const lowerCode = code.toLowerCase();
+          if (lowerCode.includes('dict') || lowerCode.includes('hashmap') || lowerCode.includes('map<') || lowerCode.includes('{}')) structures.push('hashmap');
+          if (lowerCode.includes('list') || lowerCode.includes('array') || lowerCode.includes('[]')) structures.push('array');
+          if (lowerCode.includes('queue') || lowerCode.includes('deque')) structures.push('queue');
+          if (lowerCode.includes('stack') || lowerCode.includes('.pop()') || lowerCode.includes('.push(')) structures.push('stack');
+          if (lowerCode.includes('heap') || lowerCode.includes('heapq') || lowerCode.includes('priorityqueue')) structures.push('heap');
+          if (lowerCode.includes('set(') || lowerCode.includes('hashset') || lowerCode.includes('set<')) structures.push('set');
+          if (lowerCode.includes('treenode') || lowerCode.includes('binarytree')) structures.push('tree');
+          if (lowerCode.includes('graph') || lowerCode.includes('adjacency')) structures.push('graph');
+          if (lowerCode.includes('listnode') || lowerCode.includes('linkedlist') || lowerCode.includes('.next')) structures.push('linked_list');
+          return structures;
+        };
+        
+        // Log usage with V2 personalization metadata
+        const buildMetadata = {
+          patternDetected: outputs.pattern || null,
+          trickShown: outputs.theShortcut || null,
+          dataStructures: detectDataStructures(outputs.code),
+          requestData: {
+            problem: args.problem.substring(0, 200), // Truncate long problems
+            language: args.language,
+            allowRecursion: args.allowRecursion,
+            skeletonOnly: args.skeletonOnly,
+            includeDryRun: args.includeDryRun,
+            minimalCode: args.minimalCode
+          },
+          responseSummary: {
+            hasPattern: !!outputs.pattern,
+            hasCode: !!outputs.code,
+            hasDryRunTable: !!(outputs.dryRunTable && outputs.dryRunTable.length > 0),
+            hasTimeEstimate: !!outputs.timeEstimate,
+            hasDontForget: !!outputs.dontForget
+          }
+        };
+        
+        await logUsage(user, 'build', args.problem.substring(0, 200), authResult.widgetId, buildMetadata);
+        logSuccess('Usage logged with V2 metadata');
         
         // Add usage info to response if auth is enabled
         // Subtract 1 because we just used one (check happens before logging)
@@ -489,9 +566,59 @@ function createAlgoTutorServer() {
         const outputs = await generateDebugAnalysis(args);
         logSuccess('Debug analysis generated');
         
-        // Log usage (include widgetId for tracking across IP changes)
-        await logUsage(user, 'debug', 'code_debug', authResult.widgetId);
-        logSuccess('Usage logged');
+        // Check for validation errors (invalid/irrelevant input)
+        if (outputs.error === 'INVALID_INPUT') {
+          logInfo('Invalid input detected', outputs.message);
+          return makeToolOutput("debug", {
+            invalidInput: true,
+            message: outputs.message || 'Please enter valid code to debug or a fill-in-the-blank exercise.'
+          });
+        }
+        
+        // Extract mistake type from debug analysis
+        const extractMistakeType = (outputs) => {
+          if (outputs.exactBugLine?.issue) {
+            const issue = outputs.exactBugLine.issue.toLowerCase();
+            if (issue.includes('off-by-one') || issue.includes('off by one') || issue.includes('boundary')) return 'off-by-one';
+            if (issue.includes('edge case') || issue.includes('empty') || issue.includes('null')) return 'edge-case';
+            if (issue.includes('infinite') || issue.includes('loop')) return 'infinite-loop';
+            if (issue.includes('wrong data') || issue.includes('type')) return 'wrong-data-structure';
+            if (issue.includes('index') || issue.includes('out of bounds')) return 'index-error';
+            if (issue.includes('logic') || issue.includes('condition')) return 'logic-error';
+            return 'other';
+          }
+          if (outputs.theTrick) {
+            return outputs.theTrick.split('.')[0].substring(0, 50);
+          }
+          return null;
+        };
+        
+        // Log usage with V2 personalization metadata
+        const debugMetadata = {
+          patternDetected: outputs.whatCodeDoes || null,
+          mistakeType: extractMistakeType(outputs),
+          trickShown: outputs.theTrick || null,
+          requestData: {
+            debugMode: args.debugMode,
+            hasCode: !!args.code,
+            codeLength: args.code ? args.code.length : 0,
+            language: args.language,
+            hasProblemDescription: !!args.problemDescription,
+            generateTests: args.generateTests,
+            showEdgeWarnings: args.showEdgeWarnings
+          },
+          responseSummary: {
+            isFillinBlank: !!outputs.fillInBlankAnswers,
+            hasExactBugLine: !!outputs.exactBugLine,
+            hasTraceTable: !!(outputs.traceTable && outputs.traceTable.length > 0),
+            hasBeforeAfter: !!(outputs.beforeCode && outputs.afterCode),
+            hasIfOnExam: !!outputs.ifOnExam
+          }
+        };
+        
+        const topic = args.problemDescription || 'code_debug';
+        await logUsage(user, 'debug', topic.substring(0, 200), authResult.widgetId, debugMetadata);
+        logSuccess('Usage logged with V2 metadata');
         
         // Add usage info to response if auth is enabled
         // Subtract 1 because we just used one (check happens before logging)
@@ -1252,19 +1379,30 @@ const httpServer = createServer(async (req, res) => {
       if (subscriptionId && stripe) {
         try {
           console.log('[API] Setting subscription to cancel at period end:', subscriptionId);
-          const subscription = await stripe.subscriptions.update(subscriptionId, {
+          
+          // Update subscription to cancel at period end
+          await stripe.subscriptions.update(subscriptionId, {
             cancel_at_period_end: true
           });
-          accessUntil = subscription.current_period_end;
           
-          // Fallback: retrieve subscription if current_period_end not in response
-          if (!accessUntil) {
-            console.log('[API] current_period_end not in update response, retrieving subscription...');
-            const fullSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-            accessUntil = fullSubscription.current_period_end;
+          // Always retrieve full subscription to get current_period_end reliably
+          console.log('[API] Retrieving full subscription to get current_period_end...');
+          const fullSubscription = await stripe.subscriptions.retrieve(subscriptionId);
+          accessUntil = fullSubscription.current_period_end;
+          
+          console.log('[API] ✓ Subscription details:', {
+            id: fullSubscription.id,
+            status: fullSubscription.status,
+            cancel_at_period_end: fullSubscription.cancel_at_period_end,
+            current_period_end: fullSubscription.current_period_end,
+            accessUntil: accessUntil
+          });
+          
+          if (accessUntil) {
+            console.log('[API] ✓ Subscription set to cancel at:', new Date(accessUntil * 1000).toISOString());
+          } else {
+            console.error('[API] ⚠️ current_period_end is still null/undefined after retrieve');
           }
-          
-          console.log('[API] ✓ Subscription set to cancel at:', accessUntil ? new Date(accessUntil * 1000).toISOString() : 'unknown');
         } catch (stripeError) {
           console.error('[API] Stripe cancellation error:', stripeError.message);
           res.writeHead(500);
@@ -1282,18 +1420,27 @@ const httpServer = createServer(async (req, res) => {
 
       // Store the cancellation date in the users table so it can be displayed in dashboard
       if (accessUntil) {
-        const { error: updateError } = await supabase
+        console.log('[API] Storing subscription_cancel_at in users table for email:', email, 'value:', accessUntil);
+        const { data: updateData, error: updateError } = await supabase
           .from('users')
           .update({ subscription_cancel_at: accessUntil })
-          .eq('email', email);
+          .eq('email', email)
+          .select();
 
         if (updateError) {
           console.error('[API] Error storing subscription_cancel_at:', updateError);
         } else {
-          console.log('[API] ✓ Stored subscription_cancel_at in users table:', accessUntil);
+          console.log('[API] ✓ Stored subscription_cancel_at in users table:', {
+            rowsUpdated: updateData?.length,
+            accessUntil: accessUntil,
+            formattedDate: new Date(accessUntil * 1000).toISOString()
+          });
         }
+      } else {
+        console.log('[API] ⚠️ No accessUntil value to store in database');
       }
 
+      console.log('[API] Returning success response with accessUntil:', accessUntil);
       res.writeHead(200);
       return res.end(JSON.stringify({ 
         success: true, 
@@ -1302,6 +1449,79 @@ const httpServer = createServer(async (req, res) => {
       }));
     } catch (error) {
       console.error('[API] ❌ Cancel subscription error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  // API: Get subscription status for dashboard
+  if (req.method === "GET" && url.pathname === "/api/subscription-status") {
+    console.log('[API] Get subscription status request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    if (!supabase) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: 'Database not configured' }));
+    }
+
+    const email = url.searchParams.get('email');
+    if (!email) {
+      res.writeHead(400);
+      return res.end(JSON.stringify({ error: 'Email is required' }));
+    }
+
+    try {
+      // Get user subscription info from database
+      const { data: userData, error: userError } = await supabase
+        .from('users')
+        .select('subscription_tier, subscription_status, subscription_cancel_at, stripe_subscription_id')
+        .eq('email', email)
+        .maybeSingle();
+
+      if (userError) {
+        console.error('[API] Error fetching user:', userError);
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: 'Failed to fetch subscription status' }));
+      }
+
+      if (!userData) {
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'User not found' }));
+      }
+
+      let nextBillingDate = null;
+
+      // If user is premium and has a subscription, get next billing date from Stripe
+      if (userData.subscription_tier === 'premium' && 
+          userData.stripe_subscription_id && 
+          stripe && 
+          !userData.subscription_cancel_at) {
+        try {
+          const subscription = await stripe.subscriptions.retrieve(userData.stripe_subscription_id);
+          nextBillingDate = subscription.current_period_end;
+          console.log('[API] Got next billing date from Stripe:', nextBillingDate);
+        } catch (stripeError) {
+          console.log('[API] Could not retrieve subscription from Stripe:', stripeError.message);
+        }
+      }
+
+      console.log('[API] ✓ Subscription status for', email, ':', {
+        tier: userData.subscription_tier,
+        status: userData.subscription_status,
+        cancelAt: userData.subscription_cancel_at,
+        nextBillingDate
+      });
+
+      res.writeHead(200);
+      return res.end(JSON.stringify({
+        tier: userData.subscription_tier || 'free',
+        status: userData.subscription_status || 'active',
+        cancelAt: userData.subscription_cancel_at || null,
+        nextBillingDate: nextBillingDate
+      }));
+    } catch (error) {
+      console.error('[API] ❌ Subscription status error:', error);
       res.writeHead(500);
       return res.end(JSON.stringify({ error: error.message }));
     }

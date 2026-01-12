@@ -664,6 +664,59 @@
         box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
       }
 
+      /* Early adopter promo banner */
+      .promo-banner {
+        background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
+        border: 1px solid rgba(245, 158, 11, 0.4);
+        border-radius: 10px;
+        padding: 16px;
+        margin-top: 20px;
+        text-align: left;
+      }
+
+      .promo-banner-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #fbbf24;
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .promo-banner-text {
+        font-size: 0.85rem;
+        color: var(--text-main);
+        line-height: 1.6;
+        margin: 0;
+      }
+
+      .promo-banner-text strong {
+        color: #fbbf24;
+      }
+
+      /* Validation error display */
+      .validation-error {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        padding: 40px 20px;
+        text-align: center;
+      }
+
+      .validation-error-icon {
+        font-size: 3rem;
+        margin-bottom: 16px;
+      }
+
+      .validation-error-text {
+        font-size: 1rem;
+        color: var(--error);
+        font-weight: 500;
+        line-height: 1.6;
+      }
+
       /* Premium activation button in header */
       .activate-premium-btn {
         padding: 8px 14px;
@@ -1309,6 +1362,18 @@
           console.warn("[Widget] No outputs provided - showing empty state");
           outputContainer.innerHTML =
             '<div class="output-empty">No outputs yet. Submit a query to see results.</div>';
+          return;
+        }
+
+        // Check for validation errors (invalid/irrelevant input)
+        if (outputs.invalidInput) {
+          console.log("[Widget] Validation error detected:", outputs.message);
+          outputContainer.innerHTML = `
+            <div class="validation-error">
+              <div class="validation-error-icon">⚠️</div>
+              <div class="validation-error-text">${escapeHtml(outputs.message || 'Invalid input. Please try again with a valid DSA topic, coding problem, or code snippet.')}</div>
+            </div>
+          `;
           return;
         }
 
@@ -2088,6 +2153,20 @@
           noteDiv.style.fontSize = '0.85rem';
           noteDiv.textContent = 'Get unlimited access to all AlgoTutor modes!';
           errorDiv.appendChild(noteDiv);
+          
+          // Add early adopter promo banner
+          const promoBanner = document.createElement('div');
+          promoBanner.className = 'promo-banner';
+          promoBanner.innerHTML = `
+            <div class="promo-banner-title">🎉 Early Access: 30%+ OFF!</div>
+            <p class="promo-banner-text">
+              Get premium now at <strong>$9.99/mo</strong> (future price: $14.99).
+              Plus, <strong>early access to personalized exam prep</strong> coming soon.
+              Guaranteed to help with any CS class exam.
+              Not satisfied? Request a full refund.
+            </p>
+          `;
+          errorDiv.appendChild(promoBanner);
         } else {
           console.warn("[Widget] ⚠️ No upgradeUrl in error object");
         }

@@ -238,6 +238,59 @@
       color: var(--text-secondary);
       font-size: 0.9rem;
     }
+
+    /* Early Access Banner */
+    .early-access-banner {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
+      border: 2px solid #f59e0b;
+      border-radius: 12px;
+      padding: 1.25rem 2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .early-access-banner .badge {
+      display: inline-block;
+      background: #f59e0b;
+      color: var(--bg-primary);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 50px;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    .early-access-banner p {
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .early-access-banner strong {
+      color: #f59e0b;
+    }
+
+    /* Discount badge on price */
+    .discount-badge {
+      display: inline-block;
+      background: #10b981;
+      color: white;
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.2rem 0.5rem;
+      border-radius: 4px;
+      margin-left: 0.5rem;
+      vertical-align: middle;
+    }
+
+    .original-price {
+      text-decoration: line-through;
+      color: var(--text-secondary);
+      font-size: 1.5rem;
+      font-weight: 400;
+    }
   </style>
 </head>
 <body>
@@ -251,6 +304,15 @@
 
   <div class="container">
     <h1>Choose Your Plan</h1>
+
+    <div class="early-access-banner">
+      <span class="badge">LIMITED TIME</span>
+      <p>
+        <strong>30%+ Early Adopter Discount!</strong> Subscribe now at $9.99/mo (future price: $14.99).
+        Includes early access to personalized exam prep coming soon.
+        Guaranteed for any CS exam prep. Not satisfied? Full refund available.
+      </p>
+    </div>
 
     <div class="pricing-grid">
       <div class="pricing-card">
@@ -270,15 +332,19 @@
       <div class="pricing-card featured">
         <h2>Premium</h2>
         <p class="description">For serious learners and interview prep</p>
-        <div class="price">$9.99<span>/month</span></div>
-        <p class="price-note">Billed monthly, cancel anytime</p>
+        <div class="price">
+          <span class="original-price">$14.99</span> $9.99<span>/month</span>
+          <span class="discount-badge">30% OFF</span>
+        </div>
+        <p class="price-note">Early adopter price! Billed monthly, cancel anytime</p>
         <ul>
           <li>Unlimited requests</li>
           <li>All three modes (Learn, Build, Debug)</li>
           <li>Advanced explanations</li>
           <li>Priority support</li>
           <li>Interview prep tracks</li>
-          <li>Early access to new features</li>
+          <li>Early access to personalized exam prep</li>
+          <li>Full refund if not satisfied</li>
         </ul>
         <a href="/signup.html?plan=premium" class="btn btn-primary" id="premium-btn">Upgrade to Premium</a>
       </div>

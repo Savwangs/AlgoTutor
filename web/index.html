@@ -355,6 +355,42 @@
       text-align: center;
     }
 
+    /* Early Access Banner */
+    .early-access-banner {
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
+      border: 2px solid var(--warning);
+      border-radius: 12px;
+      padding: 1.25rem 2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+      max-width: 700px;
+      margin-left: auto;
+      margin-right: auto;
+    }
+
+    .early-access-banner .badge {
+      display: inline-block;
+      background: var(--warning);
+      color: var(--bg-primary);
+      font-size: 0.7rem;
+      font-weight: 700;
+      padding: 0.25rem 0.75rem;
+      border-radius: 50px;
+      margin-bottom: 0.5rem;
+      letter-spacing: 0.05em;
+    }
+
+    .early-access-banner p {
+      color: var(--text-primary);
+      font-size: 0.95rem;
+      line-height: 1.6;
+      margin: 0;
+    }
+
+    .early-access-banner strong {
+      color: var(--warning);
+    }
+
     /* Footer */
     footer {
       padding: 4rem 2rem;
@@ -484,6 +520,15 @@
   <section class="pricing" id="pricing">
     <h2 class="section-title">Simple, Transparent Pricing</h2>
     <p class="section-subtitle">Start free, upgrade when you need more.</p>
+
+    <div class="early-access-banner">
+      <span class="badge">LIMITED TIME</span>
+      <p>
+        <strong>30%+ Early Adopter Discount!</strong> Subscribe now at $9.99/mo (future price: $14.99).
+        Includes early access to personalized exam prep coming soon.
+        Guaranteed for any CS exam prep. Not satisfied? Full refund available.
+      </p>
+    </div>
 
     <div class="pricing-grid">
       <div class="pricing-card">

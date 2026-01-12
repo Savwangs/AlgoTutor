@@ -6,6 +6,18 @@ const openai = new OpenAI({
 
 const MODEL = 'gpt-4o-mini'; // Cheapest GPT-4 model (~$0.00015/1K input tokens)
 
+// Input validation prefix - added to all system prompts
+const VALIDATION_PREFIX = `
+CRITICAL INPUT VALIDATION RULES:
+1. If the user input is completely irrelevant to DSA/coding/programming (e.g., "cake it up", "hello world how are you", random non-technical phrases), respond ONLY with:
+   {"error": "INVALID_INPUT", "message": "Please enter a valid DSA topic, coding problem, or code snippet."}
+2. Handle typos gracefully - interpret "linged liwts" as "linked lists", "binery surch" as "binary search", "dfs" as "DFS", etc.
+3. Handle missing/weird capitalization - "BINARY SEARCH", "binary search", "BinarySearch" should all work the same.
+4. Only return the error JSON for truly irrelevant input. Minor typos, formatting issues, or unclear but technical input should still be processed normally.
+5. When in doubt about relevance, attempt to find a reasonable CS interpretation and proceed.
+
+`;
+
 // Helper function to call OpenAI
 async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
   console.log('\n' + '='.repeat(80));
@@ -64,7 +76,7 @@ export async function generateLearnContent(args) {
   console.log('[generateLearnContent] Starting Learn Mode content for:', args.topic);
   console.log('[generateLearnContent] Args:', JSON.stringify(args, null, 2));
   
-  const systemPrompt = `You are AlgoTutor, an expert CS educator focused on EXAM SURVIVAL. Your job is to help students instantly recognize patterns and write correct code under time pressure. You teach exam tricks, not just DSA concepts. Respond with valid JSON only.`;
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator focused on EXAM SURVIVAL. Your job is to help students instantly recognize patterns and write correct code under time pressure. You teach exam tricks, not just DSA concepts. Respond with valid JSON only.`;
   
   // Build difficulty instruction
   let difficultyInstruction = '';
@@ -162,7 +174,7 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
 
 // Generate Build Mode solution
 export async function generateBuildSolution(args) {
-  const systemPrompt = `You are AlgoTutor, an expert problem solver focused on EXAM SUCCESS. Your job is to help students write correct, working code under time pressure on written exams. 
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert problem solver focused on EXAM SUCCESS. Your job is to help students write correct, working code under time pressure on written exams. 
 
 CODE STYLE PRINCIPLES:
 - Write paper-friendly code that students can write by hand
@@ -297,7 +309,7 @@ export async function generateDebugAnalysis(args) {
   );
   const isFillInBlank = args.debugMode === 'fill-in-blank' || hasBlanks;
   
-  const systemPrompt = `You are AlgoTutor, an expert code debugger focused on EXAM SUCCESS. Your job is to help students understand what's wrong with code and trace through it step-by-step like they would on a written exam. ${isFillInBlank ? 'This is a FILL-IN-THE-BLANK exercise - identify what goes in each blank and explain WHY based on the algorithm pattern.' : 'Identify bugs and provide fixes with clear explanations.'} Respond with valid JSON only.`;
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert code debugger focused on EXAM SUCCESS. Your job is to help students understand what's wrong with code and trace through it step-by-step like they would on a written exam. ${isFillInBlank ? 'This is a FILL-IN-THE-BLANK exercise - identify what goes in each blank and explain WHY based on the algorithm pattern.' : 'Identify bugs and provide fixes with clear explanations.'} Respond with valid JSON only.`;
   
   let userPrompt;
   

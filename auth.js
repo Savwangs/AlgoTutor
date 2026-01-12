@@ -252,15 +252,26 @@ export async function checkUsageLimit(user, widgetId = null) {
 }
 
 /**
- * Log usage for a user
+ * Log usage for a user with optional metadata for V2 personalization
+ * @param {object} user - The user object
+ * @param {string} mode - The mode used (learn, build, debug)
+ * @param {string} topic - The topic or problem description
+ * @param {string} widgetId - The widget ID for cross-session tracking
+ * @param {object} metadata - Optional metadata for V2 personalization
+ * @param {string} metadata.patternDetected - The DSA pattern detected
+ * @param {string} metadata.mistakeType - The type of bug/mistake (debug mode)
+ * @param {string[]} metadata.dataStructures - Array of data structures used
+ * @param {string} metadata.trickShown - The key insight/trick shown
+ * @param {object} metadata.requestData - Original request parameters
+ * @param {object} metadata.responseSummary - Summary of what was returned
  */
-export async function logUsage(user, mode, topic = null, widgetId = null) {
+export async function logUsage(user, mode, topic = null, widgetId = null, metadata = {}) {
   if (!supabase) {
     return; // Skip logging if Supabase not configured
   }
 
   try {
-    // Insert usage log (include widget_id for tracking across IP changes)
+    // Insert usage log with optional V2 personalization metadata
     const logEntry = {
       user_id: user.id,
       mode,
@@ -270,6 +281,26 @@ export async function logUsage(user, mode, topic = null, widgetId = null) {
     // Add widget_id if available
     if (widgetId) {
       logEntry.widget_id = widgetId;
+    }
+
+    // Add V2 personalization metadata if provided (for premium users)
+    if (metadata.patternDetected) {
+      logEntry.pattern_detected = metadata.patternDetected;
+    }
+    if (metadata.mistakeType) {
+      logEntry.mistake_type = metadata.mistakeType;
+    }
+    if (metadata.dataStructures && metadata.dataStructures.length > 0) {
+      logEntry.data_structures = metadata.dataStructures;
+    }
+    if (metadata.trickShown) {
+      logEntry.trick_shown = metadata.trickShown;
+    }
+    if (metadata.requestData) {
+      logEntry.request_data = metadata.requestData;
+    }
+    if (metadata.responseSummary) {
+      logEntry.response_summary = metadata.responseSummary;
     }
 
     const { error: logError } = await supabase.from('usage_logs').insert([logEntry]);
@@ -288,7 +319,10 @@ export async function logUsage(user, mode, topic = null, widgetId = null) {
       console.error('[Auth] Error updating usage count:', updateError);
     }
 
-    console.log(`[Auth] Logged usage for user ${user.email}: ${mode}`, widgetId ? `(widget: ${widgetId})` : '');
+    const metadataKeys = Object.keys(metadata).filter(k => metadata[k]);
+    console.log(`[Auth] Logged usage for user ${user.email}: ${mode}`, 
+      widgetId ? `(widget: ${widgetId})` : '',
+      metadataKeys.length > 0 ? `(metadata: ${metadataKeys.join(', ')})` : '');
   } catch (error) {
     console.error('[Auth] Error in logUsage:', error);
   }

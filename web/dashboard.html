@@ -339,7 +339,58 @@
       border-top: none;
     }
 
-    /* Cancellation Notice */
+    /* Subscription Status Card */
+    .subscription-status {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      border-radius: 12px;
+      display: none;
+    }
+
+    .subscription-status.visible {
+      display: block;
+    }
+
+    .subscription-status.premium {
+      background: rgba(16, 185, 129, 0.1);
+      border: 1px solid var(--success);
+    }
+
+    .subscription-status.cancelled {
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid var(--warning);
+    }
+
+    .subscription-status h3 {
+      font-size: 0.9rem;
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .subscription-status.premium h3 {
+      color: var(--success);
+    }
+
+    .subscription-status.cancelled h3 {
+      color: var(--warning);
+    }
+
+    .subscription-status .status-date {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0.5rem 0;
+    }
+
+    .subscription-status p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
+    /* Cancellation Notice - kept for backwards compatibility */
     .cancellation-notice {
       margin-top: 1.5rem;
       padding: 1.25rem;
@@ -527,6 +578,13 @@
               <p>All modes (Learn, Build, Debug)</p>
             </div>
           </div>
+          
+          <!-- Subscription Status - shown for premium users -->
+          <div class="subscription-status" id="subscription-status">
+            <h3 id="status-title">Loading...</h3>
+            <div class="status-date" id="status-date"></div>
+            <p id="status-description"></p>
+          </div>
         </div>
 
         <!-- Premium & Cancellation Info -->
@@ -563,36 +621,51 @@
         </div>
       `;
 
-      // Check for subscription cancellation date
+      // Fetch subscription status from API
       try {
-        const { data: userData, error: userError } = await supabaseClient
-          .from('users')
-          .select('subscription_cancel_at, subscription_tier')
-          .eq('email', user.email)
-          .maybeSingle();
-
-        if (!userError && userData && userData.subscription_cancel_at) {
-          const cancelTimestamp = userData.subscription_cancel_at;
-          const cancelDate = new Date(cancelTimestamp * 1000);
-          const now = new Date();
-
-          // Only show if the cancellation date is in the future and user is still premium
-          if (cancelDate > now && userData.subscription_tier === 'premium') {
-            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-            const formattedDate = cancelDate.toLocaleDateString('en-US', options);
-            
-            const cancellationNotice = document.getElementById('cancellation-notice');
-            const cancelDateEl = document.getElementById('cancel-date');
-            
-            if (cancellationNotice && cancelDateEl) {
-              cancelDateEl.textContent = formattedDate;
-              cancellationNotice.classList.add('visible');
-              console.log('[Dashboard] Showing cancellation notice for:', formattedDate);
+        const response = await fetch('/api/subscription-status?email=' + encodeURIComponent(user.email));
+        const subData = await response.json();
+        
+        console.log('[Dashboard] Subscription status:', subData);
+        
+        const statusCard = document.getElementById('subscription-status');
+        const statusTitle = document.getElementById('status-title');
+        const statusDate = document.getElementById('status-date');
+        const statusDescription = document.getElementById('status-description');
+        
+        if (!subData.error && statusCard) {
+          const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+          
+          if (subData.tier === 'premium') {
+            if (subData.cancelAt) {
+              // Cancelled but still has access
+              const cancelDate = new Date(subData.cancelAt * 1000);
+              const now = new Date();
+              
+              if (cancelDate > now) {
+                statusCard.className = 'subscription-status cancelled visible';
+                statusTitle.textContent = '⚠️ Subscription Ending';
+                statusDate.textContent = cancelDate.toLocaleDateString('en-US', options);
+                statusDescription.textContent = 'Your premium access will end on this date. You will not be charged again.';
+              }
+            } else if (subData.nextBillingDate) {
+              // Active premium subscription
+              const billingDate = new Date(subData.nextBillingDate * 1000);
+              statusCard.className = 'subscription-status premium visible';
+              statusTitle.textContent = '✓ Premium Active';
+              statusDate.textContent = 'Next billing: ' + billingDate.toLocaleDateString('en-US', options);
+              statusDescription.textContent = 'Your subscription will automatically renew on this date.';
+            } else {
+              // Premium but no billing info available
+              statusCard.className = 'subscription-status premium visible';
+              statusTitle.textContent = '✓ Premium Active';
+              statusDate.textContent = '';
+              statusDescription.textContent = 'You have unlimited access to all AlgoTutor modes.';
             }
           }
         }
       } catch (error) {
-        console.error('[Dashboard] Error checking subscription status:', error);
+        console.error('[Dashboard] Error fetching subscription status:', error);
       }
 
       // Setup code recovery handler
