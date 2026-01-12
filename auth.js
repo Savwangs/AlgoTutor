@@ -329,10 +329,15 @@ export async function logUsage(user, mode, topic = null, widgetId = null, metada
       logEntry.related_patterns = metadata.relatedPatterns;
     }
 
-    const { error: logError } = await supabase.from('usage_logs').insert([logEntry]);
+    const { data: logData, error: logError } = await supabase
+      .from('usage_logs')
+      .insert([logEntry])
+      .select('id')
+      .single();
 
     if (logError) {
       console.error('[Auth] Error logging usage:', logError);
+      return null;
     }
 
     // Increment user usage count
@@ -348,9 +353,14 @@ export async function logUsage(user, mode, topic = null, widgetId = null, metada
     const metadataKeys = Object.keys(metadata).filter(k => metadata[k]);
     console.log(`[Auth] Logged usage for user ${user.email}: ${mode}`, 
       widgetId ? `(widget: ${widgetId})` : '',
-      metadataKeys.length > 0 ? `(metadata: ${metadataKeys.join(', ')})` : '');
+      metadataKeys.length > 0 ? `(metadata: ${metadataKeys.join(', ')})` : '',
+      logData?.id ? `(logId: ${logData.id})` : '');
+    
+    // Return the log ID for feedback tracking
+    return logData?.id || null;
   } catch (error) {
     console.error('[Auth] Error in logUsage:', error);
+    return null;
   }
 }
 

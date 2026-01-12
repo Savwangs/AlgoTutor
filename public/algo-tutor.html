@@ -949,6 +949,123 @@
         border-radius: 8px;
         display: inline-block;
       }
+
+      /* Feedback UI Styles */
+      .feedback-container {
+        margin-top: 24px;
+        padding: 16px;
+        border-top: 1px solid var(--border-subtle);
+        text-align: center;
+      }
+
+      .feedback-prompt {
+        font-size: 0.9rem;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+      }
+
+      .feedback-btn {
+        padding: 8px 16px;
+        margin: 0 8px;
+        font-size: 1.2rem;
+        background: transparent;
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .feedback-btn:hover {
+        background: var(--bg-hover);
+        transform: scale(1.1);
+      }
+
+      .feedback-btn.selected {
+        background: var(--accent-green);
+        border-color: var(--accent-green);
+      }
+
+      .feedback-thanks {
+        color: var(--accent-green);
+        font-size: 0.9rem;
+        padding: 8px;
+      }
+
+      /* Feedback Modal Styles */
+      .feedback-modal-overlay {
+        position: fixed;
+        top: 0;
+        left: 0;
+        right: 0;
+        bottom: 0;
+        background: rgba(0, 0, 0, 0.6);
+        display: none;
+        justify-content: center;
+        align-items: center;
+        z-index: 1000;
+      }
+
+      .feedback-modal-overlay.active {
+        display: flex;
+      }
+
+      .feedback-modal {
+        background: var(--bg-main);
+        border: 1px solid var(--border-main);
+        border-radius: 12px;
+        padding: 24px;
+        max-width: 400px;
+        width: 90%;
+        box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+      }
+
+      .feedback-modal h3 {
+        margin: 0 0 16px 0;
+        color: var(--text-main);
+        font-size: 1.1rem;
+        text-align: center;
+      }
+
+      .feedback-options {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        margin-bottom: 16px;
+      }
+
+      .feedback-option-btn {
+        padding: 12px 16px;
+        background: var(--bg-block);
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        color: var(--text-main);
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+      }
+
+      .feedback-option-btn:hover {
+        background: var(--bg-hover);
+        border-color: var(--accent-blue);
+      }
+
+      .feedback-modal-skip {
+        width: 100%;
+        padding: 10px;
+        background: transparent;
+        border: 1px solid var(--border-subtle);
+        border-radius: 8px;
+        color: var(--text-muted);
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .feedback-modal-skip:hover {
+        color: var(--text-main);
+        border-color: var(--border-main);
+      }
     </style>
   </head>
 
@@ -1267,6 +1384,17 @@
       </div>
     </div>
 
+    <!-- Feedback Modal -->
+    <div class="feedback-modal-overlay" id="feedback-modal">
+      <div class="feedback-modal">
+        <h3 id="feedback-modal-title">What did you like?</h3>
+        <div class="feedback-options" id="feedback-options">
+          <!-- Options injected by JS based on thumbs up/down -->
+        </div>
+        <button class="feedback-modal-skip" id="feedback-modal-skip">Skip</button>
+      </div>
+    </div>
+
     <!-- Help Modal -->
     <div class="modal-overlay" id="help-modal">
       <div class="modal">
@@ -1307,6 +1435,7 @@
         mode: null,
         outputs: null,
       };
+      let currentLogId = null; // For feedback tracking
 
       // DOM Elements
       const modeBtns = document.querySelectorAll(".mode-btn");
@@ -1830,6 +1959,21 @@
           outputContainer.appendChild(blockEl);
         }
         
+        // Add feedback buttons for premium users
+        const isPremium = !!localStorage.getItem('algotutor_premium_code');
+        if (isPremium && currentLogId) {
+          const feedbackEl = document.createElement("div");
+          feedbackEl.className = "feedback-container";
+          feedbackEl.id = "feedback-container";
+          feedbackEl.innerHTML = `
+            <div class="feedback-prompt">Was this helpful?</div>
+            <button class="feedback-btn" data-decision="yes" title="Helpful">👍</button>
+            <button class="feedback-btn" data-decision="no" title="Not helpful">👎</button>
+          `;
+          outputContainer.appendChild(feedbackEl);
+          console.log("[Widget] Feedback buttons added for premium user, logId:", currentLogId);
+        }
+        
         console.log("[Widget] ✅✅✅ RENDERING COMPLETE - All blocks added to DOM");
         console.log("[Widget] outputContainer has", outputContainer.children.length, "children");
       };
@@ -2066,6 +2210,44 @@
         return null;
       }
 
+      // Helper: Extract logId from response for feedback tracking
+      function extractLogId(data) {
+        if (!data) return null;
+        
+        // If data is a string, try to parse it as JSON
+        if (typeof data === 'string') {
+          try {
+            data = JSON.parse(data);
+          } catch (e) {
+            return null;
+          }
+        }
+        
+        // Direct logId
+        if (data.logId) return data.logId;
+        
+        // toolOutput wrapper
+        if (data.toolOutput?.logId) return data.toolOutput.logId;
+        
+        // In text field (MCP format)
+        if (data.toolOutput?.text) {
+          try {
+            const parsed = JSON.parse(data.toolOutput.text);
+            if (parsed.logId) return parsed.logId;
+          } catch (e) {}
+        }
+        
+        // content[0].text (MCP format)
+        if (data.content?.[0]?.text) {
+          try {
+            const parsed = JSON.parse(data.content[0].text);
+            if (parsed.logId) return parsed.logId;
+          } catch (e) {}
+        }
+        
+        return null;
+      }
+
       // Helper: Check for errors with upgrade URL
       function extractError(data) {
         console.log("[Widget] extractError called with:", typeof data, data);
@@ -2267,6 +2449,10 @@
           return;
         }
         
+        // Try to extract logId for feedback tracking
+        currentLogId = extractLogId(g) || extractLogId(g?.toolOutput) || extractLogId(g?.content?.[0]?.text);
+        console.log("[Widget] Extracted logId from globals:", currentLogId);
+        
         // Try to extract outputs from various locations
         let outputs = null;
         
@@ -2326,6 +2512,10 @@
           renderError(error);
           return;
         }
+        
+        // Try to extract logId for feedback tracking
+        currentLogId = extractLogId(s) || extractLogId(s.toolOutput) || extractLogId(s.content?.[0]?.text);
+        console.log("[Widget] Extracted logId:", currentLogId);
         
         // Try to extract outputs from various locations
         let outputs = extractOutputs(s);
@@ -2643,6 +2833,118 @@
       premiumCodeInput.addEventListener('keypress', (e) => {
         if (e.key === 'Enter') {
           modalActivate.click();
+        }
+      });
+
+      // ==================== FEEDBACK SYSTEM ====================
+      const feedbackModal = document.getElementById('feedback-modal');
+      const feedbackModalTitle = document.getElementById('feedback-modal-title');
+      const feedbackOptions = document.getElementById('feedback-options');
+      const feedbackModalSkip = document.getElementById('feedback-modal-skip');
+      
+      // Feedback options
+      const positiveOptions = [
+        { value: 'clear_explanation', label: 'Clear explanation' },
+        { value: 'good_examples', label: 'Good examples' },
+        { value: 'helped_understand', label: 'Helped me understand' },
+        { value: 'easy_code', label: 'Code was easy to follow' }
+      ];
+      
+      const negativeOptions = [
+        { value: 'unclear', label: 'Explanation unclear' },
+        { value: 'too_advanced', label: 'Too advanced' },
+        { value: 'already_knew', label: 'Already knew this' },
+        { value: 'code_broken', label: "Code didn't work" }
+      ];
+      
+      let pendingFeedbackDecision = null;
+      
+      // Show feedback modal with appropriate options
+      function showFeedbackModal(decision) {
+        pendingFeedbackDecision = decision;
+        const options = decision === 'yes' ? positiveOptions : negativeOptions;
+        const title = decision === 'yes' ? 'What did you like?' : 'What was wrong?';
+        
+        feedbackModalTitle.textContent = title;
+        feedbackOptions.innerHTML = '';
+        
+        options.forEach(opt => {
+          const btn = document.createElement('button');
+          btn.className = 'feedback-option-btn';
+          btn.textContent = opt.label;
+          btn.dataset.value = opt.value;
+          btn.addEventListener('click', () => submitFeedback(decision, opt.value));
+          feedbackOptions.appendChild(btn);
+        });
+        
+        feedbackModal.classList.add('active');
+      }
+      
+      // Submit feedback to API
+      async function submitFeedback(decision, reason) {
+        console.log('[Feedback] Submitting:', { logId: currentLogId, decision, reason });
+        
+        // Close modal immediately for good UX
+        feedbackModal.classList.remove('active');
+        
+        // Update the feedback container to show thanks
+        const feedbackContainer = document.getElementById('feedback-container');
+        if (feedbackContainer) {
+          feedbackContainer.innerHTML = `<div class="feedback-thanks">Thanks for your feedback! 🎉</div>`;
+        }
+        
+        if (!currentLogId) {
+          console.warn('[Feedback] No logId available, cannot submit');
+          return;
+        }
+        
+        try {
+          const widgetId = getChatGPTUserId();
+          const response = await fetch('https://algo-tutor.org/api/submit-feedback', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              logId: currentLogId,
+              decision: decision,
+              reason: reason,
+              widgetId: widgetId
+            })
+          });
+          
+          const data = await response.json();
+          if (data.success) {
+            console.log('[Feedback] ✓ Feedback submitted successfully');
+          } else {
+            console.error('[Feedback] Failed to submit:', data.error);
+          }
+        } catch (error) {
+          console.error('[Feedback] Error submitting feedback:', error);
+        }
+      }
+      
+      // Handle feedback button clicks (using event delegation)
+      document.addEventListener('click', (e) => {
+        if (e.target.classList.contains('feedback-btn')) {
+          const decision = e.target.dataset.decision;
+          console.log('[Feedback] Button clicked:', decision);
+          showFeedbackModal(decision);
+        }
+      });
+      
+      // Skip button - just close modal and show thanks
+      feedbackModalSkip.addEventListener('click', () => {
+        feedbackModal.classList.remove('active');
+        
+        // Optionally submit without reason
+        if (pendingFeedbackDecision && currentLogId) {
+          submitFeedback(pendingFeedbackDecision, null);
+        }
+      });
+      
+      // Close modal on overlay click
+      feedbackModal.addEventListener('click', (e) => {
+        if (e.target === feedbackModal) {
+          feedbackModal.classList.remove('active');
         }
       });
     </script>

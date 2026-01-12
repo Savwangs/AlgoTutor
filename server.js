@@ -116,7 +116,7 @@ let nextId = 1;
 // Helper: Create MCP tool response
 // MCP SDK expects content array with text/resource items
 //
-function makeToolOutput(mode, outputs, message) {
+function makeToolOutput(mode, outputs, message, logId = null) {
   // Create a structured output for the widget
   // Include _widgetOnly instruction so ChatGPT knows not to repeat
   // Use mode-specific strong instructions to prevent ChatGPT from duplicating content
@@ -138,6 +138,7 @@ function makeToolOutput(mode, outputs, message) {
     outputs,
     sessionId: `session-${nextId - 1}`,
     message: message || null,
+    logId: logId, // For feedback tracking
   };
   
   // Return JSON for widget, with instruction embedded
@@ -411,8 +412,8 @@ function createAlgoTutorServer() {
         };
         
         logInfo('Logging usage to Supabase', { userId: user.id, mode: 'learn', topic: args.topic, widgetId: authResult.widgetId });
-        await logUsage(user, 'learn', args.topic, authResult.widgetId, learnMetadata);
-        logSuccess('Usage logged successfully with V2 metadata');
+        const logId = await logUsage(user, 'learn', args.topic, authResult.widgetId, learnMetadata);
+        logSuccess('Usage logged successfully with V2 metadata', { logId });
         
         // Add usage info to response if auth is enabled
         // Subtract 1 because we just used one (check happens before logging)
@@ -423,7 +424,7 @@ function createAlgoTutorServer() {
           logInfo('Usage remaining', actualRemaining);
         }
         
-        const finalResponse = makeToolOutput("learn", outputs, message);
+        const finalResponse = makeToolOutput("learn", outputs, message, logId);
         logSection('FINAL RESPONSE TO CHATGPT');
         logInfo('Response structure', {
           state: finalResponse.state,
@@ -553,8 +554,8 @@ function createAlgoTutorServer() {
           }
         };
         
-        await logUsage(user, 'build', args.problem.substring(0, 200), authResult.widgetId, buildMetadata);
-        logSuccess('Usage logged with V2 metadata');
+        const logId = await logUsage(user, 'build', args.problem.substring(0, 200), authResult.widgetId, buildMetadata);
+        logSuccess('Usage logged with V2 metadata', { logId });
         
         // Add usage info to response if auth is enabled
         // Subtract 1 because we just used one (check happens before logging)
@@ -564,7 +565,7 @@ function createAlgoTutorServer() {
           message = `✅ (${actualRemaining} uses remaining today)`;
         }
         
-        const finalResponse = makeToolOutput("build", outputs, message);
+        const finalResponse = makeToolOutput("build", outputs, message, logId);
         logInfo('Build mode response', finalResponse);
         
         return finalResponse;
@@ -749,8 +750,8 @@ function createAlgoTutorServer() {
         };
         
         const topic = args.problemDescription || 'code_debug';
-        await logUsage(user, 'debug', topic.substring(0, 200), authResult.widgetId, debugMetadata);
-        logSuccess('Usage logged with V2 metadata');
+        const logId = await logUsage(user, 'debug', topic.substring(0, 200), authResult.widgetId, debugMetadata);
+        logSuccess('Usage logged with V2 metadata', { logId });
         
         // Add usage info to response if auth is enabled
         // Subtract 1 because we just used one (check happens before logging)
@@ -760,7 +761,7 @@ function createAlgoTutorServer() {
           message = `✅ (${actualRemaining} uses remaining today)`;
         }
         
-        const finalResponse = makeToolOutput("debug", outputs, message);
+        const finalResponse = makeToolOutput("debug", outputs, message, logId);
         logInfo('Debug mode response', finalResponse);
         
         return finalResponse;
@@ -1423,6 +1424,88 @@ const httpServer = createServer(async (req, res) => {
       return res.end(JSON.stringify({ success: true, widgetId }));
     } catch (error) {
       console.error('[API] ❌ Register session error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
+  // API: Submit feedback for a usage log (premium users only)
+  if (req.method === "POST" && url.pathname === "/api/submit-feedback") {
+    console.log('[API] Submit feedback request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    if (!supabase) {
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: 'Database not configured' }));
+    }
+
+    try {
+      const body = await parseJsonBody(req);
+      const { logId, decision, reason, widgetId } = body;
+
+      // Validate required fields
+      if (!logId) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'logId is required' }));
+      }
+
+      if (!decision || !['yes', 'no'].includes(decision)) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'decision must be "yes" or "no"' }));
+      }
+
+      // Validate reason based on decision
+      const validPositiveReasons = ['clear_explanation', 'good_examples', 'helped_understand', 'easy_code'];
+      const validNegativeReasons = ['unclear', 'too_advanced', 'already_knew', 'code_broken'];
+      const validReasons = decision === 'yes' ? validPositiveReasons : validNegativeReasons;
+
+      if (reason && !validReasons.includes(reason)) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: `Invalid reason for ${decision} feedback` }));
+      }
+
+      console.log('[API] Submitting feedback:', { logId, decision, reason, widgetId });
+
+      // Verify the log entry exists and optionally verify widget ownership
+      const { data: logData, error: logError } = await supabase
+        .from('usage_logs')
+        .select('id, widget_id')
+        .eq('id', logId)
+        .single();
+
+      if (logError || !logData) {
+        console.log('[API] Log entry not found:', logId);
+        res.writeHead(404);
+        return res.end(JSON.stringify({ error: 'Log entry not found' }));
+      }
+
+      // Optional: Verify widget ownership (if widgetId provided and matches)
+      if (widgetId && logData.widget_id && logData.widget_id !== widgetId) {
+        console.log('[API] Widget mismatch:', { expected: logData.widget_id, got: widgetId });
+        // Don't reject - just log the mismatch for now
+      }
+
+      // Update the usage log with feedback
+      const { error: updateError } = await supabase
+        .from('usage_logs')
+        .update({
+          feedback_decision: decision,
+          feedback_reason: reason || null
+        })
+        .eq('id', logId);
+
+      if (updateError) {
+        console.error('[API] Error updating feedback:', updateError);
+        res.writeHead(500);
+        return res.end(JSON.stringify({ error: 'Failed to save feedback' }));
+      }
+
+      console.log('[API] ✓ Feedback saved:', { logId, decision, reason });
+      res.writeHead(200);
+      return res.end(JSON.stringify({ success: true }));
+    } catch (error) {
+      console.error('[API] ❌ Submit feedback error:', error);
       res.writeHead(500);
       return res.end(JSON.stringify({ error: error.message }));
     }
