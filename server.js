@@ -771,12 +771,13 @@ const httpServer = createServer(async (req, res) => {
           console.error('[API] Error fetching user by customer ID:', userFetchError);
         }
 
-        // Downgrade user to free tier
+        // Downgrade user to free tier and clear cancellation date
         const { error: downgradeError } = await supabase
           .from('users')
           .update({
             subscription_tier: 'free',
-            subscription_status: 'cancelled'
+            subscription_status: 'cancelled',
+            subscription_cancel_at: null  // Clear since subscription has now fully ended
           })
           .eq('stripe_customer_id', customerId);
 
@@ -1135,12 +1136,17 @@ const httpServer = createServer(async (req, res) => {
       console.log('[API] Registering session:', { widgetId, browserIp });
 
       // Upsert into free_sessions table
+      // IMPORTANT: Reset mcp_user_id to null so it gets re-linked on the next MCP request.
+      // This fixes the free tier bypass issue where users could reset their limit by
+      // closing and reopening the ChatGPT tab, which caused the widget_id to become
+      // orphaned from the MCP user when OpenAI's proxy IP changed.
       const { data, error } = await supabase
         .from('free_sessions')
         .upsert({
           widget_id: widgetId,
           browser_ip: browserIp,
-          last_seen_at: new Date().toISOString()
+          last_seen_at: new Date().toISOString(),
+          mcp_user_id: null  // Force re-linking to maintain usage tracking across IP changes
         }, {
           onConflict: 'widget_id',
           ignoreDuplicates: false
@@ -1273,6 +1279,20 @@ const httpServer = createServer(async (req, res) => {
       // Just log that cancellation is scheduled
       console.log('[API] ✓ Subscription scheduled to cancel at period end');
       console.log('[API] User will retain premium access until:', accessUntil ? new Date(accessUntil * 1000).toISOString() : 'unknown');
+
+      // Store the cancellation date in the users table so it can be displayed in dashboard
+      if (accessUntil) {
+        const { error: updateError } = await supabase
+          .from('users')
+          .update({ subscription_cancel_at: accessUntil })
+          .eq('email', email);
+
+        if (updateError) {
+          console.error('[API] Error storing subscription_cancel_at:', updateError);
+        } else {
+          console.log('[API] ✓ Stored subscription_cancel_at in users table:', accessUntil);
+        }
+      }
 
       res.writeHead(200);
       return res.end(JSON.stringify({ 

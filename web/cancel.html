@@ -526,6 +526,7 @@
 
       function showSuccessState(accessUntil) {
         console.log('[Cancel] showSuccessState called with accessUntil:', accessUntil);
+        console.log('[Cancel] accessUntil type:', typeof accessUntil);
         
         loadingState.classList.add('hidden');
         signinState.classList.add('hidden');
@@ -536,15 +537,19 @@
         const accessUntilDateEl = document.getElementById('access-until-date');
         const accessUntilBox = document.getElementById('access-until-box');
         
-        if (accessUntil) {
+        if (accessUntil && accessUntil > 0) {
+          // accessUntil is a Unix timestamp in seconds from Stripe
           const date = new Date(accessUntil * 1000);
           const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
-          accessUntilDateEl.textContent = date.toLocaleDateString('en-US', options);
-          console.log('[Cancel] Access until date:', accessUntilDateEl.textContent);
+          const formattedDate = date.toLocaleDateString('en-US', options);
+          accessUntilDateEl.textContent = formattedDate;
+          console.log('[Cancel] Access until date formatted:', formattedDate);
         } else {
           // Show a fallback message if no date available
-          accessUntilDateEl.textContent = 'End of current billing period';
-          console.log('[Cancel] No accessUntil provided, showing fallback');
+          // This shouldn't normally happen, but handle it gracefully
+          accessUntilDateEl.textContent = 'End of your current billing period';
+          accessUntilDateEl.style.fontSize = '1rem';
+          console.log('[Cancel] No valid accessUntil provided (value:', accessUntil, '), showing fallback');
         }
         
         console.log('[Cancel] Success state is now visible');

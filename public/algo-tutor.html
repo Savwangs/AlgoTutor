@@ -415,17 +415,6 @@
         border-radius: 12px;
         padding: 16px 20px;
         margin-bottom: 20px;
-        position: relative;
-      }
-
-      .trick-box::before {
-        content: "💡";
-        font-size: 1.5rem;
-        position: absolute;
-        top: -12px;
-        left: 16px;
-        background: var(--bg-output);
-        padding: 0 8px;
       }
 
       .trick-box.build {
@@ -433,17 +422,9 @@
         border-color: #3b82f6;
       }
 
-      .trick-box.build::before {
-        content: "🎯";
-      }
-
       .trick-box.debug {
         background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
         border-color: #ef4444;
-      }
-
-      .trick-box.debug::before {
-        content: "🔍";
       }
 
       .trick-box-title {
@@ -453,14 +434,30 @@
         letter-spacing: 0.1em;
         color: #92400e;
         margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .trick-box-title::before {
+        content: "💡";
+        font-size: 1.1rem;
       }
 
       .trick-box.build .trick-box-title {
         color: #1e40af;
       }
 
+      .trick-box.build .trick-box-title::before {
+        content: "🏹🎯";
+      }
+
       .trick-box.debug .trick-box-title {
         color: #991b1b;
+      }
+
+      .trick-box.debug .trick-box-title::before {
+        content: "🔍";
       }
 
       .trick-box-content {

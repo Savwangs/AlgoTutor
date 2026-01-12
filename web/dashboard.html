@@ -339,6 +339,42 @@
       border-top: none;
     }
 
+    /* Cancellation Notice */
+    .cancellation-notice {
+      margin-top: 1.5rem;
+      padding: 1.25rem;
+      background: rgba(245, 158, 11, 0.1);
+      border: 1px solid var(--warning);
+      border-radius: 12px;
+      display: none;
+    }
+
+    .cancellation-notice.visible {
+      display: block;
+    }
+
+    .cancellation-notice h3 {
+      font-size: 0.9rem;
+      color: var(--warning);
+      margin-bottom: 0.5rem;
+      display: flex;
+      align-items: center;
+      gap: 0.5rem;
+    }
+
+    .cancellation-notice .cancel-date {
+      font-size: 1.25rem;
+      font-weight: 700;
+      color: var(--text-primary);
+      margin: 0.5rem 0;
+    }
+
+    .cancellation-notice p {
+      font-size: 0.85rem;
+      color: var(--text-secondary);
+      margin: 0;
+    }
+
     /* Loading State */
     .loading {
       display: flex;
@@ -517,8 +553,47 @@
           </div>
           
           <div class="recovery-result" id="recovery-result"></div>
+          
+          <!-- Cancellation Notice - only shown if subscription is cancelled but still active -->
+          <div class="cancellation-notice" id="cancellation-notice">
+            <h3>⚠️ Subscription Ending</h3>
+            <div class="cancel-date" id="cancel-date"></div>
+            <p>Your premium access will end on this date. You will not be charged again.</p>
+          </div>
         </div>
       `;
+
+      // Check for subscription cancellation date
+      try {
+        const { data: userData, error: userError } = await supabaseClient
+          .from('users')
+          .select('subscription_cancel_at, subscription_tier')
+          .eq('email', user.email)
+          .maybeSingle();
+
+        if (!userError && userData && userData.subscription_cancel_at) {
+          const cancelTimestamp = userData.subscription_cancel_at;
+          const cancelDate = new Date(cancelTimestamp * 1000);
+          const now = new Date();
+
+          // Only show if the cancellation date is in the future and user is still premium
+          if (cancelDate > now && userData.subscription_tier === 'premium') {
+            const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
+            const formattedDate = cancelDate.toLocaleDateString('en-US', options);
+            
+            const cancellationNotice = document.getElementById('cancellation-notice');
+            const cancelDateEl = document.getElementById('cancel-date');
+            
+            if (cancellationNotice && cancelDateEl) {
+              cancelDateEl.textContent = formattedDate;
+              cancellationNotice.classList.add('visible');
+              console.log('[Dashboard] Showing cancellation notice for:', formattedDate);
+            }
+          }
+        }
+      } catch (error) {
+        console.error('[Dashboard] Error checking subscription status:', error);
+      }
 
       // Setup code recovery handler
       const recoveryBtn = document.getElementById('recovery-btn');
