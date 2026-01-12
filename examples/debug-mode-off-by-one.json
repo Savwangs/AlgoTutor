@@ -1,28 +1,43 @@
 {
   "toolName": "debug_mode",
-  "description": "Example request for debugging an off-by-one error in binary search",
+  "description": "Example request for Debug Mode - Off-by-one error in binary search",
   "input": {
-    "code": "def binary_search(arr, target):\n    low = 0\n    high = len(arr)  # BUG: Should be len(arr) - 1\n    \n    while low <= high:\n        mid = (low + high) // 2\n        \n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    \n    return -1",
-    "inputSample": "[1, 2, 3, 4, 5], target=5",
+    "code": "def binary_search(arr, target):\n    left = 0\n    right = len(arr)  # BUG: Should be len(arr) - 1\n    \n    while left <= right:\n        mid = (left + right) // 2\n        \n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    \n    return -1",
+    "problemDescription": "Binary search to find target in sorted array",
     "language": "python",
+    "debugMode": "debug",
     "generateTests": true,
-    "showEdgeWarnings": true
+    "showEdgeWarnings": true,
+    "showTraceTable": true,
+    "showPatternExplanation": true
   },
   "expectedOutput": {
-    "bugDiagnosis": "Problem Classification: Off-by-one error (index out of bounds)\n\nExact Location: Line 3\n\nExplanation:\n1. You initialized high = len(arr)\n2. For an array of length 5, this sets high = 5\n3. But valid indices are 0-4 (not 0-5)\n4. When arr[mid] tries to access arr[5], it crashes\n5. This causes IndexError: list index out of range\n\nRoot Cause: high should be len(arr) - 1, not len(arr)",
-    "beforeCode": "def binary_search(arr, target):\n    low = 0\n    high = len(arr)  # ❌ BUG HERE\n    \n    while low <= high:\n        mid = (low + high) // 2\n        \n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    \n    return -1",
-    "afterCode": "def binary_search(arr, target):\n    low = 0\n    high = len(arr) - 1  # ✅ FIXED\n    \n    while low <= high:\n        mid = (low + high) // 2\n        \n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            low = mid + 1\n        else:\n            high = mid - 1\n    \n    return -1",
-    "testCases": [
-      "Test 1: binary_search([1,2,3,4,5], 5) → 4 ✓",
-      "Test 2: binary_search([1,2,3,4,5], 1) → 0 ✓",
-      "Test 3: binary_search([1,2,3,4,5], 3) → 2 ✓"
+    "theTrick": "Line 3: You initialized right = len(arr) but array indices go from 0 to len-1. When mid calculates to len(arr)//2, it can access arr[5] on a 5-element array → IndexError!",
+    "whatCodeDoes": "This is a BINARY SEARCH algorithm - it finds a target value in a sorted array by repeatedly dividing the search space in half.",
+    "exactBugLine": {
+      "lineNumber": 3,
+      "code": "right = len(arr)",
+      "issue": "Off-by-one error. len(arr) returns 5 for a 5-element array, but valid indices are 0-4. This causes arr[mid] to access index 5 (out of bounds) when searching for the last element."
+    },
+    "bugDiagnosis": "Problem Type: Off-by-one error (index out of bounds)\n\nRoot Cause: In Python, array indices go from 0 to len(arr)-1. By setting right=len(arr), you're including an invalid index in your search space.\n\nWhy It Breaks: When left=4, right=5 (on a 5-element array), mid = (4+5)//2 = 4. This works. But if we search the right half next, left becomes 5, mid becomes 5, and arr[5] crashes.\n\nThe Fix: Initialize right = len(arr) - 1 to use only valid indices.",
+    "traceTable": [
+      { "step": "1", "variables": "left=0, right=5, mid=2", "state": "arr=[1,2,3,4,5], target=5", "action": "arr[2]=3 < 5 → left=3" },
+      { "step": "2", "variables": "left=3, right=5, mid=4", "state": "checking arr[4]", "action": "arr[4]=5 == 5 → found (lucky)" },
+      { "step": "alt", "variables": "left=5, right=5, mid=5", "state": "if target=6", "action": "arr[5] → IndexError!" }
     ],
+    "beforeCode": "def binary_search(arr, target):\n    left = 0\n    right = len(arr)  # BUG HERE\n    \n    while left <= right:\n        mid = (left + right) // 2\n        \n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    \n    return -1",
+    "afterCode": "def binary_search(arr, target):\n    left = 0\n    right = len(arr) - 1  # FIXED\n    \n    while left <= right:\n        mid = (left + right) // 2\n        \n        if arr[mid] == target:\n            return mid\n        elif arr[mid] < target:\n            left = mid + 1\n        else:\n            right = mid - 1\n    \n    return -1",
+    "testCases": [
+      "binary_search([1,2,3,4,5], 5) → 4 ✓",
+      "binary_search([1,2,3,4,5], 1) → 0 ✓",
+      "binary_search([1,2,3,4,5], 6) → -1 ✓ (no crash!)"
+    ],
+    "ifOnExam": "Professor might give you correct binary search and ask: 'What happens if we change line 3 to right = len(arr)?' You need to explain the IndexError and when it triggers (searching past the array end).",
     "edgeCases": [
-      "Empty array: binary_search([], 5) → -1 (works correctly)",
-      "Single element: binary_search([5], 5) → 0 (works correctly)",
-      "Target not found: binary_search([1,2,3], 10) → -1 (works correctly)"
+      "Empty array: binary_search([], 5) - crashes on len([]) with original bug",
+      "Single element: binary_search([5], 5) - works by luck, but binary_search([5], 6) crashes",
+      "Target larger than all elements: guaranteed to trigger the bug"
     ]
   },
-  "chatResponse": "Bug found and fixed! The issue was an off-by-one error on line 3. Check the AlgoTutor panel for the complete diagnosis, before/after code, and test cases."
+  "chatResponse": "Debug complete! Check 'The Trick' for the one-line bug explanation and the trace table showing exactly where it crashes."
 }
-

@@ -1,31 +1,35 @@
 {
   "toolName": "build_mode",
-  "description": "Example request for building Two Sum solution",
+  "description": "Example request for Build Mode - Two Sum",
   "input": {
     "problem": "Given an array of integers nums and an integer target, return indices of the two numbers such that they add up to target. You may assume that each input would have exactly one solution, and you may not use the same element twice.",
     "language": "python",
     "allowRecursion": false,
     "skeletonOnly": false,
     "includeDryRun": true,
-    "minimalCode": true
+    "minimalCode": true,
+    "showTimeEstimate": true
   },
   "expectedOutput": {
-    "pattern": "Hash Map / Dictionary pattern. Store complements while iterating.",
-    "stepByStep": "Step 1: Create empty dictionary to store seen numbers\nStep 2: Loop through array with index and value\nStep 3: Calculate complement = target - current number\nStep 4: Check if complement exists in dictionary\nStep 5: If yes, return [dict[complement], current index]\nStep 6: If no, store current number with its index\nStep 7: Continue to next element",
+    "theShortcut": "Store what you've seen in a dictionary. For each number, check if (target - number) is already in the dictionary. This turns O(n²) brute force into O(n).",
+    "pattern": "This is a HASH MAP problem because we need to find a complement (target - current) quickly. Hash maps give O(1) lookup, so we can check for complements as we iterate.",
+    "stepByStep": "1. Create empty dictionary called 'seen'\n2. Loop through array with index i\n3. Calculate complement = target - nums[i]\n4. Check if complement exists in 'seen'\n5. If YES → return [seen[complement], i]\n6. If NO → add nums[i]: i to 'seen'\n7. Continue until found",
     "code": "def two_sum(nums, target):\n    seen = {}\n    \n    for i in range(len(nums)):\n        complement = target - nums[i]\n        \n        if complement in seen:\n            return [seen[complement], i]\n        \n        seen[nums[i]] = i\n    \n    return []",
     "dryRunTable": [
-      { "step": "1", "i": "0", "nums[i]": "2", "complement": "7", "seen": "{}", "action": "add 2→0" },
-      { "step": "2", "i": "1", "nums[i]": "7", "complement": "2", "seen": "{2:0}", "action": "found! return [0,1]" }
+      { "iteration": "1", "variables": "i=0, nums[i]=2, complement=7", "action": "7 not in {} → add {2: 0}" },
+      { "iteration": "2", "variables": "i=1, nums[i]=7, complement=2", "action": "2 in {2:0} → return [0, 1]" }
     ],
+    "timeEstimate": "~4 minutes to write on paper",
+    "dontForget": "Line 4: Check 'if complement in seen' BEFORE adding current number to seen. If you add first, you might match a number with itself (e.g., target=6, nums=[3,3] would incorrectly return [0,0]).",
     "paperVersion": [
-      "Create hash map",
-      "For each number, calculate complement",
-      "Check if complement exists",
-      "If yes → return indices",
-      "If no → store current number"
+      "1. Write function signature and empty dict",
+      "2. Write for loop with range(len(nums))",
+      "3. Calculate complement = target - nums[i]",
+      "4. Write if/else: check complement, then add to dict",
+      "5. Return statement inside if block",
+      "KEY LINES: The if-check must come BEFORE adding to dict"
     ],
-    "complexity": "Time: O(n) - single pass through array\nSpace: O(n) - hash map stores up to n elements"
+    "complexity": "Time: O(n) - single pass through array, O(1) hash lookups\nSpace: O(n) - dictionary stores up to n elements"
   },
-  "chatResponse": "Two Sum solution is ready! The AlgoTutor panel shows the hash map approach with minimal code, step-by-step logic, and a dry-run."
+  "chatResponse": "Exam-ready solution is in the AlgoTutor panel! Check 'The Shortcut' for the key insight and 'Don't Forget' for the common mistake."
 }
-

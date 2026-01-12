@@ -70,13 +70,13 @@ console.log('[STARTUP] Widget HTML loaded successfully');
 
 // Learn Mode Schema - ONLY INPUT FIELDS
 const learnModeInputSchema = z.object({
-  topic: z.string().min(1).describe("DSA topic to learn (e.g., BFS, heaps, linked lists, dynamic programming)"),
+  topic: z.string().min(1).describe("DSA topic/pattern to learn (e.g., BFS, heaps, two pointers, sliding window, dynamic programming)"),
   difficulty: z.enum(["basic", "normal", "dumb-it-down"]).default("normal").describe("Difficulty level"),
   depth: z.enum(["tiny", "normal", "full"]).default("normal").describe("Explanation depth: tiny (5 steps), normal, or full walkthrough"),
   exampleSize: z.enum(["small", "medium"]).default("small").describe("Size of example to use"),
-  showEdgeCases: z.boolean().default(true).describe("Whether to include edge cases"),
-  showDryRun: z.boolean().default(true).describe("Whether to include dry-run table"),
-  showPaperVersion: z.boolean().default(true).describe("Whether to include paper version summary"),
+  showPatternKeywords: z.boolean().default(true).describe("Whether to show pattern signature keywords that signal when to use this pattern"),
+  showDryRun: z.boolean().default(true).describe("Whether to include exam-format trace table (3-4 steps)"),
+  showPaperVersion: z.boolean().default(true).describe("Whether to include paper summary for exam day"),
 });
 
 // Build Mode Schema - ONLY INPUT FIELDS
@@ -86,17 +86,21 @@ const buildModeInputSchema = z.object({
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
   allowRecursion: z.boolean().default(true).describe("Whether recursion is allowed"),
   skeletonOnly: z.boolean().default(false).describe("Whether to show skeleton only (no full solution)"),
-  includeDryRun: z.boolean().default(true).describe("Whether to include dry-run demonstration"),
+  includeDryRun: z.boolean().default(true).describe("Whether to include dry-run demonstration (2-3 iterations, exam format)"),
   minimalCode: z.boolean().default(true).describe("Whether to use minimal code style"),
+  showTimeEstimate: z.boolean().default(true).describe("Whether to show time estimate for writing on paper"),
 });
 
 // Debug Mode Schema - ONLY INPUT FIELDS
 const debugModeInputSchema = z.object({
-  code: z.string().min(1).describe("The code snippet to debug"),
+  code: z.string().min(1).describe("The code snippet to debug or fill-in-the-blank code"),
   problemDescription: z.string().optional().describe("Optional description of what the code should do"),
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
+  debugMode: z.enum(["debug", "fill-in-blank"]).default("debug").describe("Mode: debug existing code or fill-in-the-blank exercise"),
   generateTests: z.boolean().default(true).describe("Whether to generate test cases"),
   showEdgeWarnings: z.boolean().default(true).describe("Whether to show edge case warnings"),
+  showTraceTable: z.boolean().default(true).describe("Whether to show step-by-step trace table in exam format"),
+  showPatternExplanation: z.boolean().default(true).describe("Whether to explain the algorithm pattern being used"),
 });
 
 //
@@ -196,13 +200,13 @@ function createAlgoTutorServer() {
     {
       title: "AlgoTutor Learn Mode",
       description:
-        "Explains any DSA topic in small, clear steps with minimal code, examples, and dry-runs. Perfect for learning algorithms from scratch.",
+        "Teaches any DSA topic with pattern recognition focus. Shows 'The Trick' callout, pattern signature keywords, memorizable template, exam-format trace table, and 'What Professors Test' edge case. Perfect for exam prep.",
       inputSchema: learnModeInputSchema,
       _meta: {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
         "openai/toolInvocation/invoking": "Preparing your lesson...",
         "openai/toolInvocation/invoked": "Lesson ready! Check the AlgoTutor panel.",
-        "openai/instruction": "The content is displayed in the AlgoTutor widget panel above. Do NOT repeat, summarize, or re-explain the widget content in your response. Simply acknowledge that the lesson is ready in the panel with 1-2 brief sentences.",
+        "openai/instruction": "The lesson content is displayed in the AlgoTutor widget panel above. Do NOT repeat, summarize, or re-explain the widget content in your response. Simply acknowledge that the lesson is ready in the panel with 1-2 brief sentences.",
       },
       annotations: { readOnlyHint: true },
     },
@@ -324,7 +328,7 @@ function createAlgoTutorServer() {
     {
       title: "AlgoTutor Build Mode",
       description:
-        "Builds a complete solution for a coding problem with step-by-step logic, minimal code, dry-run, and complexity analysis.",
+        "Builds complete solutions for coding problems. Shows 'The Shortcut' callout, pattern detection, working code (supports trees, graphs, recursion when needed), time estimate, 'Don't Forget' warning box, and exam-format dry-run with test case tracing. Perfect for exam prep.",
       inputSchema: buildModeInputSchema,
       _meta: {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
@@ -420,7 +424,7 @@ function createAlgoTutorServer() {
     {
       title: "AlgoTutor Debug Mode",
       description:
-        "Diagnoses bugs in code line-by-line, classifies the error type, shows before/after code, and generates test cases.",
+        "Diagnoses bugs in code and explains fixes. Shows 'The Trick' callout explaining the bug, exact bug line, step-by-step trace table in exam format, before/after code, 'If This Appears On Exam' variations, and test cases. Also supports fill-in-the-blank exercises where students need to complete code with blanks.",
       inputSchema: debugModeInputSchema,
       _meta: {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
@@ -1393,11 +1397,11 @@ const httpServer = createServer(async (req, res) => {
 
 httpServer.listen(port, () => {
   console.log(
-    `\n🚀 AlgoTutor MCP Server running at http://localhost:${port}${MCP_PATH}\n`
+    `\n🚀 AlgoTutor MCP Server (Exam Cheat Code Edition) running at http://localhost:${port}${MCP_PATH}\n`
   );
-  console.log("📚 Learn Mode: Explain DSA topics in small steps");
-  console.log("🔨 Build Mode: Generate solutions with dry-runs");
-  console.log("🐛 Debug Mode: Find and fix bugs line-by-line\n");
+  console.log("📚 Learn Mode: Master DSA patterns with exam tricks");
+  console.log("🔨 Build Mode: Build solutions with test case tracing");
+  console.log("🐛 Debug Mode: Find and fix bugs with step-by-step traces\n");
   
   // Verify API key is loaded
   if (!process.env.OPENAI_API_KEY) {

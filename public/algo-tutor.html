@@ -408,6 +408,233 @@
         font-weight: 500;
       }
 
+      /* Trick/Shortcut Callout Boxes - Top of output */
+      .trick-box {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 2px solid #f59e0b;
+        border-radius: 12px;
+        padding: 16px 20px;
+        margin-bottom: 20px;
+        position: relative;
+      }
+
+      .trick-box::before {
+        content: "💡";
+        font-size: 1.5rem;
+        position: absolute;
+        top: -12px;
+        left: 16px;
+        background: var(--bg-output);
+        padding: 0 8px;
+      }
+
+      .trick-box.build {
+        background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+        border-color: #3b82f6;
+      }
+
+      .trick-box.build::before {
+        content: "🎯";
+      }
+
+      .trick-box.debug {
+        background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+        border-color: #ef4444;
+      }
+
+      .trick-box.debug::before {
+        content: "🔍";
+      }
+
+      .trick-box-title {
+        font-size: 0.85rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.1em;
+        color: #92400e;
+        margin-bottom: 8px;
+      }
+
+      .trick-box.build .trick-box-title {
+        color: #1e40af;
+      }
+
+      .trick-box.debug .trick-box-title {
+        color: #991b1b;
+      }
+
+      .trick-box-content {
+        font-size: 1rem;
+        font-weight: 600;
+        color: #1f2937;
+        line-height: 1.5;
+      }
+
+      /* Don't Forget / What Profs Test Warning Box */
+      .warning-box {
+        background: linear-gradient(135deg, #fef3c7 0%, #fde68a 100%);
+        border: 2px solid #f59e0b;
+        border-left-width: 4px;
+        border-radius: 8px;
+        padding: 14px 16px;
+        margin-top: 16px;
+        margin-bottom: 12px;
+      }
+
+      .warning-box-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.08em;
+        color: #92400e;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .warning-box-title::before {
+        content: "⚠️";
+      }
+
+      .warning-box-content {
+        font-size: 0.9rem;
+        color: #1f2937;
+        line-height: 1.5;
+      }
+
+      /* Pattern Signature Keywords */
+      .pattern-keywords {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 8px;
+        margin-top: 8px;
+      }
+
+      .keyword-tag {
+        background: rgba(59, 130, 246, 0.15);
+        color: var(--accent);
+        padding: 4px 10px;
+        border-radius: 999px;
+        font-size: 0.8rem;
+        font-weight: 500;
+        border: 1px solid rgba(59, 130, 246, 0.3);
+      }
+
+      /* Time Estimate Badge */
+      .time-estimate {
+        display: inline-flex;
+        align-items: center;
+        gap: 6px;
+        background: rgba(16, 185, 129, 0.15);
+        color: #10b981;
+        padding: 6px 12px;
+        border-radius: 8px;
+        font-size: 0.85rem;
+        font-weight: 600;
+        margin: 8px 0;
+      }
+
+      .time-estimate::before {
+        content: "⏱️";
+      }
+
+      /* Exact Bug Line Highlight */
+      .bug-line-box {
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 12px 0;
+      }
+
+      .bug-line-number {
+        font-weight: 700;
+        color: #ef4444;
+        font-size: 0.9rem;
+      }
+
+      .bug-line-code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        background: #1f2937;
+        color: #fca5a5;
+        padding: 8px 12px;
+        border-radius: 6px;
+        margin: 8px 0;
+        font-size: 0.85rem;
+        overflow-x: auto;
+      }
+
+      .bug-line-issue {
+        font-size: 0.85rem;
+        color: var(--text-main);
+      }
+
+      /* Fill-in-Blank Answers */
+      .blank-answer {
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        border-radius: 8px;
+        padding: 12px;
+        margin: 10px 0;
+      }
+
+      .blank-answer-label {
+        font-weight: 600;
+        color: #10b981;
+        font-size: 0.85rem;
+        margin-bottom: 4px;
+      }
+
+      .blank-answer-code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        background: #1f2937;
+        color: #6ee7b7;
+        padding: 6px 10px;
+        border-radius: 4px;
+        font-size: 0.85rem;
+        display: inline-block;
+        margin: 4px 0;
+      }
+
+      .blank-answer-reason {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-top: 6px;
+        font-style: italic;
+      }
+
+      /* If On Exam Box */
+      .exam-tip-box {
+        background: rgba(139, 92, 246, 0.1);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+        padding: 12px 14px;
+        margin-top: 12px;
+      }
+
+      .exam-tip-title {
+        font-size: 0.8rem;
+        font-weight: 700;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        color: #8b5cf6;
+        margin-bottom: 6px;
+        display: flex;
+        align-items: center;
+        gap: 6px;
+      }
+
+      .exam-tip-title::before {
+        content: "📝";
+      }
+
+      .exam-tip-content {
+        font-size: 0.85rem;
+        color: var(--text-main);
+        line-height: 1.5;
+      }
+
       /* Upgrade button styles */
       .upgrade-container {
         text-align: center;
@@ -682,8 +909,8 @@
           <div>
             <h1>🚀 AlgoTutor</h1>
             <p class="tagline">
-              Learn Data Structures & Algorithms with small steps, minimal code,
-              and clear dry-runs
+              Exam Cheat Code Edition: Pattern recognition, paper-friendly code,
+              and the tricks professors test
             </p>
           </div>
           <div class="header-buttons">
@@ -715,11 +942,11 @@
             <h2 class="section-title">Learn Mode</h2>
 
             <div class="field-block">
-              <label for="learn-topic">Topic</label>
+              <label for="learn-topic">Pattern / Topic</label>
               <input
                 type="text"
                 id="learn-topic"
-                placeholder="e.g., BFS, heaps, linked lists, dynamic programming"
+                placeholder="e.g., BFS, two pointers, sliding window, DFS, merge sort"
               />
             </div>
 
@@ -754,22 +981,22 @@
 
             <div class="toggles-section">
               <div class="toggle-item">
-                <input type="checkbox" id="learn-edge-cases" checked />
-                <label for="learn-edge-cases">Show edge cases</label>
+                <input type="checkbox" id="learn-pattern-keywords" checked />
+                <label for="learn-pattern-keywords">Show pattern keywords</label>
               </div>
               <div class="toggle-item">
                 <input type="checkbox" id="learn-dry-run" checked />
-                <label for="learn-dry-run">Show dry-run table</label>
+                <label for="learn-dry-run">Show trace table (exam format)</label>
               </div>
               <div class="toggle-item">
                 <input type="checkbox" id="learn-paper-version" checked />
-                <label for="learn-paper-version">Show paper version</label>
+                <label for="learn-paper-version">Show paper summary</label>
               </div>
             </div>
 
             <div class="submit-section">
               <button type="submit" class="primary">
-                <span>🚀</span>
+                <span>📚</span>
                 <span>Learn This Topic</span>
               </button>
               <div class="status" id="learn-status">
@@ -791,14 +1018,14 @@
             </div>
 
             <div class="field-block">
-              <label for="build-testcases">Test Cases / Doctests (optional)</label>
+              <label for="build-testcases">Test Cases (optional)</label>
               <textarea
                 id="build-testcases"
-                placeholder="Enter test cases or doctests to validate the solution..."
+                placeholder="Enter test cases the solution should pass..."
                 style="min-height: 80px;"
               ></textarea>
               <p class="hint">
-                Provide example inputs/outputs or doctests that the solution should pass.
+                Provide example inputs/outputs to verify the solution.
               </p>
             </div>
 
@@ -820,15 +1047,19 @@
               </div>
               <div class="toggle-item">
                 <input type="checkbox" id="build-skeleton" />
-                <label for="build-skeleton">Show skeleton only</label>
+                <label for="build-skeleton">Skeleton only (no implementation)</label>
               </div>
               <div class="toggle-item">
                 <input type="checkbox" id="build-dry-run" checked />
-                <label for="build-dry-run">Include dry-run</label>
+                <label for="build-dry-run">Include dry-run (exam format)</label>
               </div>
               <div class="toggle-item">
                 <input type="checkbox" id="build-minimal-code" checked />
-                <label for="build-minimal-code">Use minimal code</label>
+                <label for="build-minimal-code">Minimal code style</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="build-time-estimate" checked />
+                <label for="build-time-estimate">Show time estimate</label>
               </div>
             </div>
 
@@ -848,10 +1079,21 @@
             <h2 class="section-title">Debug Mode</h2>
 
             <div class="field-block">
+              <label for="debug-mode-select">Mode</label>
+              <select id="debug-mode-select">
+                <option value="debug" selected>Debug existing code</option>
+                <option value="fill-in-blank">Fill-in-the-blank exercise</option>
+              </select>
+              <p class="hint" id="debug-mode-hint">
+                Debug: Find and fix bugs in your code.
+              </p>
+            </div>
+
+            <div class="field-block">
               <label for="debug-code">Code Snippet</label>
               <textarea
                 id="debug-code"
-                placeholder="Paste your code here..."
+                placeholder="Paste your code here... For fill-in-blank, use ___ or # TODO for blanks"
               ></textarea>
             </div>
 
@@ -863,17 +1105,19 @@
                 style="min-height: 80px;"
               ></textarea>
               <p class="hint">
-                Explain the problem you're trying to solve so AlgoTutor can debug your code in context.
+                Helps AlgoTutor understand the algorithm context.
               </p>
             </div>
 
-            <div class="field-block">
-              <label for="debug-language">Language</label>
-              <select id="debug-language">
-                <option value="python" selected>Python</option>
-                <option value="java">Java</option>
-                <option value="cpp">C++</option>
-              </select>
+            <div class="row">
+              <div class="field-block">
+                <label for="debug-language">Language</label>
+                <select id="debug-language">
+                  <option value="python" selected>Python</option>
+                  <option value="java">Java</option>
+                  <option value="cpp">C++</option>
+                </select>
+              </div>
             </div>
 
             <div class="toggles-section">
@@ -884,6 +1128,14 @@
               <div class="toggle-item">
                 <input type="checkbox" id="debug-edge-warnings" checked />
                 <label for="debug-edge-warnings">Show edge case warnings</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="debug-trace-table" checked />
+                <label for="debug-trace-table">Show trace table (exam format)</label>
+              </div>
+              <div class="toggle-item">
+                <input type="checkbox" id="debug-pattern-explanation" checked />
+                <label for="debug-pattern-explanation">Explain algorithm pattern</label>
               </div>
             </div>
 
@@ -1047,7 +1299,7 @@
         throw new Error("OpenAI sendFollowUpMessage API not available");
       };
 
-      // Render outputs
+      // Render outputs - Exam Cheat Code Edition
       const renderOutputs = (outputs) => {
         console.log("[Widget] ==================== renderOutputs CALLED ====================");
         console.log("[Widget] Outputs received:", JSON.stringify(outputs, null, 2));
@@ -1076,6 +1328,7 @@
           if (val === null || val === undefined) return false;
           if (typeof val === 'string') return val.trim().length > 0;
           if (Array.isArray(val)) return val.length > 0;
+          if (typeof val === 'object') return Object.keys(val).length > 0;
           return true;
         });
 
@@ -1087,11 +1340,50 @@
         }
 
         console.log("[Widget] ✅ Outputs has content, proceeding to render blocks");
+        
+        // Determine mode based on outputs
+        const isDebugMode = outputs.exactBugLine || outputs.fillInBlankAnswers || outputs.beforeCode;
+        const isBuildMode = outputs.theShortcut || outputs.dontForget || outputs.timeEstimate;
+        const isLearnMode = outputs.patternSignature || outputs.memorableTemplate || outputs.whatProfessorsTest;
+
+        // === RENDER TRICK BOX FIRST (TOP OF OUTPUT) ===
+        if (outputs.theTrick) {
+          const trickClass = isDebugMode ? 'debug' : (isBuildMode ? 'build' : '');
+          const trickTitle = isDebugMode ? 'THE TRICK' : (isBuildMode ? 'THE SHORTCUT' : 'THE TRICK');
+          const trickEl = document.createElement('div');
+          trickEl.className = `trick-box ${trickClass}`;
+          trickEl.innerHTML = `
+            <div class="trick-box-title">${trickTitle}</div>
+            <div class="trick-box-content">${escapeHtml(outputs.theTrick)}</div>
+          `;
+          outputContainer.appendChild(trickEl);
+        }
+        
+        // Build Mode: The Shortcut
+        if (outputs.theShortcut && !outputs.theTrick) {
+          const trickEl = document.createElement('div');
+          trickEl.className = 'trick-box build';
+          trickEl.innerHTML = `
+            <div class="trick-box-title">THE SHORTCUT</div>
+            <div class="trick-box-content">${escapeHtml(outputs.theShortcut)}</div>
+          `;
+          outputContainer.appendChild(trickEl);
+        }
+
+        // === MAIN CONTENT BLOCKS ===
         const blocks = [];
+
+        // What Code Does (Debug/Trace mode)
+        if (outputs.whatCodeDoes) {
+          blocks.push({
+            title: "What This Code Does",
+            content: outputs.whatCodeDoes,
+            type: "text",
+          });
+        }
 
         // Pattern Detection
         if (outputs.pattern) {
-          console.log("[Widget] ✅ Found pattern:", outputs.pattern.substring(0, 100) + "...");
           blocks.push({
             title: "Pattern Detection",
             content: outputs.pattern,
@@ -1099,19 +1391,35 @@
           });
         }
 
+        // Pattern Signature Keywords (Learn/Pattern Recognition mode)
+        if (outputs.patternSignature && Array.isArray(outputs.patternSignature)) {
+          blocks.push({
+            title: "Pattern Signature",
+            content: outputs.patternSignature,
+            type: "keywords",
+          });
+        }
+
         // Step-by-step reasoning
         if (outputs.stepByStep) {
-          console.log("[Widget] ✅ Found stepByStep:", outputs.stepByStep.substring(0, 100) + "...");
           blocks.push({
-            title: "Step-by-Step Reasoning",
+            title: "Step-by-Step",
             content: outputs.stepByStep,
             type: "text",
           });
         }
 
-        // Code
+        // Memorable Template (Learn mode)
+        if (outputs.memorableTemplate) {
+          blocks.push({
+            title: "5-Line Memorizable Template",
+            content: outputs.memorableTemplate,
+            type: "code",
+          });
+        }
+
+        // Code Solution
         if (outputs.code) {
-          console.log("[Widget] ✅ Found code:", outputs.code.substring(0, 100) + "...");
           blocks.push({
             title: "Code Solution",
             content: outputs.code,
@@ -1119,33 +1427,76 @@
           });
         }
 
-        // Dry-run table
-        if (outputs.dryRunTable) {
-          console.log("[Widget] ✅ Found dryRunTable:", Array.isArray(outputs.dryRunTable) ? `${outputs.dryRunTable.length} rows` : "not an array");
+        // Time Estimate (Build mode)
+        if (outputs.timeEstimate) {
           blocks.push({
-            title: "Dry-Run Table",
+            title: null, // No title - rendered as inline badge
+            content: outputs.timeEstimate,
+            type: "timeEstimate",
+          });
+        }
+
+        // Example Walkthrough (Learn mode)
+        if (outputs.exampleWalkthrough) {
+          blocks.push({
+            title: "Example Walkthrough",
+            content: outputs.exampleWalkthrough,
+            type: "text",
+          });
+        }
+
+        // Exact Bug Line (Debug mode)
+        if (outputs.exactBugLine) {
+          blocks.push({
+            title: "Exact Bug Location",
+            content: outputs.exactBugLine,
+            type: "bugLine",
+          });
+        }
+
+        // Trace Table / Dry-run table (exam format)
+        if (outputs.traceTable && Array.isArray(outputs.traceTable)) {
+          blocks.push({
+            title: "Trace Table (Exam Format)",
+            content: outputs.traceTable,
+            type: "table",
+          });
+        } else if (outputs.dryRunTable && Array.isArray(outputs.dryRunTable)) {
+          blocks.push({
+            title: "Trace Table (Exam Format)",
             content: outputs.dryRunTable,
             type: "table",
           });
         }
 
-        // Paper version
-        if (outputs.paperVersion) {
-          console.log("[Widget] ✅ Found paperVersion:", Array.isArray(outputs.paperVersion) ? `${outputs.paperVersion.length} items` : "not an array");
+        // Fill-in-Blank Answers (Debug mode)
+        if (outputs.fillInBlankAnswers && Array.isArray(outputs.fillInBlankAnswers)) {
           blocks.push({
-            title: "Paper Version",
-            content: outputs.paperVersion,
-            type: "list",
+            title: "Fill-in-the-Blank Answers",
+            content: outputs.fillInBlankAnswers,
+            type: "fillInBlank",
           });
         }
 
-        // Edge cases
-        if (outputs.edgeCases) {
-          console.log("[Widget] ✅ Found edgeCases:", Array.isArray(outputs.edgeCases) ? `${outputs.edgeCases.length} items` : "not an array");
+        // Bug Diagnosis (Debug mode)
+        if (outputs.bugDiagnosis) {
           blocks.push({
-            title: "Edge Cases",
-            content: outputs.edgeCases,
-            type: "list",
+            title: "Bug Diagnosis",
+            content: outputs.bugDiagnosis,
+            type: "text",
+          });
+        }
+
+        // Before/After code (Debug mode)
+        if (outputs.beforeCode || outputs.afterCode) {
+          blocks.push({
+            title: "Before & After Fix",
+            content: `<div><strong>Before:</strong><pre class="code-block">${escapeHtml(
+              outputs.beforeCode || "N/A"
+            )}</pre></div><div style="margin-top: 12px;"><strong>After:</strong><pre class="code-block">${escapeHtml(
+              outputs.afterCode || "N/A"
+            )}</pre></div>`,
+            type: "html",
           });
         }
 
@@ -1158,50 +1509,73 @@
           });
         }
 
-        // Bug diagnosis
-        if (outputs.bugDiagnosis) {
-          blocks.push({
-            title: "Bug Diagnosis",
-            content: outputs.bugDiagnosis,
-            type: "text",
-          });
-        }
-
-        // Before/After code
-        if (outputs.beforeCode || outputs.afterCode) {
-          blocks.push({
-            title: "Before & After",
-            content: `<div><strong>Before:</strong><pre class="code-block">${
-              outputs.beforeCode || "N/A"
-            }</pre></div><div><strong>After:</strong><pre class="code-block">${
-              outputs.afterCode || "N/A"
-            }</pre></div>`,
-            type: "html",
-          });
-        }
-
-        // Test cases
-        if (outputs.testCases) {
-          blocks.push({
-            title: "Test Cases",
-            content: outputs.testCases,
-            type: "list",
-          });
-        }
-
-        // Render blocks
-        console.log("[Widget] Total blocks to render:", blocks.length);
-        console.log("[Widget] Block titles:", blocks.map(b => b.title));
-        
-        if (blocks.length === 0) {
-          console.warn("[Widget] No blocks to render - this shouldn't happen if hasContent was true!");
-          outputContainer.innerHTML =
-            '<div class="output-empty">⚠️ Could not extract displayable content from outputs.</div>';
-          return;
-        }
-        
+        // Render main blocks
         blocks.forEach((block, idx) => {
-          console.log(`[Widget] Rendering block ${idx + 1}/${blocks.length}: ${block.title}`);
+          if (block.type === "timeEstimate") {
+            // Render as inline badge
+            const badgeEl = document.createElement("div");
+            badgeEl.className = "time-estimate";
+            badgeEl.textContent = block.content;
+            outputContainer.appendChild(badgeEl);
+            return;
+          }
+
+          if (block.type === "keywords") {
+            // Render as keyword tags
+            const blockEl = document.createElement("div");
+            blockEl.className = "output-block";
+            blockEl.innerHTML = `<h3>${block.title}</h3>`;
+            const keywordsDiv = document.createElement("div");
+            keywordsDiv.className = "pattern-keywords";
+            block.content.forEach(keyword => {
+              const tag = document.createElement("span");
+              tag.className = "keyword-tag";
+              tag.textContent = keyword;
+              keywordsDiv.appendChild(tag);
+            });
+            blockEl.appendChild(keywordsDiv);
+            outputContainer.appendChild(blockEl);
+            return;
+          }
+
+          if (block.type === "bugLine") {
+            // Render bug line highlight
+            const blockEl = document.createElement("div");
+            blockEl.className = "output-block";
+            blockEl.innerHTML = `<h3>${block.title}</h3>`;
+            const bugBox = document.createElement("div");
+            bugBox.className = "bug-line-box";
+            const line = block.content;
+            bugBox.innerHTML = `
+              <div class="bug-line-number">Line ${line.lineNumber || '?'}</div>
+              <div class="bug-line-code">${escapeHtml(line.code || '')}</div>
+              <div class="bug-line-issue">${escapeHtml(line.issue || '')}</div>
+            `;
+            blockEl.appendChild(bugBox);
+            outputContainer.appendChild(blockEl);
+            return;
+          }
+
+          if (block.type === "fillInBlank") {
+            // Render fill-in-blank answers
+            const blockEl = document.createElement("div");
+            blockEl.className = "output-block";
+            blockEl.innerHTML = `<h3>${block.title}</h3>`;
+            block.content.forEach(item => {
+              const answerDiv = document.createElement("div");
+              answerDiv.className = "blank-answer";
+              answerDiv.innerHTML = `
+                <div class="blank-answer-label">${escapeHtml(item.blank || 'Blank')}</div>
+                <div class="blank-answer-code">${escapeHtml(item.answer || '')}</div>
+                <div class="blank-answer-reason">${escapeHtml(item.reason || '')}</div>
+              `;
+              blockEl.appendChild(answerDiv);
+            });
+            outputContainer.appendChild(blockEl);
+            return;
+          }
+
+          // Standard block rendering
           const blockEl = document.createElement("div");
           blockEl.className = "output-block";
 
@@ -1213,30 +1587,128 @@
           contentEl.className = "output-content";
 
           if (block.type === "code") {
-            contentEl.innerHTML = `<pre class="code-block">${escapeHtml(
-              block.content
-            )}</pre>`;
+            contentEl.innerHTML = `<pre class="code-block">${escapeHtml(block.content)}</pre>`;
           } else if (block.type === "table" && Array.isArray(block.content)) {
             const table = renderTable(block.content);
-            contentEl.appendChild(table);
+            if (table) contentEl.appendChild(table);
           } else if (block.type === "list" && Array.isArray(block.content)) {
             const ul = document.createElement("ul");
             ul.className = "list-block";
             block.content.forEach((item) => {
               const li = document.createElement("li");
-              li.textContent = item;
+              li.textContent = typeof item === 'string' ? item : JSON.stringify(item);
               ul.appendChild(li);
             });
             contentEl.appendChild(ul);
           } else if (block.type === "html") {
             contentEl.innerHTML = block.content;
           } else {
-            contentEl.innerHTML = block.content.replace(/\n/g, "<br>");
+            contentEl.innerHTML = String(block.content).replace(/\n/g, "<br>");
           }
 
           blockEl.appendChild(contentEl);
           outputContainer.appendChild(blockEl);
         });
+
+        // === WARNING BOXES (near bottom) ===
+        
+        // Don't Forget (Build mode)
+        if (outputs.dontForget) {
+          const warningEl = document.createElement("div");
+          warningEl.className = "warning-box";
+          warningEl.innerHTML = `
+            <div class="warning-box-title">DON'T FORGET</div>
+            <div class="warning-box-content">${escapeHtml(outputs.dontForget)}</div>
+          `;
+          outputContainer.appendChild(warningEl);
+        }
+
+        // What Professors Test (Learn mode)
+        if (outputs.whatProfessorsTest) {
+          const warningEl = document.createElement("div");
+          warningEl.className = "warning-box";
+          warningEl.innerHTML = `
+            <div class="warning-box-title">WHAT PROFESSORS TEST</div>
+            <div class="warning-box-content">${escapeHtml(outputs.whatProfessorsTest)}</div>
+          `;
+          outputContainer.appendChild(warningEl);
+        }
+
+        // If On Exam (Debug mode)
+        if (outputs.ifOnExam) {
+          const examTipEl = document.createElement("div");
+          examTipEl.className = "exam-tip-box";
+          examTipEl.innerHTML = `
+            <div class="exam-tip-title">IF THIS APPEARS ON EXAM</div>
+            <div class="exam-tip-content">${escapeHtml(outputs.ifOnExam)}</div>
+          `;
+          outputContainer.appendChild(examTipEl);
+        }
+
+        // === BOTTOM SECTION ===
+
+        // Paper Version / Paper Summary (both modes)
+        if (outputs.paperVersion && Array.isArray(outputs.paperVersion)) {
+          const blockEl = document.createElement("div");
+          blockEl.className = "output-block";
+          blockEl.innerHTML = `<h3>Paper Version</h3>`;
+          const ul = document.createElement("ul");
+          ul.className = "list-block";
+          outputs.paperVersion.forEach((item) => {
+            const li = document.createElement("li");
+            li.textContent = item;
+            ul.appendChild(li);
+          });
+          blockEl.appendChild(ul);
+          outputContainer.appendChild(blockEl);
+        }
+
+        if (outputs.paperSummary && Array.isArray(outputs.paperSummary)) {
+          const blockEl = document.createElement("div");
+          blockEl.className = "output-block";
+          blockEl.innerHTML = `<h3>Paper Summary (Exam Day)</h3>`;
+          const ul = document.createElement("ul");
+          ul.className = "list-block";
+          outputs.paperSummary.forEach((item) => {
+            const li = document.createElement("li");
+            li.textContent = item;
+            ul.appendChild(li);
+          });
+          blockEl.appendChild(ul);
+          outputContainer.appendChild(blockEl);
+        }
+
+        // Test Cases
+        if (outputs.testCases && Array.isArray(outputs.testCases)) {
+          const blockEl = document.createElement("div");
+          blockEl.className = "output-block";
+          blockEl.innerHTML = `<h3>Test Cases</h3>`;
+          const ul = document.createElement("ul");
+          ul.className = "list-block";
+          outputs.testCases.forEach((item) => {
+            const li = document.createElement("li");
+            li.textContent = item;
+            ul.appendChild(li);
+          });
+          blockEl.appendChild(ul);
+          outputContainer.appendChild(blockEl);
+        }
+
+        // Edge Cases (legacy support)
+        if (outputs.edgeCases && Array.isArray(outputs.edgeCases)) {
+          const blockEl = document.createElement("div");
+          blockEl.className = "output-block";
+          blockEl.innerHTML = `<h3>Edge Cases</h3>`;
+          const ul = document.createElement("ul");
+          ul.className = "list-block";
+          outputs.edgeCases.forEach((item) => {
+            const li = document.createElement("li");
+            li.textContent = item;
+            ul.appendChild(li);
+          });
+          blockEl.appendChild(ul);
+          outputContainer.appendChild(blockEl);
+        }
         
         console.log("[Widget] ✅✅✅ RENDERING COMPLETE - All blocks added to DOM");
         console.log("[Widget] outputContainer has", outputContainer.children.length, "children");
@@ -1294,27 +1766,27 @@
         const difficulty = document.querySelector("#learn-difficulty").value;
         const depth = document.querySelector("#learn-depth").value;
         const exampleSize = document.querySelector("#learn-example-size").value;
-        const showEdgeCases = document.querySelector("#learn-edge-cases").checked;
+        const showPatternKeywords = document.querySelector("#learn-pattern-keywords").checked;
         const showDryRun = document.querySelector("#learn-dry-run").checked;
         const showPaperVersion = document.querySelector("#learn-paper-version").checked;
 
         if (!topic) {
-          statusEl.textContent = "Please enter a topic.";
+          statusEl.textContent = "Please enter a pattern/topic.";
           return;
         }
 
-        statusEl.textContent = "Asking ChatGPT...";
+        statusEl.textContent = "Generating lesson...";
         
-        // Build natural language prompt for ChatGPT
-        let prompt = `Use AlgoTutor Learn Mode to explain ${topic} with ${difficulty} difficulty and ${depth} depth.`;
+        // Build natural language prompt for ChatGPT - Learn Mode
+        let prompt = `Use AlgoTutor Learn Mode to teach me ${topic} with ${difficulty} difficulty and ${depth} depth.`;
         prompt += ` Use ${exampleSize} example size.`;
-        if (showEdgeCases) prompt += ` Show edge cases.`;
-        if (showDryRun) prompt += ` Include dry-run table.`;
-        if (showPaperVersion) prompt += ` Include paper version.`;
+        if (showPatternKeywords) prompt += ` Show pattern signature keywords.`;
+        if (showDryRun) prompt += ` Include exam-format trace table.`;
+        if (showPaperVersion) prompt += ` Include paper summary.`;
 
         try {
           await sendFollowUp(prompt);
-          statusEl.textContent = "✅ Request sent to ChatGPT!";
+          statusEl.textContent = "✅ Request sent!";
         } catch (err) {
           console.error(err);
           statusEl.textContent = "Error: " + err.message;
@@ -1332,25 +1804,27 @@
         const skeletonOnly = document.querySelector("#build-skeleton").checked;
         const includeDryRun = document.querySelector("#build-dry-run").checked;
         const minimalCode = document.querySelector("#build-minimal-code").checked;
+        const showTimeEstimate = document.querySelector("#build-time-estimate").checked;
 
         if (!problem) {
           statusEl.textContent = "Please enter a problem.";
           return;
         }
 
-        statusEl.textContent = "Asking ChatGPT...";
+        statusEl.textContent = "Building solution...";
         
-        // Build natural language prompt for ChatGPT
+        // Build natural language prompt for ChatGPT - Build Mode
         let prompt = `Use AlgoTutor Build Mode to solve this problem in ${language}: ${problem}.`;
         if (testCases) prompt += ` The solution must pass these test cases: ${testCases}.`;
-        if (minimalCode) prompt += ` Use minimal code.`;
+        if (minimalCode) prompt += ` Use minimal paper-friendly code.`;
         if (allowRecursion) prompt += ` Recursion is allowed.`;
         if (skeletonOnly) prompt += ` Show skeleton only.`;
-        if (includeDryRun) prompt += ` Include dry-run.`;
+        if (includeDryRun) prompt += ` Include exam-format dry-run.`;
+        if (showTimeEstimate) prompt += ` Show time estimate.`;
 
         try {
           await sendFollowUp(prompt);
-          statusEl.textContent = "✅ Request sent to ChatGPT!";
+          statusEl.textContent = "✅ Request sent!";
         } catch (err) {
           console.error(err);
           statusEl.textContent = "Error: " + err.message;
@@ -1364,33 +1838,57 @@
         const code = document.querySelector("#debug-code").value.trim();
         const problemDescription = document.querySelector("#debug-problem").value.trim();
         const language = document.querySelector("#debug-language").value;
+        const debugMode = document.querySelector("#debug-mode-select").value;
         const generateTests = document.querySelector("#debug-show-tests").checked;
         const showEdgeWarnings = document.querySelector("#debug-edge-warnings").checked;
+        const showTraceTable = document.querySelector("#debug-trace-table").checked;
+        const showPatternExplanation = document.querySelector("#debug-pattern-explanation").checked;
 
         if (!code) {
           statusEl.textContent = "Please paste your code.";
           return;
         }
 
-        statusEl.textContent = "Asking ChatGPT...";
+        const isFillInBlank = debugMode === 'fill-in-blank';
+        statusEl.textContent = isFillInBlank ? "Filling in blanks..." : "Debugging code...";
         
-        // Build natural language prompt for ChatGPT
-        let prompt = `Use AlgoTutor Debug Mode to debug this ${language} code`;
+        // Build natural language prompt for ChatGPT - Debug Mode
+        let prompt;
+        if (isFillInBlank) {
+          prompt = `Use AlgoTutor Debug Mode in fill-in-the-blank mode for this ${language} code`;
+        } else {
+          prompt = `Use AlgoTutor Debug Mode to debug this ${language} code`;
+        }
         if (problemDescription) {
           prompt += ` for the following problem: ${problemDescription}`;
         }
         prompt += `.\n\nCode:\n\`\`\`${language}\n${code}\n\`\`\``;
         if (generateTests) prompt += `\nGenerate test cases.`;
         if (showEdgeWarnings) prompt += ` Show edge case warnings.`;
+        if (showTraceTable) prompt += ` Show exam-format trace table.`;
+        if (showPatternExplanation) prompt += ` Explain the algorithm pattern.`;
 
         try {
           await sendFollowUp(prompt);
-          statusEl.textContent = "✅ Request sent to ChatGPT!";
+          statusEl.textContent = "✅ Request sent!";
         } catch (err) {
           console.error(err);
           statusEl.textContent = "Error: " + err.message;
         }
       });
+
+      // Debug mode selector hint update
+      const debugModeSelect = document.querySelector("#debug-mode-select");
+      const debugModeHint = document.querySelector("#debug-mode-hint");
+      if (debugModeSelect && debugModeHint) {
+        debugModeSelect.addEventListener("change", (e) => {
+          if (e.target.value === "fill-in-blank") {
+            debugModeHint.textContent = "Fill-in-blank: Use ___ or # TODO for blanks in your code.";
+          } else {
+            debugModeHint.textContent = "Debug: Find and fix bugs in your code.";
+          }
+        });
+      }
 
       // Helper: Try to extract outputs from various formats
       function extractOutputs(data) {
