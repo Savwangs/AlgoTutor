@@ -1079,6 +1079,18 @@
               </p>
             </div>
 
+            <div class="field-block">
+              <label for="build-constraints">Constraints (optional)</label>
+              <textarea
+                id="build-constraints"
+                placeholder="e.g., O(n) time, O(1) space, no extra data structures..."
+                style="min-height: 60px;"
+              ></textarea>
+              <p class="hint">
+                Specify time/space constraints if required.
+              </p>
+            </div>
+
             <div class="row">
               <div class="field-block">
                 <label for="build-language">Language</label>
@@ -1156,6 +1168,30 @@
               ></textarea>
               <p class="hint">
                 Helps AlgoTutor understand the algorithm context.
+              </p>
+            </div>
+
+            <div class="field-block">
+              <label for="debug-testcases">Test Cases (optional)</label>
+              <textarea
+                id="debug-testcases"
+                placeholder="Enter test cases to verify the fix..."
+                style="min-height: 60px;"
+              ></textarea>
+              <p class="hint">
+                Test cases to trace through and verify the fix works.
+              </p>
+            </div>
+
+            <div class="field-block">
+              <label for="debug-constraints">Constraints (optional)</label>
+              <textarea
+                id="debug-constraints"
+                placeholder="e.g., O(n) time, O(1) space..."
+                style="min-height: 60px;"
+              ></textarea>
+              <p class="hint">
+                Specify constraints to consider when suggesting the fix.
               </p>
             </div>
 
@@ -1601,19 +1637,28 @@
           }
 
           if (block.type === "bugLine") {
-            // Render bug line highlight
+            // Render bug line highlight - handles single bug or multiple bugs
             const blockEl = document.createElement("div");
             blockEl.className = "output-block";
             blockEl.innerHTML = `<h3>${block.title}</h3>`;
-            const bugBox = document.createElement("div");
-            bugBox.className = "bug-line-box";
-            const line = block.content;
-            bugBox.innerHTML = `
-              <div class="bug-line-number">Line ${line.lineNumber || '?'}</div>
-              <div class="bug-line-code">${escapeHtml(line.code || '')}</div>
-              <div class="bug-line-issue">${escapeHtml(line.issue || '')}</div>
-            `;
-            blockEl.appendChild(bugBox);
+            
+            // Handle both single bug (object) and multiple bugs (array)
+            const bugs = Array.isArray(block.content) ? block.content : [block.content];
+            
+            bugs.forEach((line, index) => {
+              const bugBox = document.createElement("div");
+              bugBox.className = "bug-line-box";
+              bugBox.style.marginBottom = index < bugs.length - 1 ? "12px" : "0";
+              
+              const bugNumber = bugs.length > 1 ? `Bug ${index + 1} - ` : "";
+              bugBox.innerHTML = `
+                <div class="bug-line-number">${bugNumber}Line ${line.lineNumber || '?'}</div>
+                <div class="bug-line-code">${escapeHtml(line.code || '')}</div>
+                <div class="bug-line-issue">${escapeHtml(line.issue || '')}</div>
+              `;
+              blockEl.appendChild(bugBox);
+            });
+            
             outputContainer.appendChild(blockEl);
             return;
           }
@@ -1756,19 +1801,32 @@
           outputContainer.appendChild(blockEl);
         }
 
-        // Edge Cases (legacy support)
+        // Edge Cases - supports both old format (strings) and new format (objects with case and hint)
         if (outputs.edgeCases && Array.isArray(outputs.edgeCases)) {
           const blockEl = document.createElement("div");
           blockEl.className = "output-block";
           blockEl.innerHTML = `<h3>Edge Cases</h3>`;
-          const ul = document.createElement("ul");
-          ul.className = "list-block";
+          
           outputs.edgeCases.forEach((item) => {
-            const li = document.createElement("li");
-            li.textContent = item;
-            ul.appendChild(li);
+            if (typeof item === 'object' && item.case) {
+              // New format: {case: "...", hint: "..."}
+              const edgeCaseDiv = document.createElement("div");
+              edgeCaseDiv.className = "blank-answer"; // Reuse this style
+              edgeCaseDiv.innerHTML = `
+                <div class="blank-answer-label">${escapeHtml(item.case)}</div>
+                <div class="blank-answer-reason">${escapeHtml(item.hint || '')}</div>
+              `;
+              blockEl.appendChild(edgeCaseDiv);
+            } else {
+              // Old format: just a string
+              const li = document.createElement("div");
+              li.style.padding = "8px 0";
+              li.style.borderBottom = "1px solid var(--border-subtle)";
+              li.textContent = typeof item === 'string' ? item : JSON.stringify(item);
+              blockEl.appendChild(li);
+            }
           });
-          blockEl.appendChild(ul);
+          
           outputContainer.appendChild(blockEl);
         }
         
@@ -1861,6 +1919,7 @@
 
         const problem = document.querySelector("#build-problem").value.trim();
         const testCases = document.querySelector("#build-testcases").value.trim();
+        const constraints = document.querySelector("#build-constraints").value.trim();
         const language = document.querySelector("#build-language").value;
         const allowRecursion = document.querySelector("#build-recursion").checked;
         const skeletonOnly = document.querySelector("#build-skeleton").checked;
@@ -1878,6 +1937,7 @@
         // Build natural language prompt for ChatGPT - Build Mode
         let prompt = `Use AlgoTutor Build Mode to solve this problem in ${language}: ${problem}.`;
         if (testCases) prompt += ` The solution must pass these test cases: ${testCases}.`;
+        if (constraints) prompt += ` The solution must meet these constraints: ${constraints}.`;
         if (minimalCode) prompt += ` Use minimal paper-friendly code.`;
         if (allowRecursion) prompt += ` Recursion is allowed.`;
         if (skeletonOnly) prompt += ` Show skeleton only.`;
@@ -1899,6 +1959,8 @@
 
         const code = document.querySelector("#debug-code").value.trim();
         const problemDescription = document.querySelector("#debug-problem").value.trim();
+        const testCases = document.querySelector("#debug-testcases").value.trim();
+        const constraints = document.querySelector("#debug-constraints").value.trim();
         const language = document.querySelector("#debug-language").value;
         const debugMode = document.querySelector("#debug-mode-select").value;
         const generateTests = document.querySelector("#debug-show-tests").checked;
@@ -1925,6 +1987,8 @@
           prompt += ` for the following problem: ${problemDescription}`;
         }
         prompt += `.\n\nCode:\n\`\`\`${language}\n${code}\n\`\`\``;
+        if (testCases) prompt += `\nUse these test cases: ${testCases}`;
+        if (constraints) prompt += `\nWith constraints: ${constraints}`;
         if (generateTests) prompt += `\nGenerate test cases.`;
         if (showEdgeWarnings) prompt += ` Show edge case warnings.`;
         if (showTraceTable) prompt += ` Show exam-format trace table.`;

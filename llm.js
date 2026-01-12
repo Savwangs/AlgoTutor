@@ -135,7 +135,13 @@ ${args.showDryRun ? '- dryRunTable: REQUIRED - Array of 3-4 objects with exam-fo
 
 - exampleWalkthrough: REQUIRED - One concrete example with specific input values traced through the algorithm step by step. Show the actual values changing.
 
-- whatProfessorsTest: REQUIRED - THE #1 edge case that appears on exams for this pattern. Not a list of 3 - just THE ONE that professors love to test. Explain why it breaks naive solutions.
+- whatProfessorsTest: REQUIRED - THE #1 edge case that appears on exams for this pattern. Not a list of 3 - just THE ONE that professors love to test. Explain why it breaks naive solutions. Include a 1-2 sentence tip on how students can prepare for this edge case.
+
+- complexity: REQUIRED - Time and space complexity in format "O(n) time, O(1) space" with brief explanation.
+
+- difficultyScore: REQUIRED - Difficulty rating as exactly one of: "easy", "medium", or "hard" based on typical exam difficulty.
+
+- relatedPatterns: REQUIRED - Array of 3-5 related DSA patterns that students should also study. Example: ["Two Pointers", "Sliding Window", "Binary Search"]
 
 ${args.showPaperVersion ? '- paperSummary: REQUIRED - Quick reference for exam day. Array of 4-5 bullet points covering: when to use, key data structure, time complexity, the gotcha to avoid.' : '- paperSummary: DO NOT INCLUDE THIS FIELD'}
 
@@ -167,6 +173,9 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
       dryRunTable: args.showDryRun ? [] : null,
       exampleWalkthrough: "Error occurred",
       whatProfessorsTest: "Error occurred",
+      complexity: "N/A",
+      difficultyScore: null,
+      relatedPatterns: [],
       paperSummary: args.showPaperVersion ? [] : null,
     };
   }
@@ -223,11 +232,30 @@ IMPORTANT: For the dryRunTable, trace through each test case step-by-step:
 - After showing the key steps, use "..." to indicate fast-forwarding
 - Then show the final output/result for that test case
 - Format each trace entry to match exam expectations`;
+  } else {
+    testCaseInstruction = `NO TEST CASES PROVIDED - Generate 3 test cases yourself:
+- Include at least 1 typical case
+- Include at least 1 edge case (empty input, single element, etc.)
+- Include at least 1 boundary case
+
+For the dryRunTable, trace through each generated test case.`;
+  }
+
+  // Build constraints instruction
+  let constraintsInstruction = '';
+  if (args.constraints) {
+    constraintsInstruction = `CONSTRAINTS: ${args.constraints}
+The solution MUST meet these time/space constraints. Choose the algorithm accordingly.`;
+  } else {
+    constraintsInstruction = `NO CONSTRAINTS PROVIDED - Use the most efficient algorithm possible.
+Consider both time and space complexity when choosing the approach.`;
   }
   
   const userPrompt = `Solve this problem for a WRITTEN EXAM: ${args.problem}
 
 ${testCaseInstruction}
+
+${constraintsInstruction}
 
 LANGUAGE: ${args.language}
 Write all code in ${args.language}.
@@ -259,8 +287,8 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
 
 - code: REQUIRED - ${args.skeletonOnly ? 'Function skeleton with TODO comments only, NO implementation' : 'Full working solution'} in ${args.language}. Include any helper classes needed (TreeNode, ListNode, etc.). Keep syntax clean but use appropriate data structures.
 
-${args.includeDryRun ? `- dryRunTable: REQUIRED - Array of objects showing exam-format trace. Use keys: {step, variables, action, output}.
-${args.testCases ? 'For EACH provided test case: Show 3-5 key iterations, then a row with "..." in step to indicate fast-forward, then final result. Clearly label which test case each trace is for.' : 'Show 3-4 iterations demonstrating the algorithm pattern.'}` : '- dryRunTable: DO NOT INCLUDE THIS FIELD'}
+- dryRunTable: REQUIRED - Array of objects showing exam-format trace. Use keys: {step, variables, action, output}.
+${args.testCases ? 'For EACH provided test case: Show 3-5 key iterations, then a row with "..." in step to indicate fast-forward, then final result. Clearly label which test case each trace is for.' : 'Generate 3 test cases (including at least 1 edge case). For each: Show 3-5 key iterations, then "..." to fast-forward, then final result.'}
 
 ${args.showTimeEstimate !== false ? '- timeEstimate: REQUIRED - How long to write this on paper. Format: "~X minutes to write on paper". Be realistic based on problem complexity.' : '- timeEstimate: DO NOT INCLUDE THIS FIELD'}
 
@@ -269,6 +297,10 @@ ${args.showTimeEstimate !== false ? '- timeEstimate: REQUIRED - How long to writ
 - paperVersion: REQUIRED - Array of 4-6 steps for writing this solution on paper. Include which key lines to write first, and any helper classes needed.
 
 - complexity: REQUIRED - Time and space complexity analysis (e.g., "O(n) time, O(h) space for recursion stack") with brief explanation
+
+- difficultyScore: REQUIRED - Difficulty rating as exactly one of: "easy", "medium", or "hard" based on typical interview/exam difficulty.
+
+- relatedPatterns: REQUIRED - Array of 3-5 related DSA patterns that use similar techniques. Example: ["Two Pointers", "Sliding Window", "Binary Search"]
 
 Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
 
@@ -286,11 +318,13 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
       pattern: "Error generating solution. Please try again.",
       stepByStep: "Solution generation failed.",
       code: "# Error occurred",
-      dryRunTable: args.includeDryRun ? [] : null,
+      dryRunTable: [],
       timeEstimate: "N/A",
       dontForget: "Error occurred",
       paperVersion: ["Error occurred"],
       complexity: "N/A",
+      difficultyScore: null,
+      relatedPatterns: [],
     };
   }
 }
@@ -339,6 +373,24 @@ ${args.generateTests ? '- testCases: REQUIRED - Array of exactly 3 test case str
 
 Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
   } else {
+    // Build test case instruction for debug mode
+    let debugTestCaseInstruction = '';
+    if (args.testCases) {
+      debugTestCaseInstruction = `TEST CASES PROVIDED:
+${args.testCases}
+
+Use these test cases to demonstrate the bug in the trace table.`;
+    } else {
+      debugTestCaseInstruction = `NO TEST CASES PROVIDED - Generate up to 3 test cases yourself (at least 1 edge case) to demonstrate the bug.`;
+    }
+
+    // Build constraints instruction for debug mode
+    let debugConstraintsInstruction = '';
+    if (args.constraints) {
+      debugConstraintsInstruction = `CONSTRAINTS: ${args.constraints}
+Consider these constraints when suggesting the fix.`;
+    }
+
     userPrompt = `Debug this ${args.language} code for EXAM PREP:
 \`\`\`${args.language}
 ${args.code}
@@ -346,27 +398,41 @@ ${args.code}
 
 ${args.problemDescription ? `PROBLEM DESCRIPTION: ${args.problemDescription}` : 'No problem description provided. Analyze the code for common bugs.'}
 
+${debugTestCaseInstruction}
+
+${debugConstraintsInstruction}
+
+IMPORTANT: Check for ALL bugs in the code. If there are multiple bugs, list ALL of them.
+
 REQUIRED JSON SECTIONS (include ONLY these fields):
 
-- theTrick: REQUIRED - One-line explanation of what's wrong. Format: "Line X: [what's wrong] - [why it's wrong]". Example: "Line 8: You're checking 'i < len(arr)' but modifying 'arr' inside the loop. Classic mistake - the length changes as you iterate!"
+- theTrick: REQUIRED - DO NOT just repeat the bug description. Instead, provide a memorable principle to avoid this mistake in the future. Format: "Remember: [principle that prevents this bug]". Example: "Remember: Always handle the empty case FIRST - check 'if not arr: return' before accessing arr[0]."
 
 - whatCodeDoes: REQUIRED - Plain English explanation of what algorithm/pattern this code is trying to implement. 1-2 sentences.
 
-- exactBugLine: REQUIRED - Object with {lineNumber: number, code: "the buggy line", issue: "specific explanation of the bug"}
+- exactBugLine: REQUIRED - If there's ONE bug: Object with {lineNumber: number, code: "the buggy line", issue: "specific explanation"}. If there are MULTIPLE bugs: Array of objects, each with {lineNumber, code, issue}. Number them in order found.
 
-${args.showPatternExplanation !== false ? '- bugDiagnosis: REQUIRED - Detailed analysis explaining the bug in context of the algorithm pattern. Why does this specific bug break the algorithm? (use \\n for line breaks)' : '- bugDiagnosis: DO NOT INCLUDE THIS FIELD'}
+${args.showPatternExplanation !== false ? '- bugDiagnosis: REQUIRED - Detailed analysis explaining the bug(s) in context of the algorithm pattern. Why does this specific bug break the algorithm? (use \\n for line breaks)' : '- bugDiagnosis: DO NOT INCLUDE THIS FIELD'}
 
-${args.showTraceTable !== false ? '- traceTable: REQUIRED - Array of 3-4 objects showing step-by-step execution that REVEALS the bug. Use keys: {step, variables, state, action}. Show where it goes wrong.' : '- traceTable: DO NOT INCLUDE THIS FIELD'}
+${args.showTraceTable !== false ? `- traceTable: REQUIRED - Array of objects showing step-by-step execution. Use keys: {section, step, variables, state, action}.
+  - Include a "section" field with value "BEFORE" for traces showing the bug, and "AFTER" for traces with the fixed code.
+  - BEFORE section: Show 3-5 steps where the bug causes incorrect behavior or failure.
+  - AFTER section: Show 3-5 steps with the fixed code working correctly.
+  ${args.testCases ? '- Trace through the provided test cases.' : '- Use your generated test cases.'}` : '- traceTable: DO NOT INCLUDE THIS FIELD'}
 
-- beforeCode: REQUIRED - The original code with "${args.language === 'python' ? '# BUG HERE' : '// BUG HERE'}" comment on the problematic line(s)
+- beforeCode: REQUIRED - The original code with "${args.language === 'python' ? '# BUG HERE' : '// BUG HERE'}" comment on the problematic line(s). If multiple bugs, number them like "${args.language === 'python' ? '# BUG 1' : '// BUG 1'}", "${args.language === 'python' ? '# BUG 2' : '// BUG 2'}", etc.
 
-- afterCode: REQUIRED - The fixed code with "${args.language === 'python' ? '# FIXED' : '// FIXED'}" comment on the corrected line(s). Show ONLY the minimal change needed.
+- afterCode: REQUIRED - The fixed code with "${args.language === 'python' ? '# FIXED' : '// FIXED'}" comment on the corrected line(s). Show ONLY the minimal changes needed.
 
-${args.generateTests ? '- testCases: REQUIRED - Array of exactly 3 test case strings that verify the fix works' : '- testCases: DO NOT INCLUDE THIS FIELD'}
+- testCases: REQUIRED - Array of exactly 3 test case strings that verify the fix works. Include at least 1 edge case.
 
-- ifOnExam: REQUIRED - What variation of this bug a professor might test. Example: "Professor might give you working code and ask you to identify what happens if you change line 5 to use '<=' instead of '<'."
+- ifOnExam: REQUIRED - What variation of this bug a professor might test. Include a 1-2 sentence prep tip on how students can practice spotting this type of bug. Example: "Professor might give working code and ask what happens if you change '<' to '<='. Prep tip: Practice tracing loops with boundary values (0, 1, n-1, n) to catch off-by-one errors."
 
-${args.showEdgeWarnings ? '- edgeCases: REQUIRED - Array of exactly 3 related edge case warnings - other bugs to watch for with this pattern' : '- edgeCases: DO NOT INCLUDE THIS FIELD'}
+${args.showEdgeWarnings ? '- edgeCases: REQUIRED - Array of exactly 3 objects with {case: "edge case name", hint: "1-2 sentence tip on how to handle this in code"}. Example: [{case: "Empty array", hint: "Add if not arr: return early at the start before accessing any elements."}]' : '- edgeCases: DO NOT INCLUDE THIS FIELD'}
+
+- difficultyScore: REQUIRED - Difficulty rating as exactly one of: "easy", "medium", or "hard" based on how tricky this bug is to spot.
+
+- relatedPatterns: REQUIRED - Array of 3-5 related bug patterns or DSA concepts. Example: ["Off-by-one errors", "Loop boundary conditions", "Array indexing"]
 
 Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
   }
@@ -401,9 +467,11 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
       traceTable: args.showTraceTable !== false ? [] : null,
       beforeCode: args.code,
       afterCode: "# Error occurred during debugging",
-      testCases: args.generateTests ? [] : null,
+      testCases: [],
       ifOnExam: "Error occurred",
       edgeCases: args.showEdgeWarnings ? [] : null,
+      difficultyScore: null,
+      relatedPatterns: [],
     };
   }
 }

@@ -83,6 +83,7 @@ const learnModeInputSchema = z.object({
 const buildModeInputSchema = z.object({
   problem: z.string().min(1).describe("The coding problem description"),
   testCases: z.string().optional().describe("Optional test cases or doctests the solution should pass"),
+  constraints: z.string().optional().describe("Optional time/space complexity constraints (e.g., 'O(n) time, O(1) space')"),
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
   allowRecursion: z.boolean().default(true).describe("Whether recursion is allowed"),
   skeletonOnly: z.boolean().default(false).describe("Whether to show skeleton only (no full solution)"),
@@ -95,6 +96,8 @@ const buildModeInputSchema = z.object({
 const debugModeInputSchema = z.object({
   code: z.string().min(1).describe("The code snippet to debug or fill-in-the-blank code"),
   problemDescription: z.string().optional().describe("Optional description of what the code should do"),
+  testCases: z.string().optional().describe("Optional test cases to verify the fix works"),
+  constraints: z.string().optional().describe("Optional time/space complexity constraints"),
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
   debugMode: z.enum(["debug", "fill-in-blank"]).default("debug").describe("Mode: debug existing code or fill-in-the-blank exercise"),
   generateTests: z.boolean().default(true).describe("Whether to generate test cases"),
@@ -146,6 +149,87 @@ function makeToolOutput(mode, outputs, message) {
       }
     ]
   };
+}
+
+//
+// Helper: Infer data structures and algorithms from topic (for Learn mode)
+//
+function topicToDataStructures(topic) {
+  if (!topic) return [];
+  const lowerTopic = topic.toLowerCase();
+  const structures = [];
+  
+  // Data Structures
+  if (lowerTopic.includes('bfs') || lowerTopic.includes('breadth') || lowerTopic.includes('level order')) structures.push('queue');
+  if (lowerTopic.includes('dfs') || lowerTopic.includes('depth first')) structures.push('stack');
+  if (lowerTopic.includes('stack')) structures.push('stack');
+  if (lowerTopic.includes('queue')) structures.push('queue');
+  if (lowerTopic.includes('binary search') || lowerTopic.includes('array') || lowerTopic.includes('two pointer')) structures.push('array');
+  if (lowerTopic.includes('hash') || lowerTopic.includes('two sum') || lowerTopic.includes('dictionary') || lowerTopic.includes('map')) structures.push('hashmap');
+  if (lowerTopic.includes('set')) structures.push('set');
+  if (lowerTopic.includes('heap') || lowerTopic.includes('priority')) structures.push('heap');
+  if (lowerTopic.includes('tree') || lowerTopic.includes('bst') || lowerTopic.includes('binary tree')) structures.push('tree');
+  if (lowerTopic.includes('graph') || lowerTopic.includes('adjacency')) structures.push('graph');
+  if (lowerTopic.includes('linked list') || lowerTopic.includes('linkedlist')) structures.push('linked_list');
+  if (lowerTopic.includes('trie')) structures.push('trie');
+  
+  // Algorithms
+  if (lowerTopic.includes('bubble sort')) structures.push('bubble_sort');
+  if (lowerTopic.includes('merge sort')) structures.push('merge_sort');
+  if (lowerTopic.includes('quick sort') || lowerTopic.includes('quicksort')) structures.push('quick_sort');
+  if (lowerTopic.includes('insertion sort')) structures.push('insertion_sort');
+  if (lowerTopic.includes('selection sort')) structures.push('selection_sort');
+  if (lowerTopic.includes('heap sort')) structures.push('heap_sort');
+  if (lowerTopic.includes('radix sort')) structures.push('radix_sort');
+  if (lowerTopic.includes('counting sort')) structures.push('counting_sort');
+  if (lowerTopic.includes('bucket sort')) structures.push('bucket_sort');
+  if (lowerTopic.includes('recursion') || lowerTopic.includes('recursive')) structures.push('recursion');
+  if (lowerTopic.includes('tree recursion')) structures.push('tree_recursion');
+  if (lowerTopic.includes('dynamic programming') || lowerTopic.includes(' dp ') || lowerTopic.includes('memoization')) structures.push('dynamic_programming');
+  if (lowerTopic.includes('backtrack')) structures.push('backtracking');
+  if (lowerTopic.includes('greedy')) structures.push('greedy');
+  if (lowerTopic.includes('divide and conquer')) structures.push('divide_and_conquer');
+  if (lowerTopic.includes('sliding window')) structures.push('sliding_window');
+  if (lowerTopic.includes('two pointer') || lowerTopic.includes('two-pointer')) structures.push('two_pointers');
+  if (lowerTopic.includes('binary search')) structures.push('binary_search');
+  if (lowerTopic.includes('topological')) structures.push('topological_sort');
+  if (lowerTopic.includes('dijkstra')) structures.push('dijkstra');
+  if (lowerTopic.includes('bellman')) structures.push('bellman_ford');
+  if (lowerTopic.includes('floyd')) structures.push('floyd_warshall');
+  if (lowerTopic.includes('kruskal') || lowerTopic.includes('prim')) structures.push('minimum_spanning_tree');
+  if (lowerTopic.includes('union find') || lowerTopic.includes('disjoint set')) structures.push('union_find');
+  
+  return [...new Set(structures)]; // Remove duplicates
+}
+
+//
+// Helper: Detect data structures from code (for Build and Debug modes)
+//
+function detectDataStructures(code) {
+  if (!code) return [];
+  const structures = [];
+  const lowerCode = code.toLowerCase();
+  
+  // Data structures
+  if (lowerCode.includes('dict') || lowerCode.includes('hashmap') || lowerCode.includes('map<') || lowerCode.includes('{}') || lowerCode.includes('collections.defaultdict')) structures.push('hashmap');
+  if (lowerCode.includes('list') || lowerCode.includes('array') || lowerCode.includes('[]')) structures.push('array');
+  if (lowerCode.includes('queue') || lowerCode.includes('deque') || lowerCode.includes('collections.deque')) structures.push('queue');
+  if (lowerCode.includes('stack') || (lowerCode.includes('.pop()') && lowerCode.includes('.append('))) structures.push('stack');
+  if (lowerCode.includes('heap') || lowerCode.includes('heapq') || lowerCode.includes('priorityqueue') || lowerCode.includes('priority_queue')) structures.push('heap');
+  if (lowerCode.includes('set(') || lowerCode.includes('hashset') || lowerCode.includes('set<')) structures.push('set');
+  if (lowerCode.includes('treenode') || lowerCode.includes('binarytree') || lowerCode.includes('root.left') || lowerCode.includes('root.right')) structures.push('tree');
+  if (lowerCode.includes('graph') || lowerCode.includes('adjacency') || lowerCode.includes('neighbors')) structures.push('graph');
+  if (lowerCode.includes('listnode') || lowerCode.includes('linkedlist') || lowerCode.includes('.next')) structures.push('linked_list');
+  if (lowerCode.includes('trie') || lowerCode.includes('trienode')) structures.push('trie');
+  
+  // Algorithms (detected from code patterns)
+  if (lowerCode.includes('def ') && (lowerCode.match(/def\s+\w+\([^)]*\)[\s\S]*?\1\(/))) structures.push('recursion'); // Self-referential call
+  if (lowerCode.includes('memo') || lowerCode.includes('@cache') || lowerCode.includes('@lru_cache')) structures.push('dynamic_programming');
+  if (lowerCode.includes('backtrack')) structures.push('backtracking');
+  if ((lowerCode.includes('left') && lowerCode.includes('right') && lowerCode.includes('mid')) || lowerCode.includes('bisect')) structures.push('binary_search');
+  if (lowerCode.includes('window') || (lowerCode.includes('start') && lowerCode.includes('end') && lowerCode.includes('while'))) structures.push('sliding_window');
+  
+  return [...new Set(structures)];
 }
 
 //
@@ -301,6 +385,11 @@ function createAlgoTutorServer() {
         const learnMetadata = {
           patternDetected: outputs.theTrick ? outputs.theTrick.split('.')[0] : null, // First sentence as pattern
           trickShown: outputs.theTrick || null,
+          dataStructures: topicToDataStructures(args.topic), // Infer from topic
+          whatProfessorsTest: outputs.whatProfessorsTest || null,
+          timeComplexity: outputs.complexity || null,
+          difficultyScore: outputs.difficultyScore || null,
+          relatedPatterns: outputs.relatedPatterns || null,
           requestData: {
             topic: args.topic,
             difficulty: args.difficulty,
@@ -314,7 +403,10 @@ function createAlgoTutorServer() {
             hasPatternSignature: !!(outputs.patternSignature && outputs.patternSignature.length > 0),
             hasMemorableTemplate: !!outputs.memorableTemplate,
             hasDryRunTable: !!(outputs.dryRunTable && outputs.dryRunTable.length > 0),
-            hasPaperSummary: !!(outputs.paperSummary || outputs.paperVersion)
+            hasPaperSummary: !!(outputs.paperSummary || outputs.paperVersion),
+            hasWhatProfessorsTest: !!outputs.whatProfessorsTest,
+            hasDifficultyScore: !!outputs.difficultyScore,
+            hasRelatedPatterns: !!(outputs.relatedPatterns && outputs.relatedPatterns.length > 0)
           }
         };
         
@@ -432,42 +524,32 @@ function createAlgoTutorServer() {
           });
         }
         
-        // Helper function to detect data structures from code
-        const detectDataStructures = (code) => {
-          if (!code) return [];
-          const structures = [];
-          const lowerCode = code.toLowerCase();
-          if (lowerCode.includes('dict') || lowerCode.includes('hashmap') || lowerCode.includes('map<') || lowerCode.includes('{}')) structures.push('hashmap');
-          if (lowerCode.includes('list') || lowerCode.includes('array') || lowerCode.includes('[]')) structures.push('array');
-          if (lowerCode.includes('queue') || lowerCode.includes('deque')) structures.push('queue');
-          if (lowerCode.includes('stack') || lowerCode.includes('.pop()') || lowerCode.includes('.push(')) structures.push('stack');
-          if (lowerCode.includes('heap') || lowerCode.includes('heapq') || lowerCode.includes('priorityqueue')) structures.push('heap');
-          if (lowerCode.includes('set(') || lowerCode.includes('hashset') || lowerCode.includes('set<')) structures.push('set');
-          if (lowerCode.includes('treenode') || lowerCode.includes('binarytree')) structures.push('tree');
-          if (lowerCode.includes('graph') || lowerCode.includes('adjacency')) structures.push('graph');
-          if (lowerCode.includes('listnode') || lowerCode.includes('linkedlist') || lowerCode.includes('.next')) structures.push('linked_list');
-          return structures;
-        };
-        
         // Log usage with V2 personalization metadata
         const buildMetadata = {
           patternDetected: outputs.pattern || null,
           trickShown: outputs.theShortcut || null,
-          dataStructures: detectDataStructures(outputs.code),
+          dataStructures: detectDataStructures(outputs.code), // Use global helper
+          dontForget: outputs.dontForget || null,
+          timeComplexity: outputs.complexity || null,
+          difficultyScore: outputs.difficultyScore || null,
+          relatedPatterns: outputs.relatedPatterns || null,
           requestData: {
             problem: args.problem.substring(0, 200), // Truncate long problems
             language: args.language,
             allowRecursion: args.allowRecursion,
             skeletonOnly: args.skeletonOnly,
             includeDryRun: args.includeDryRun,
-            minimalCode: args.minimalCode
+            minimalCode: args.minimalCode,
+            constraints: args.constraints || null
           },
           responseSummary: {
             hasPattern: !!outputs.pattern,
             hasCode: !!outputs.code,
             hasDryRunTable: !!(outputs.dryRunTable && outputs.dryRunTable.length > 0),
             hasTimeEstimate: !!outputs.timeEstimate,
-            hasDontForget: !!outputs.dontForget
+            hasDontForget: !!outputs.dontForget,
+            hasDifficultyScore: !!outputs.difficultyScore,
+            hasRelatedPatterns: !!(outputs.relatedPatterns && outputs.relatedPatterns.length > 0)
           }
         };
         
@@ -575,22 +657,60 @@ function createAlgoTutorServer() {
           });
         }
         
-        // Extract mistake type from debug analysis
+        // Extract mistake type from debug analysis with comprehensive matching
         const extractMistakeType = (outputs) => {
-          if (outputs.exactBugLine?.issue) {
-            const issue = outputs.exactBugLine.issue.toLowerCase();
-            if (issue.includes('off-by-one') || issue.includes('off by one') || issue.includes('boundary')) return 'off-by-one';
-            if (issue.includes('edge case') || issue.includes('empty') || issue.includes('null')) return 'edge-case';
-            if (issue.includes('infinite') || issue.includes('loop')) return 'infinite-loop';
-            if (issue.includes('wrong data') || issue.includes('type')) return 'wrong-data-structure';
-            if (issue.includes('index') || issue.includes('out of bounds')) return 'index-error';
-            if (issue.includes('logic') || issue.includes('condition')) return 'logic-error';
-            return 'other';
+          // Handle multiple bugs - check first one if array
+          const bugLine = Array.isArray(outputs.exactBugLine) 
+            ? outputs.exactBugLine[0] 
+            : outputs.exactBugLine;
+            
+          if (bugLine?.issue) {
+            const issue = bugLine.issue.toLowerCase();
+            // Off-by-one errors
+            if (issue.includes('off-by-one') || issue.includes('off by one')) return 'off-by-one';
+            if (issue.includes('< instead of <=') || issue.includes('<= instead of <')) return 'off-by-one-loop';
+            if (issue.includes('len(') && issue.includes('-1')) return 'off-by-one-array';
+            // Edge cases
+            if (issue.includes('empty array') || issue.includes('empty list') || issue.includes('length 0')) return 'edge-case-empty';
+            if (issue.includes('null') || issue.includes('none') || issue.includes('undefined')) return 'edge-case-null';
+            if (issue.includes('single element') || issue.includes('one element')) return 'edge-case-single';
+            if (issue.includes('edge case') || issue.includes('boundary')) return 'missing-edge-case';
+            // Loop errors
+            if (issue.includes('infinite loop') || issue.includes('never terminates')) return 'infinite-loop';
+            // Index errors
+            if (issue.includes('index') && (issue.includes('out of') || issue.includes('bounds') || issue.includes('range'))) return 'index-out-of-bounds';
+            // Data structure errors
+            if (issue.includes('wrong data structure') || issue.includes('should use')) return 'wrong-data-structure';
+            // Logic errors
+            if (issue.includes('comparison') || issue.includes('operator') || issue.includes('> instead of') || issue.includes('< instead of')) return 'comparison-operator';
+            if (issue.includes('wrong condition') || issue.includes('condition is wrong')) return 'wrong-condition';
+            if (issue.includes('logic') || issue.includes('logical')) return 'logic-error';
+            // Return/initialization errors
+            if (issue.includes('return') && (issue.includes('wrong') || issue.includes('missing') || issue.includes('early'))) return 'wrong-return';
+            if (issue.includes('initialize') || issue.includes('initial value') || issue.includes('not initialized')) return 'initialization-error';
+            // Recursion errors
+            if (issue.includes('base case') || issue.includes('termination condition')) return 'recursion-base-case';
+            if (issue.includes('recursive call') || issue.includes('recursion step')) return 'recursion-step';
+            // Algorithm errors
+            if (issue.includes('wrong algorithm') || issue.includes('inefficient')) return 'wrong-algorithm';
+            // Type errors
+            if (issue.includes('type error') || issue.includes('type mismatch') || issue.includes('cannot add')) return 'type-error';
+            // Scope errors  
+            if (issue.includes('scope') || issue.includes('not defined') || issue.includes('undefined variable')) return 'scope-error';
+            // Reference errors
+            if (issue.includes('reference') || issue.includes('not found')) return 'reference-error';
+            // Generic fallback based on keywords
+            if (issue.includes('missing')) return 'missing-edge-case';
+            if (issue.includes('wrong')) return 'logic-error';
           }
+          // Fallback to theTrick if no specific match
           if (outputs.theTrick) {
-            return outputs.theTrick.split('.')[0].substring(0, 50);
+            const trick = outputs.theTrick.toLowerCase();
+            if (trick.includes('off-by-one') || trick.includes('boundary')) return 'off-by-one';
+            if (trick.includes('edge case')) return 'missing-edge-case';
+            if (trick.includes('infinite')) return 'infinite-loop';
           }
-          return null;
+          return 'logic-error'; // Default fallback instead of 'other'
         };
         
         // Log usage with V2 personalization metadata
@@ -598,21 +718,33 @@ function createAlgoTutorServer() {
           patternDetected: outputs.whatCodeDoes || null,
           mistakeType: extractMistakeType(outputs),
           trickShown: outputs.theTrick || null,
+          dataStructures: detectDataStructures(args.code), // Detect from user's code
+          whatProfessorsTest: outputs.ifOnExam || null, // Maps to If On Exam field
+          mistake: outputs.exactBugLine || null, // Full bug location as JSONB
+          timeComplexity: outputs.complexity || null,
+          difficultyScore: outputs.difficultyScore || null,
+          relatedPatterns: outputs.relatedPatterns || null,
           requestData: {
             debugMode: args.debugMode,
             hasCode: !!args.code,
             codeLength: args.code ? args.code.length : 0,
             language: args.language,
             hasProblemDescription: !!args.problemDescription,
+            hasTestCases: !!args.testCases,
+            hasConstraints: !!args.constraints,
             generateTests: args.generateTests,
             showEdgeWarnings: args.showEdgeWarnings
           },
           responseSummary: {
             isFillinBlank: !!outputs.fillInBlankAnswers,
             hasExactBugLine: !!outputs.exactBugLine,
+            multipleBugs: Array.isArray(outputs.exactBugLine) && outputs.exactBugLine.length > 1,
+            bugCount: Array.isArray(outputs.exactBugLine) ? outputs.exactBugLine.length : (outputs.exactBugLine ? 1 : 0),
             hasTraceTable: !!(outputs.traceTable && outputs.traceTable.length > 0),
             hasBeforeAfter: !!(outputs.beforeCode && outputs.afterCode),
-            hasIfOnExam: !!outputs.ifOnExam
+            hasIfOnExam: !!outputs.ifOnExam,
+            hasDifficultyScore: !!outputs.difficultyScore,
+            hasRelatedPatterns: !!(outputs.relatedPatterns && outputs.relatedPatterns.length > 0)
           }
         };
         
@@ -1491,33 +1623,56 @@ const httpServer = createServer(async (req, res) => {
       }
 
       let nextBillingDate = null;
+      let cancelAt = userData.subscription_cancel_at || null;
 
-      // If user is premium and has a subscription, get next billing date from Stripe
-      if (userData.subscription_tier === 'premium' && 
-          userData.stripe_subscription_id && 
-          stripe && 
-          !userData.subscription_cancel_at) {
+      // If user has a Stripe subscription, always check Stripe for accurate status
+      if (userData.stripe_subscription_id && stripe) {
         try {
           const subscription = await stripe.subscriptions.retrieve(userData.stripe_subscription_id);
-          nextBillingDate = subscription.current_period_end;
-          console.log('[API] Got next billing date from Stripe:', nextBillingDate);
+          console.log('[API] Stripe subscription details:', {
+            id: subscription.id,
+            status: subscription.status,
+            cancel_at_period_end: subscription.cancel_at_period_end,
+            current_period_end: subscription.current_period_end,
+            cancel_at: subscription.cancel_at
+          });
+          
+          if (subscription.cancel_at_period_end || subscription.cancel_at) {
+            // Subscription is set to cancel - use the period end as the access end date
+            cancelAt = subscription.current_period_end;
+            console.log('[API] Subscription is cancelled, access until:', new Date(cancelAt * 1000).toISOString());
+            
+            // Update database if not already set
+            if (!userData.subscription_cancel_at) {
+              console.log('[API] Updating database with cancel date...');
+              await supabase
+                .from('users')
+                .update({ subscription_cancel_at: cancelAt })
+                .eq('email', email);
+            }
+          } else if (subscription.status === 'active') {
+            // Active subscription - show next billing date
+            nextBillingDate = subscription.current_period_end;
+            console.log('[API] Active subscription, next billing:', new Date(nextBillingDate * 1000).toISOString());
+          }
         } catch (stripeError) {
           console.log('[API] Could not retrieve subscription from Stripe:', stripeError.message);
+          // Fall back to database values
         }
       }
 
       console.log('[API] ✓ Subscription status for', email, ':', {
         tier: userData.subscription_tier,
         status: userData.subscription_status,
-        cancelAt: userData.subscription_cancel_at,
-        nextBillingDate
+        cancelAt: cancelAt,
+        nextBillingDate: nextBillingDate
       });
 
       res.writeHead(200);
       return res.end(JSON.stringify({
         tier: userData.subscription_tier || 'free',
         status: userData.subscription_status || 'active',
-        cancelAt: userData.subscription_cancel_at || null,
+        cancelAt: cancelAt,
         nextBillingDate: nextBillingDate
       }));
     } catch (error) {

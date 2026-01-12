@@ -264,6 +264,12 @@ export async function checkUsageLimit(user, widgetId = null) {
  * @param {string} metadata.trickShown - The key insight/trick shown
  * @param {object} metadata.requestData - Original request parameters
  * @param {object} metadata.responseSummary - Summary of what was returned
+ * @param {string} metadata.whatProfessorsTest - What Professors Test content (Learn + Debug)
+ * @param {string} metadata.dontForget - Don't Forget warning (Build mode)
+ * @param {object} metadata.mistake - Full bug location details (Debug mode)
+ * @param {string} metadata.timeComplexity - Time/space complexity analysis
+ * @param {string} metadata.difficultyScore - Difficulty rating (easy/medium/hard)
+ * @param {string[]} metadata.relatedPatterns - Related DSA patterns
  */
 export async function logUsage(user, mode, topic = null, widgetId = null, metadata = {}) {
   if (!supabase) {
@@ -301,6 +307,26 @@ export async function logUsage(user, mode, topic = null, widgetId = null, metada
     }
     if (metadata.responseSummary) {
       logEntry.response_summary = metadata.responseSummary;
+    }
+    
+    // Add new V2 enhanced logging fields
+    if (metadata.whatProfessorsTest) {
+      logEntry.what_professors_test = metadata.whatProfessorsTest;
+    }
+    if (metadata.dontForget) {
+      logEntry.dont_forget = metadata.dontForget;
+    }
+    if (metadata.mistake) {
+      logEntry.mistake = metadata.mistake;
+    }
+    if (metadata.timeComplexity) {
+      logEntry.time_complexity = metadata.timeComplexity;
+    }
+    if (metadata.difficultyScore) {
+      logEntry.difficulty_score = metadata.difficultyScore;
+    }
+    if (metadata.relatedPatterns && metadata.relatedPatterns.length > 0) {
+      logEntry.related_patterns = metadata.relatedPatterns;
     }
 
     const { error: logError } = await supabase.from('usage_logs').insert([logEntry]);
