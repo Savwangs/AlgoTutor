@@ -2,7 +2,7 @@
 
 **Learn Data Structures & Algorithms in small steps with minimal code, dry-runs, and clear explanations.**
 
-AlgoTutor is a ChatGPT App built with the GPT Apps SDK that helps you master DSA concepts through:
+AlgoTutor is a ChatGPT App built with the Model Context Protocol (MCP) that helps you master DSA concepts through:
 - Small, slow steps (no overwhelming explanations)
 - Minimal code (no abstraction, no fancy syntax)
 - Dry-run tables (see exactly what happens at each step)
@@ -38,6 +38,7 @@ Generates solutions for coding problems with:
 
 **Inputs:**
 - Problem description
+- Test cases (optional) - doctests or examples the solution should pass
 - Language: Python / Java / C++
 - Toggles: Allow recursion, Skeleton only, Include dry-run, Minimal code
 
@@ -52,7 +53,7 @@ Diagnoses bugs in your code with:
 
 **Inputs:**
 - Code snippet
-- Input sample (optional)
+- Problem description (optional) - what the code should do
 - Language: Python / Java / C++
 - Toggles: Generate tests, Show edge warnings
 
@@ -64,28 +65,50 @@ Diagnoses bugs in your code with:
 npm install
 ```
 
-### 2. Start the Server
+### 2. Environment Variables
+
+Create a `.env` file with the following:
+
+```bash
+# Required
+OPENAI_API_KEY=sk-...          # OpenAI API key for content generation
+
+# Optional - Authentication (Supabase)
+SUPABASE_URL=https://xxx.supabase.co
+SUPABASE_SERVICE_KEY=eyJ...
+REQUIRE_AUTH=true              # Set to 'true' to enable auth
+FREE_TIER_LIMIT=1              # Daily usage limit for free users
+
+# Optional - Payments (Stripe)
+STRIPE_SECRET_KEY=sk_...
+STRIPE_PRICE_ID=price_...
+STRIPE_WEBHOOK_SECRET=whsec_...
+```
+
+### 3. Start the Server
 
 ```bash
 npm start
+# Or for development with auto-reload:
+npm run dev
 ```
 
 The server runs on `http://localhost:8787/mcp` by default.
 
-### 3. Connect to ChatGPT
+### 4. Connect to ChatGPT
 
 1. Open ChatGPT Settings → Apps & Connectors → Create
 2. Name: **AlgoTutor**
 3. Description: **Learn DSA in small steps**
-4. MCP Server URL: Your public URL (use ngrok for local testing)
+4. MCP Server URL: Your public URL (use ngrok for local testing, or deploy to Render)
 5. Click **Create**
 
-### 4. Enable Developer Mode
+### 5. Enable Developer Mode
 
 - Settings → Apps & Connectors → Advanced Settings
 - Toggle **Developer Mode** on
 
-### 5. Test the App
+### 6. Test the App
 
 Open a new chat, select **AlgoTutor** from the tools menu, and try:
 
@@ -99,21 +122,47 @@ Debug Mode: Find the bug in [paste code]
 
 ```
 algo-tutor/
-├── server.js              # MCP server with 3 tools (learn, build, debug)
+├── server.js              # MCP server with 4 tools + API endpoints
+├── llm.js                 # OpenAI integration (gpt-4o-mini)
+├── auth.js                # Authentication & subscription management
 ├── public/
 │   └── algo-tutor.html    # Interactive widget UI
+├── web/                   # Marketing & account pages
+│   ├── index.html         # Landing page
+│   ├── pricing.html       # Subscription plans
+│   ├── login.html         # User login
+│   ├── signup.html        # User registration
+│   ├── dashboard.html     # User dashboard
+│   ├── success.html       # Payment success
+│   └── cancel.html        # Subscription cancellation
+├── migrations/            # Database schema migrations
+├── examples/              # Example tool inputs/outputs
 ├── package.json           # Dependencies
 └── README.md              # This file
 ```
 
 ## 🔧 Development
 
-### Server Tools
+### MCP Tools
 
-1. **learn_mode** - Explains DSA topics
-2. **build_mode** - Generates coding solutions
-3. **debug_mode** - Diagnoses and fixes bugs
+1. **learn_mode** - Explains DSA topics with dry-runs and examples
+2. **build_mode** - Generates coding solutions (premium only)
+3. **debug_mode** - Diagnoses and fixes bugs (premium only)
 4. **list_algo_sessions** - Lists recent sessions
+
+### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/mcp` | POST | MCP protocol endpoint |
+| `/health` | GET | Health check |
+| `/api/create-checkout` | POST | Create Stripe checkout session |
+| `/api/stripe-webhook` | POST | Handle Stripe webhooks |
+| `/api/get-premium-code` | GET | Get premium code by session ID |
+| `/api/lookup-code` | GET | Lookup premium code by email |
+| `/api/activate-premium` | POST | Activate premium with code |
+| `/api/register-session` | POST | Register widget session |
+| `/api/cancel-subscription` | POST | Cancel subscription |
 
 ### Widget Components
 
@@ -121,6 +170,7 @@ algo-tutor/
 - Input forms with toggles
 - Output panels with structured blocks
 - Real-time state updates from ChatGPT
+- Premium code activation UI
 
 ## 🎨 Design Philosophy
 
@@ -165,13 +215,27 @@ Output: "Off-by-one error on line 5. You wrote 'high = mid' instead of 'high = m
 
 - All tool responses are rendered in the **AlgoTutor panel** (not in chat)
 - Chat responses are kept minimal (e.g., "Check the panel for details")
-- Sessions are stored in memory (resets on server restart)
+- User data and usage logs are stored in Supabase (persistent across restarts)
 - The widget automatically updates when tools return new data
+
+## 💰 Subscription Tiers
+
+| Feature | Free | Premium |
+|---------|------|---------|
+| Learn Mode | ✅ 1/day | ✅ Unlimited |
+| Build Mode | ❌ | ✅ Unlimited |
+| Debug Mode | ❌ | ✅ Unlimited |
+
+- Free tier users get 1 use per 24-hour rolling window (Learn Mode only)
+- Premium users have unlimited access to all modes
+- Premium codes are generated after Stripe payment and can be activated in the widget
 
 ## 🔗 Resources
 
-- [OpenAI Apps SDK Documentation](https://developers.openai.com/apps-sdk)
-- [MCP Server Guide](https://developers.openai.com/apps-sdk/build/mcp-server)
+- [Model Context Protocol (MCP) SDK](https://github.com/modelcontextprotocol/sdk)
+- [Supabase Documentation](https://supabase.com/docs)
+- [Stripe API Reference](https://stripe.com/docs/api)
+- [OpenAI API Documentation](https://platform.openai.com/docs)
 
 ## 📄 License
 
