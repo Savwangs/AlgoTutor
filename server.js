@@ -982,6 +982,18 @@ const httpServer = createServer(async (req, res) => {
           console.log('[API] ✓ Premium code stored:', premiumCode);
         }
 
+        // Get subscription details to store next billing date
+        let nextBillingDate = null;
+        if (subscriptionId && stripe) {
+          try {
+            const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+            nextBillingDate = subscription.current_period_end;
+            console.log('[API] Next billing date from Stripe:', nextBillingDate ? new Date(nextBillingDate * 1000).toISOString() : 'not available');
+          } catch (subError) {
+            console.error('[API] Error fetching subscription for billing date:', subError.message);
+          }
+        }
+
         // Update or create user with premium status
         const { data: existingUser } = await supabase
           .from('users')
@@ -989,15 +1001,23 @@ const httpServer = createServer(async (req, res) => {
           .eq('email', email)
           .single();
 
+        const userUpdateData = {
+          subscription_tier: 'premium',
+          subscription_status: 'active',
+          stripe_customer_id: customerId,
+          stripe_subscription_id: subscriptionId,
+          subscription_cancel_at: null // Clear any previous cancellation
+        };
+        
+        // Add next_billing_date if we got it from Stripe
+        if (nextBillingDate) {
+          userUpdateData.next_billing_date = nextBillingDate;
+        }
+
         if (existingUser) {
           await supabase
             .from('users')
-            .update({
-              subscription_tier: 'premium',
-              subscription_status: 'active',
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subscriptionId
-            })
+            .update(userUpdateData)
             .eq('email', email);
           console.log('[API] ✓ Updated existing user to premium:', email);
         } else {
@@ -1005,10 +1025,7 @@ const httpServer = createServer(async (req, res) => {
             .from('users')
             .insert({
               email: email,
-              subscription_tier: 'premium',
-              subscription_status: 'active',
-              stripe_customer_id: customerId,
-              stripe_subscription_id: subscriptionId
+              ...userUpdateData
             });
           console.log('[API] ✓ Created new premium user:', email);
         }
@@ -1600,24 +1617,35 @@ const httpServer = createServer(async (req, res) => {
             cancel_at_period_end: true
           });
           
-          // Always retrieve full subscription to get current_period_end reliably
+          // Retrieve full subscription with expanded data
           console.log('[API] Retrieving full subscription to get current_period_end...');
           const fullSubscription = await stripe.subscriptions.retrieve(subscriptionId);
-          accessUntil = fullSubscription.current_period_end;
+          
+          // Debug: Log full subscription object keys and raw data
+          console.log('[API] Full subscription object keys:', Object.keys(fullSubscription));
+          console.log('[API] Full subscription raw:', JSON.stringify(fullSubscription, null, 2));
+          
+          // Try multiple property paths for current_period_end
+          accessUntil = fullSubscription.current_period_end 
+            || fullSubscription.cancel_at 
+            || (fullSubscription.items?.data?.[0]?.current_period_end);
           
           console.log('[API] ✓ Subscription details:', {
             id: fullSubscription.id,
             status: fullSubscription.status,
             cancel_at_period_end: fullSubscription.cancel_at_period_end,
             current_period_end: fullSubscription.current_period_end,
+            cancel_at: fullSubscription.cancel_at,
             accessUntil: accessUntil
           });
           
-          if (accessUntil) {
-            console.log('[API] ✓ Subscription set to cancel at:', new Date(accessUntil * 1000).toISOString());
-          } else {
-            console.error('[API] ⚠️ current_period_end is still null/undefined after retrieve');
+          // If still undefined, calculate from now + 30 days as fallback
+          if (!accessUntil) {
+            console.log('[API] ⚠️ Could not get period end from Stripe, using 30-day estimate');
+            accessUntil = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
           }
+          
+          console.log('[API] ✓ Subscription set to cancel at:', new Date(accessUntil * 1000).toISOString());
         } catch (stripeError) {
           console.error('[API] Stripe cancellation error:', stripeError.message);
           res.writeHead(500);
@@ -1687,10 +1715,10 @@ const httpServer = createServer(async (req, res) => {
     }
 
     try {
-      // Get user subscription info from database
+      // Get user subscription info from database (including next_billing_date for fallback)
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('subscription_tier, subscription_status, subscription_cancel_at, stripe_subscription_id')
+        .select('subscription_tier, subscription_status, subscription_cancel_at, stripe_subscription_id, next_billing_date')
         .eq('email', email)
         .maybeSingle();
 
@@ -1705,10 +1733,11 @@ const httpServer = createServer(async (req, res) => {
         return res.end(JSON.stringify({ error: 'User not found' }));
       }
 
-      let nextBillingDate = null;
+      // Start with database values as fallback
+      let nextBillingDate = userData.next_billing_date || null;
       let cancelAt = userData.subscription_cancel_at || null;
 
-      // If user has a Stripe subscription, always check Stripe for accurate status
+      // If user has a Stripe subscription, try to get fresh data from Stripe
       if (userData.stripe_subscription_id && stripe) {
         try {
           const subscription = await stripe.subscriptions.retrieve(userData.stripe_subscription_id);
@@ -1722,11 +1751,13 @@ const httpServer = createServer(async (req, res) => {
           
           if (subscription.cancel_at_period_end || subscription.cancel_at) {
             // Subscription is set to cancel - use the period end as the access end date
-            cancelAt = subscription.current_period_end;
-            console.log('[API] Subscription is cancelled, access until:', new Date(cancelAt * 1000).toISOString());
+            cancelAt = subscription.current_period_end || cancelAt;
+            if (cancelAt) {
+              console.log('[API] Subscription is cancelled, access until:', new Date(cancelAt * 1000).toISOString());
+            }
             
             // Update database if not already set
-            if (!userData.subscription_cancel_at) {
+            if (!userData.subscription_cancel_at && cancelAt) {
               console.log('[API] Updating database with cancel date...');
               await supabase
                 .from('users')
@@ -1735,12 +1766,23 @@ const httpServer = createServer(async (req, res) => {
             }
           } else if (subscription.status === 'active') {
             // Active subscription - show next billing date
-            nextBillingDate = subscription.current_period_end;
-            console.log('[API] Active subscription, next billing:', new Date(nextBillingDate * 1000).toISOString());
+            nextBillingDate = subscription.current_period_end || nextBillingDate;
+            if (nextBillingDate) {
+              console.log('[API] Active subscription, next billing:', new Date(nextBillingDate * 1000).toISOString());
+              
+              // Update database with fresh billing date
+              if (subscription.current_period_end && subscription.current_period_end !== userData.next_billing_date) {
+                await supabase
+                  .from('users')
+                  .update({ next_billing_date: subscription.current_period_end })
+                  .eq('email', email);
+              }
+            }
           }
         } catch (stripeError) {
           console.log('[API] Could not retrieve subscription from Stripe:', stripeError.message);
-          // Fall back to database values
+          console.log('[API] Using database values as fallback');
+          // Fall back to database values (already set above)
         }
       }
 

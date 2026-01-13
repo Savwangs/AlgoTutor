@@ -2044,9 +2044,9 @@
         // Build natural language prompt for ChatGPT - Learn Mode
         let prompt = `Use AlgoTutor Learn Mode to teach me ${topic} with ${difficulty} difficulty and ${depth} depth.`;
         prompt += ` Use ${exampleSize} example size.`;
-        if (showPatternKeywords) prompt += ` Show pattern signature keywords.`;
-        if (showDryRun) prompt += ` Include exam-format trace table.`;
-        if (showPaperVersion) prompt += ` Include paper summary.`;
+        prompt += showPatternKeywords ? ` Show pattern signature keywords.` : ` Do NOT show pattern keywords.`;
+        prompt += showDryRun ? ` Include exam-format trace table.` : ` Do NOT include trace table.`;
+        prompt += showPaperVersion ? ` Include paper summary.` : ` Do NOT include paper summary.`;
 
         try {
           await sendFollowUp(prompt);
@@ -2082,11 +2082,11 @@
         let prompt = `Use AlgoTutor Build Mode to solve this problem in ${language}: ${problem}.`;
         if (testCases) prompt += ` The solution must pass these test cases: ${testCases}.`;
         if (constraints) prompt += ` The solution must meet these constraints: ${constraints}.`;
-        if (minimalCode) prompt += ` Use minimal paper-friendly code.`;
-        if (allowRecursion) prompt += ` Recursion is allowed.`;
-        if (skeletonOnly) prompt += ` Show skeleton only.`;
-        if (includeDryRun) prompt += ` Include exam-format dry-run.`;
-        if (showTimeEstimate) prompt += ` Show time estimate.`;
+        prompt += minimalCode ? ` Use minimal paper-friendly code.` : ` Include helpful comments in code.`;
+        prompt += allowRecursion ? ` Recursion is allowed.` : ` Do NOT use recursion - use iterative solutions only.`;
+        prompt += skeletonOnly ? ` Show skeleton only.` : ` Show full working solution.`;
+        prompt += includeDryRun ? ` Include exam-format dry-run.` : ` Do NOT include dry-run table.`;
+        prompt += showTimeEstimate ? ` Show time estimate.` : ` Do NOT show time estimate.`;
 
         try {
           await sendFollowUp(prompt);
@@ -2133,10 +2133,10 @@
         prompt += `.\n\nCode:\n\`\`\`${language}\n${code}\n\`\`\``;
         if (testCases) prompt += `\nUse these test cases: ${testCases}`;
         if (constraints) prompt += `\nWith constraints: ${constraints}`;
-        if (generateTests) prompt += `\nGenerate test cases.`;
-        if (showEdgeWarnings) prompt += ` Show edge case warnings.`;
-        if (showTraceTable) prompt += ` Show exam-format trace table.`;
-        if (showPatternExplanation) prompt += ` Explain the algorithm pattern.`;
+        prompt += generateTests ? `\nGenerate test cases.` : `\nDo NOT generate test cases.`;
+        prompt += showEdgeWarnings ? ` Show edge case warnings.` : ` Do NOT show edge warnings.`;
+        prompt += showTraceTable ? ` Show exam-format trace table.` : ` Do NOT show trace table.`;
+        prompt += showPatternExplanation ? ` Explain the algorithm pattern.` : ` Do NOT explain the pattern.`;
 
         try {
           await sendFollowUp(prompt);
@@ -2385,7 +2385,7 @@
           
           const upgradeBtn = document.createElement('button');
           upgradeBtn.className = 'upgrade-btn';
-          upgradeBtn.textContent = '⚡ Upgrade to Premium for Unlimited Access';
+          upgradeBtn.textContent = '⚡ Upgrade to Premium';
           upgradeBtn.onclick = () => {
             console.log("[Widget] Upgrade button clicked, opening:", error.upgradeUrl);
             window.open(error.upgradeUrl, '_blank');
@@ -2406,7 +2406,7 @@
           promoBanner.innerHTML = `
             <div class="promo-banner-title">🎉 Early Access: 30%+ OFF!</div>
             <p class="promo-banner-text">
-              Get premium now at <strong>$9.99/mo</strong>
+              Get premium now at <strong>$9.99/mo</strong>.
               Plus, <strong>early access to personalized exam prep</strong> coming soon.
               Guaranteed to help with any CS class exam.
             </p>

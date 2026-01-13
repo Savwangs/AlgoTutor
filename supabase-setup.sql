@@ -75,9 +75,9 @@ CREATE TABLE IF NOT EXISTS subscription_plans (
 -- 4. INSERT DEFAULT PLANS
 -- ================================================
 INSERT INTO subscription_plans (name, price_monthly, usage_limit, features, stripe_price_id) VALUES
-  ('Free', 0, 10, '{
-    "modes": ["learn"],
-    "max_per_day": 10,
+  ('Free', 0, 3, '{
+    "modes": ["learn", "build", "debug"],
+    "max_per_day": 3,
     "priority_support": false
   }', NULL),
   ('Premium', 9.99, NULL, '{

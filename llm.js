@@ -76,7 +76,7 @@ export async function generateLearnContent(args) {
   console.log('[generateLearnContent] Starting Learn Mode content for:', args.topic);
   console.log('[generateLearnContent] Args:', JSON.stringify(args, null, 2));
   
-  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator focused on EXAM SURVIVAL. Your job is to help students instantly recognize patterns and write correct code under time pressure. You teach exam tricks, not just DSA concepts. Respond with valid JSON only.`;
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator focused on EXAM SURVIVAL. Your job is to help students instantly recognize patterns and write correct code under time pressure. You teach exam tricks, not just DSA concepts. Keep explanations direct and actionable. Avoid unnecessary filler words. Respond with valid JSON only.`;
   
   // Build difficulty instruction
   let difficultyInstruction = '';
@@ -135,7 +135,7 @@ ${args.showDryRun ? '- dryRunTable: REQUIRED - Array of 3-4 objects with exam-fo
 
 - exampleWalkthrough: REQUIRED - One concrete example with specific input values traced through the algorithm step by step. Show the actual values changing.
 
-- whatProfessorsTest: REQUIRED - THE #1 edge case that appears on exams for this pattern. Not a list of 3 - just THE ONE that professors love to test. Explain why it breaks naive solutions. Include a 1-2 sentence tip on how students can prepare for this edge case.
+- whatProfessorsTest: REQUIRED - THE #1 edge case that appears on exams for this pattern. Not a list of 3 - just THE ONE that professors love to test. Explain why it breaks basic approaches. Include a 1-2 sentence tip on how students can prepare for this edge case.
 
 - complexity: REQUIRED - Time and space complexity in format "O(n) time, O(1) space" with brief explanation.
 
@@ -195,7 +195,7 @@ CODE STYLE PRINCIPLES:
 - If the problem needs a TreeNode or ListNode class, define it simply
 - The goal is READABLE, CORRECT code - not artificially simple code
 
-Respond with valid JSON only.`;
+Keep explanations direct and actionable. Avoid unnecessary filler words. Respond with valid JSON only.`;
   
   // Build code style instruction
   let codeStyleInstruction = '';
@@ -343,7 +343,7 @@ export async function generateDebugAnalysis(args) {
   );
   const isFillInBlank = args.debugMode === 'fill-in-blank' || hasBlanks;
   
-  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert code debugger focused on EXAM SUCCESS. Your job is to help students understand what's wrong with code and trace through it step-by-step like they would on a written exam. ${isFillInBlank ? 'This is a FILL-IN-THE-BLANK exercise - identify what goes in each blank and explain WHY based on the algorithm pattern.' : 'Identify bugs and provide fixes with clear explanations.'} Respond with valid JSON only.`;
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert code debugger focused on EXAM SUCCESS. Your job is to help students understand what's wrong with code and trace through it step-by-step like they would on a written exam. ${isFillInBlank ? 'This is a FILL-IN-THE-BLANK exercise - identify what goes in each blank and explain WHY based on the algorithm pattern.' : 'Identify bugs and provide fixes with clear explanations.'} Keep explanations direct and actionable. Avoid unnecessary filler words. Respond with valid JSON only.`;
   
   let userPrompt;
   

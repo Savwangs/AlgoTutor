@@ -273,8 +273,11 @@ export async function checkUsageLimit(user, widgetId = null) {
  */
 export async function logUsage(user, mode, topic = null, widgetId = null, metadata = {}) {
   if (!supabase) {
+    console.log('[Auth] Skipping logUsage - Supabase not configured');
     return; // Skip logging if Supabase not configured
   }
+
+  console.log('[Auth] logUsage called:', { userId: user.id, mode, topic, widgetId, hasMetadata: Object.keys(metadata).length > 0 });
 
   try {
     // Insert usage log with optional V2 personalization metadata
@@ -329,6 +332,9 @@ export async function logUsage(user, mode, topic = null, widgetId = null, metada
       logEntry.related_patterns = metadata.relatedPatterns;
     }
 
+    // Log the full entry being inserted for debugging
+    console.log('[Auth] Inserting usage log entry:', JSON.stringify(logEntry, null, 2));
+
     const { data: logData, error: logError } = await supabase
       .from('usage_logs')
       .insert([logEntry])
@@ -336,9 +342,17 @@ export async function logUsage(user, mode, topic = null, widgetId = null, metada
       .single();
 
     if (logError) {
-      console.error('[Auth] Error logging usage:', logError);
+      console.error('[Auth] ❌ Error logging usage:', logError);
+      console.error('[Auth] Error details:', {
+        code: logError.code,
+        message: logError.message,
+        details: logError.details,
+        hint: logError.hint
+      });
       return null;
     }
+    
+    console.log('[Auth] ✓ Usage log inserted successfully, id:', logData?.id);
 
     // Increment user usage count
     const { error: updateError } = await supabase
@@ -578,9 +592,22 @@ export async function linkPendingFreeSession(user) {
     return { user, widgetId: null };
   }
 
-  // Premium users don't need free tier tracking
+  // Premium users still need widget_id for logging purposes
   if (user.subscription_tier === 'premium') {
-    console.log('[Auth] Premium user, skipping free session linking');
+    // Look up existing linked widget_id even for premium users
+    const { data: existingSession } = await supabase
+      .from('free_sessions')
+      .select('widget_id')
+      .eq('mcp_user_id', user.chatgpt_user_id)
+      .order('last_seen_at', { ascending: false })
+      .limit(1)
+      .maybeSingle();
+    
+    if (existingSession) {
+      console.log('[Auth] Premium user, returning existing widget_id:', existingSession.widget_id);
+      return { user, widgetId: existingSession.widget_id };
+    }
+    console.log('[Auth] Premium user, no linked widget_id found');
     return { user, widgetId: null };
   }
 
