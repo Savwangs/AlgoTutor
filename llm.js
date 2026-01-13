@@ -8,13 +8,28 @@ const MODEL = 'gpt-4o-mini'; // Cheapest GPT-4 model (~$0.00015/1K input tokens)
 
 // Input validation prefix - added to all system prompts
 const VALIDATION_PREFIX = `
-CRITICAL INPUT VALIDATION RULES:
-1. If the user input is completely irrelevant to DSA/coding/programming (e.g., "cake it up", "hello world how are you", random non-technical phrases), respond ONLY with:
-   {"error": "INVALID_INPUT", "message": "Please enter a valid DSA topic, coding problem, or code snippet."}
-2. Handle typos gracefully - interpret "linged liwts" as "linked lists", "binery surch" as "binary search", "dfs" as "DFS", etc.
-3. Handle missing/weird capitalization - "BINARY SEARCH", "binary search", "BinarySearch" should all work the same.
-4. Only return the error JSON for truly irrelevant input. Minor typos, formatting issues, or unclear but technical input should still be processed normally.
-5. When in doubt about relevance, attempt to find a reasonable CS interpretation and proceed.
+**CRITICAL: CHECK INPUT RELEVANCE FIRST**
+
+Before generating ANY content, you MUST evaluate if the input is related to:
+- Data structures (arrays, trees, graphs, linked lists, stacks, queues, heaps, etc.)
+- Algorithms (sorting, searching, dynamic programming, recursion, BFS, DFS, etc.)
+- Coding problems or code snippets
+- Computer science concepts
+
+IRRELEVANT INPUT EXAMPLES (MUST reject these):
+- Food/cooking: "cake time it is", "pizza recipe", "best restaurants"
+- Greetings/chat: "hello how are you", "what's up", "tell me a joke"
+- Random phrases: "the weather is nice", "I love music", "my dog is cute"
+- Non-CS topics: "explain quantum physics", "write me a poem", "stock market tips"
+
+If the input is CLEARLY unrelated to DSA/coding/programming, you MUST respond with ONLY this JSON:
+{"error": "INVALID_INPUT", "message": "Please enter a valid DSA topic, coding problem, or code snippet."}
+
+VALID INPUT HANDLING:
+- Typos are OK: "linged liwts" = "linked lists", "binery surch" = "binary search"
+- Capitalization doesn't matter: "BINARY SEARCH", "binary search", "BinarySearch" all work
+- Unclear but technical input: Try to interpret it charitably and proceed
+- When in doubt about CS relevance: Attempt to find a reasonable interpretation
 
 `;
 
@@ -154,6 +169,15 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
     const parsed = JSON.parse(response);
     console.log('[generateLearnContent] ✓ Successfully parsed JSON response');
     console.log('[generateLearnContent] Response keys:', Object.keys(parsed));
+    
+    // Check if LLM returned an error (invalid input detected)
+    if (parsed.error === 'INVALID_INPUT') {
+      console.log('[generateLearnContent] Invalid input detected by LLM:', parsed.message);
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Please enter a valid DSA topic, coding problem, or code snippet.'
+      };
+    }
     
     return parsed;
   } catch (error) {
@@ -307,7 +331,18 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
   try {
     const response = await callOpenAI(systemPrompt, userPrompt, 3000);
     console.log('[generateBuildSolution] Raw response:', response.substring(0, 200) + '...');
-    return JSON.parse(response);
+    const parsed = JSON.parse(response);
+    
+    // Check if LLM returned an error (invalid input detected)
+    if (parsed.error === 'INVALID_INPUT') {
+      console.log('[generateBuildSolution] Invalid input detected by LLM:', parsed.message);
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Please enter a valid coding problem or algorithm description.'
+      };
+    }
+    
+    return parsed;
   } catch (error) {
     console.error('[generateBuildSolution] Failed:', error);
     if (error instanceof SyntaxError) {
@@ -440,7 +475,18 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
   try {
     const response = await callOpenAI(systemPrompt, userPrompt, 3000);
     console.log('[generateDebugAnalysis] Raw response:', response.substring(0, 200) + '...');
-    return JSON.parse(response);
+    const parsed = JSON.parse(response);
+    
+    // Check if LLM returned an error (invalid input detected)
+    if (parsed.error === 'INVALID_INPUT') {
+      console.log('[generateDebugAnalysis] Invalid input detected by LLM:', parsed.message);
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Please enter valid code to debug or analyze.'
+      };
+    }
+    
+    return parsed;
   } catch (error) {
     console.error('[generateDebugAnalysis] Failed:', error);
     if (error instanceof SyntaxError) {

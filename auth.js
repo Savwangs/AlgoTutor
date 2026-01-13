@@ -539,13 +539,15 @@ export async function linkPendingPremiumCode(user, widgetId = null) {
     }
 
     // Step 4: Upgrade the user to premium in the database
-    console.log('[Auth] Upgrading user to premium:', { userId: user.id, userEmail: user.email });
+    // Also store widget_id on user for persistence across IP subnet changes
+    console.log('[Auth] Upgrading user to premium:', { userId: user.id, userEmail: user.email, widgetId: effectiveWidgetId });
     
     const { data: updatedUser, error: upgradeError } = await supabase
       .from('users')
       .update({
         subscription_tier: 'premium',
-        subscription_status: 'active'
+        subscription_status: 'active',
+        widget_id: effectiveWidgetId  // Store widget_id for reliable lookups across IP changes
       })
       .eq('id', user.id)
       .select();
@@ -554,7 +556,8 @@ export async function linkPendingPremiumCode(user, widgetId = null) {
       updatedUser, 
       upgradeError, 
       rowsUpdated: updatedUser?.length,
-      newTier: updatedUser?.[0]?.subscription_tier 
+      newTier: updatedUser?.[0]?.subscription_tier,
+      widgetId: updatedUser?.[0]?.widget_id
     });
 
     if (upgradeError) {
@@ -571,6 +574,7 @@ export async function linkPendingPremiumCode(user, widgetId = null) {
     // Update the user object in memory with the returned data
     user.subscription_tier = updatedUser[0].subscription_tier;
     user.subscription_status = updatedUser[0].subscription_status;
+    user.widget_id = updatedUser[0].widget_id;
 
     console.log('[Auth] ✓ Successfully linked premium code to user:', user.chatgpt_user_id);
     console.log('[Auth] ✓ User upgraded to premium! New tier:', user.subscription_tier);
@@ -594,7 +598,13 @@ export async function linkPendingFreeSession(user) {
 
   // Premium users still need widget_id for logging purposes
   if (user.subscription_tier === 'premium') {
-    // Look up existing linked widget_id even for premium users
+    // 1. Check user record first (most reliable - persists across IP changes)
+    if (user.widget_id) {
+      console.log('[Auth] Premium user, returning widget_id from user record:', user.widget_id);
+      return { user, widgetId: user.widget_id };
+    }
+    
+    // 2. Try free_sessions lookup (existing logic)
     const { data: existingSession } = await supabase
       .from('free_sessions')
       .select('widget_id')
@@ -603,11 +613,30 @@ export async function linkPendingFreeSession(user) {
       .limit(1)
       .maybeSingle();
     
-    if (existingSession) {
-      console.log('[Auth] Premium user, returning existing widget_id:', existingSession.widget_id);
+    if (existingSession?.widget_id) {
+      // Store on user for future lookups (persists across IP changes)
+      await supabase.from('users').update({ widget_id: existingSession.widget_id }).eq('id', user.id);
+      console.log('[Auth] Premium user, found widget_id from free_sessions:', existingSession.widget_id);
       return { user, widgetId: existingSession.widget_id };
     }
-    console.log('[Auth] Premium user, no linked widget_id found');
+    
+    // 3. FALLBACK: Look up from premium_codes by mcp_user_id
+    const { data: codeWithWidget } = await supabase
+      .from('premium_codes')
+      .select('claimed_by_widget_id')
+      .eq('mcp_user_id', user.chatgpt_user_id)
+      .eq('used', true)
+      .not('claimed_by_widget_id', 'is', null)
+      .maybeSingle();
+    
+    if (codeWithWidget?.claimed_by_widget_id) {
+      // Store on user for future lookups
+      await supabase.from('users').update({ widget_id: codeWithWidget.claimed_by_widget_id }).eq('id', user.id);
+      console.log('[Auth] Premium user, found widget_id from premium_codes:', codeWithWidget.claimed_by_widget_id);
+      return { user, widgetId: codeWithWidget.claimed_by_widget_id };
+    }
+    
+    console.log('[Auth] Premium user, no widget_id found in any source');
     return { user, widgetId: null };
   }
 
@@ -664,6 +693,19 @@ export async function linkPendingFreeSession(user) {
     if (linkError) {
       console.error('[Auth] Error linking session to user:', linkError);
       return { user, widgetId: null };
+    }
+
+    // Also store widget_id on user record for persistence across IP subnet changes
+    const { error: userUpdateError } = await supabase
+      .from('users')
+      .update({ widget_id: pendingSession.widget_id })
+      .eq('id', user.id);
+
+    if (userUpdateError) {
+      console.error('[Auth] Error storing widget_id on user:', userUpdateError);
+      // Continue anyway - the session link succeeded
+    } else {
+      console.log('[Auth] ✓ Stored widget_id on user record:', pendingSession.widget_id);
     }
 
     console.log('[Auth] ✓ Successfully linked free session to user:', user.chatgpt_user_id);
