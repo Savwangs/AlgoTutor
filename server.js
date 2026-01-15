@@ -988,11 +988,14 @@ const httpServer = createServer(async (req, res) => {
           try {
             console.log('[API] Fetching subscription details for:', subscriptionId);
             const subscription = await stripe.subscriptions.retrieve(subscriptionId);
-            nextBillingDate = subscription.current_period_end;
+            // Get period end from top level or items array (Stripe API structure varies)
+            nextBillingDate = subscription.current_period_end 
+              || subscription.items?.data?.[0]?.current_period_end;
             console.log('[API] Subscription details retrieved:', {
               id: subscription.id,
               status: subscription.status,
               current_period_end: subscription.current_period_end,
+              items_period_end: subscription.items?.data?.[0]?.current_period_end,
               nextBillingDate: nextBillingDate ? new Date(nextBillingDate * 1000).toISOString() : 'not available'
             });
           } catch (subError) {
@@ -1683,6 +1686,7 @@ const httpServer = createServer(async (req, res) => {
             status: fullSubscription.status,
             cancel_at_period_end: fullSubscription.cancel_at_period_end,
             current_period_end: fullSubscription.current_period_end,
+            items_period_end: fullSubscription.items?.data?.[0]?.current_period_end,
             cancel_at: fullSubscription.cancel_at,
             accessUntil: accessUntil
           });
@@ -1799,17 +1803,24 @@ const httpServer = createServer(async (req, res) => {
         try {
           const subscription = await stripe.subscriptions.retrieve(userData.stripe_subscription_id);
           stripeDataFetched = true;
+          
+          // Get period end from top level or items array (Stripe API structure varies)
+          const periodEnd = subscription.current_period_end 
+            || subscription.items?.data?.[0]?.current_period_end;
+          
           console.log('[API] Stripe subscription details:', {
             id: subscription.id,
             status: subscription.status,
             cancel_at_period_end: subscription.cancel_at_period_end,
             current_period_end: subscription.current_period_end,
+            items_period_end: subscription.items?.data?.[0]?.current_period_end,
+            periodEnd: periodEnd,
             cancel_at: subscription.cancel_at
           });
           
           if (subscription.cancel_at_period_end || subscription.cancel_at) {
             // Subscription is set to cancel - use the period end as the access end date
-            cancelAt = subscription.current_period_end || cancelAt;
+            cancelAt = periodEnd || cancelAt;
             if (cancelAt) {
               console.log('[API] Subscription is cancelled, access until:', new Date(cancelAt * 1000).toISOString());
             }
@@ -1824,16 +1835,16 @@ const httpServer = createServer(async (req, res) => {
             }
           } else if (subscription.status === 'active' || subscription.status === 'trialing') {
             // Active or trialing subscription - show next billing date
-            nextBillingDate = subscription.current_period_end || nextBillingDate;
+            nextBillingDate = periodEnd || nextBillingDate;
             if (nextBillingDate) {
               console.log('[API] Active subscription, next billing:', new Date(nextBillingDate * 1000).toISOString());
               
               // Update database with fresh billing date
-              if (subscription.current_period_end && subscription.current_period_end !== userData.next_billing_date) {
+              if (periodEnd && periodEnd !== userData.next_billing_date) {
                 console.log('[API] Updating database with fresh billing date...');
                 await supabase
                   .from('users')
-                  .update({ next_billing_date: subscription.current_period_end })
+                  .update({ next_billing_date: periodEnd })
                   .eq('email', email);
               }
             }
