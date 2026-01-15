@@ -623,10 +623,17 @@
 
       // Fetch subscription status from API
       try {
+        console.log('[Dashboard] Fetching subscription status for:', user.email);
         const response = await fetch('/api/subscription-status?email=' + encodeURIComponent(user.email));
         const subData = await response.json();
         
-        console.log('[Dashboard] Subscription status:', subData);
+        console.log('[Dashboard] Subscription status response:', {
+          tier: subData.tier,
+          status: subData.status,
+          cancelAt: subData.cancelAt,
+          nextBillingDate: subData.nextBillingDate,
+          hasError: !!subData.error
+        });
         
         const statusCard = document.getElementById('subscription-status');
         const statusTitle = document.getElementById('status-title');
@@ -637,10 +644,21 @@
           const options = { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' };
           
           if (subData.tier === 'premium') {
+            console.log('[Dashboard] User is premium, checking display conditions:', {
+              hasCancelAt: !!subData.cancelAt,
+              hasNextBillingDate: !!subData.nextBillingDate
+            });
+            
             if (subData.cancelAt) {
               // Cancelled but still has access
               const cancelDate = new Date(subData.cancelAt * 1000);
               const now = new Date();
+              
+              console.log('[Dashboard] Subscription cancelled, checking if still valid:', {
+                cancelDate: cancelDate.toISOString(),
+                now: now.toISOString(),
+                stillValid: cancelDate > now
+              });
               
               if (cancelDate > now) {
                 statusCard.className = 'subscription-status cancelled visible';
@@ -649,20 +667,26 @@
                 statusDescription.textContent = 'Your premium access will end on this date. You will not be charged again.';
               }
             } else if (subData.nextBillingDate) {
-              // Active premium subscription
+              // Active premium subscription with billing date
               const billingDate = new Date(subData.nextBillingDate * 1000);
+              console.log('[Dashboard] Showing next billing date:', billingDate.toISOString());
               statusCard.className = 'subscription-status premium visible';
               statusTitle.textContent = '✓ Premium Active';
               statusDate.textContent = 'Next billing: ' + billingDate.toLocaleDateString('en-US', options);
               statusDescription.textContent = 'Your subscription will automatically renew on this date.';
             } else {
               // Premium but no billing info available
+              console.log('[Dashboard] Premium user but no billing date available');
               statusCard.className = 'subscription-status premium visible';
               statusTitle.textContent = '✓ Premium Active';
               statusDate.textContent = '';
               statusDescription.textContent = 'You have unlimited access to all AlgoTutor modes.';
             }
+          } else {
+            console.log('[Dashboard] User is not premium, tier:', subData.tier);
           }
+        } else if (subData.error) {
+          console.log('[Dashboard] Error in subscription status:', subData.error);
         }
       } catch (error) {
         console.error('[Dashboard] Error fetching subscription status:', error);
@@ -730,6 +754,11 @@
 
   <!-- Footer -->
   <footer style="text-align: center; padding: 2rem; border-top: 1px solid var(--border); margin-top: 2rem;">
+    <p style="color: var(--text-secondary); font-size: 0.875rem; margin-bottom: 0.5rem;">
+      <a href="/support.html" style="color: var(--accent); text-decoration: none;">Support</a> · 
+      <a href="/privacy.html" style="color: var(--accent); text-decoration: none;">Privacy Policy</a> · 
+      <a href="/terms.html" style="color: var(--accent); text-decoration: none;">Terms of Service</a>
+    </p>
     <p style="color: var(--text-secondary); font-size: 0.875rem;">
       Need help? Contact us at 
       <a href="mailto:support@algo-tutor.org" style="color: var(--accent); text-decoration: none;">support@algo-tutor.org</a>

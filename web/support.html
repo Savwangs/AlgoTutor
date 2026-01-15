@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Customer Support - AlgoTutor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a1f2e;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.3);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #2d3748;
+      --success: #10b981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: -1;
+    }
+
+    nav {
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .logo span {
+      color: var(--text-primary);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 3rem 2rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .subtitle {
+      color: var(--text-secondary);
+      font-size: 1.1rem;
+      margin-bottom: 3rem;
+    }
+
+    .contact-card {
+      background: linear-gradient(135deg, rgba(59, 130, 246, 0.15), rgba(139, 92, 246, 0.15));
+      border: 1px solid var(--accent);
+      border-radius: 16px;
+      padding: 2rem;
+      margin-bottom: 2rem;
+      text-align: center;
+    }
+
+    .contact-card h2 {
+      font-size: 1.25rem;
+      margin-bottom: 0.5rem;
+      color: var(--accent);
+    }
+
+    .contact-email {
+      font-size: 1.5rem;
+      font-weight: 600;
+      color: var(--text-primary);
+    }
+
+    .contact-email a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .contact-email a:hover {
+      text-decoration: underline;
+    }
+
+    .contact-note {
+      margin-top: 0.75rem;
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+    }
+
+    .faq-section {
+      margin-top: 3rem;
+    }
+
+    .faq-section h2 {
+      font-size: 1.5rem;
+      margin-bottom: 1.5rem;
+      color: var(--text-primary);
+    }
+
+    .faq-item {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .faq-item h3 {
+      font-size: 1rem;
+      color: var(--text-primary);
+      margin-bottom: 0.75rem;
+    }
+
+    .faq-item p {
+      color: var(--text-secondary);
+      line-height: 1.6;
+      font-size: 0.95rem;
+    }
+
+    .faq-item a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .faq-item a:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+    }
+
+    footer p {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .container {
+        padding: 2rem 1rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <nav>
+    <a href="/" class="logo">AlgoTutor</a>
+    <div class="nav-links">
+      <a href="/dashboard.html">Dashboard</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/login.html">Login</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1>Customer Support</h1>
+    <p class="subtitle">We're here to help you succeed with AlgoTutor</p>
+
+    <div class="contact-card">
+      <h2>Contact Us</h2>
+      <p class="contact-email">
+        <a href="mailto:support@algo-tutor.org">support@algo-tutor.org</a>
+      </p>
+      <p class="contact-note">We typically respond within 24 hours</p>
+    </div>
+
+    <section class="faq-section">
+      <h2>Frequently Asked Questions</h2>
+
+      <div class="faq-item">
+        <h3>How do I activate my premium subscription?</h3>
+        <p>After purchasing Premium, you'll receive a unique activation code. In ChatGPT, open the AlgoTutor widget and click "Activate Premium" in the header. Enter your code and your premium access activates instantly.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>I lost my activation code. How do I recover it?</h3>
+        <p>Go to your <a href="/dashboard.html">Dashboard</a> and use the "Recover Your Premium Code" section. Enter the email you used to purchase Premium, and we'll retrieve your code.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>How do I cancel my subscription?</h3>
+        <p>You can cancel your subscription directly from the AlgoTutor widget in ChatGPT. Click the "Cancel Subscription" button in the top right corner of the widget. Your premium access will continue until the end of your current billing period.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Will I lose access immediately if I cancel?</h3>
+        <p>No. When you cancel, your premium access continues until the end of your current billing period. You will not be charged again, but you can keep using premium features until that date.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>What's the difference between Free and Premium?</h3>
+        <p>Free users get 3 requests per day with access to all three modes (Learn, Build, Debug). Premium users get unlimited requests with the same modes, plus priority support.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>How do I install AlgoTutor in ChatGPT?</h3>
+        <p>Visit your <a href="/dashboard.html">Dashboard</a> for step-by-step installation instructions. You'll need to add AlgoTutor from the ChatGPT Apps section in your settings.</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>Why isn't AlgoTutor working in ChatGPT?</h3>
+        <p>Make sure you've added AlgoTutor as an app in ChatGPT (Settings > Apps > Add more apps > search "AlgoTutor"). Then start a new chat, click the "+" button, and select AlgoTutor under "More".</p>
+      </div>
+
+      <div class="faq-item">
+        <h3>I have another question not listed here</h3>
+        <p>Please email us at <a href="mailto:support@algo-tutor.org">support@algo-tutor.org</a> and we'll be happy to help!</p>
+      </div>
+    </section>
+  </main>
+
+  <footer>
+    <p>
+      <a href="/privacy.html">Privacy Policy</a> · 
+      <a href="/terms.html">Terms of Service</a> · 
+      <a href="mailto:support@algo-tutor.org">support@algo-tutor.org</a>
+    </p>
+  </footer>
+</body>
+</html>

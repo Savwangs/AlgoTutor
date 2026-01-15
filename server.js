@@ -986,12 +986,26 @@ const httpServer = createServer(async (req, res) => {
         let nextBillingDate = null;
         if (subscriptionId && stripe) {
           try {
+            console.log('[API] Fetching subscription details for:', subscriptionId);
             const subscription = await stripe.subscriptions.retrieve(subscriptionId);
             nextBillingDate = subscription.current_period_end;
-            console.log('[API] Next billing date from Stripe:', nextBillingDate ? new Date(nextBillingDate * 1000).toISOString() : 'not available');
+            console.log('[API] Subscription details retrieved:', {
+              id: subscription.id,
+              status: subscription.status,
+              current_period_end: subscription.current_period_end,
+              nextBillingDate: nextBillingDate ? new Date(nextBillingDate * 1000).toISOString() : 'not available'
+            });
           } catch (subError) {
             console.error('[API] Error fetching subscription for billing date:', subError.message);
+            // Fallback: set next billing date to 30 days from now
+            nextBillingDate = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
+            console.log('[API] Using fallback billing date (30 days from now):', new Date(nextBillingDate * 1000).toISOString());
           }
+        } else if (!subscriptionId) {
+          console.log('[API] No subscription ID available in checkout session');
+          // Fallback: set next billing date to 30 days from now
+          nextBillingDate = Math.floor(Date.now() / 1000) + (30 * 24 * 60 * 60);
+          console.log('[API] Using fallback billing date (30 days from now):', new Date(nextBillingDate * 1000).toISOString());
         }
 
         // Update or create user with premium status
@@ -1715,10 +1729,10 @@ const httpServer = createServer(async (req, res) => {
     }
 
     try {
-      // Get user subscription info from database (including next_billing_date for fallback)
+      // Get user subscription info from database (including next_billing_date and created_at for fallback)
       const { data: userData, error: userError } = await supabase
         .from('users')
-        .select('subscription_tier, subscription_status, subscription_cancel_at, stripe_subscription_id, next_billing_date')
+        .select('subscription_tier, subscription_status, subscription_cancel_at, stripe_subscription_id, next_billing_date, created_at, updated_at')
         .eq('email', email)
         .maybeSingle();
 
@@ -1733,14 +1747,24 @@ const httpServer = createServer(async (req, res) => {
         return res.end(JSON.stringify({ error: 'User not found' }));
       }
 
+      console.log('[API] User data from database:', {
+        tier: userData.subscription_tier,
+        status: userData.subscription_status,
+        stripe_subscription_id: userData.stripe_subscription_id ? 'present' : 'missing',
+        next_billing_date: userData.next_billing_date,
+        subscription_cancel_at: userData.subscription_cancel_at
+      });
+
       // Start with database values as fallback
       let nextBillingDate = userData.next_billing_date || null;
       let cancelAt = userData.subscription_cancel_at || null;
+      let stripeDataFetched = false;
 
       // If user has a Stripe subscription, try to get fresh data from Stripe
       if (userData.stripe_subscription_id && stripe) {
         try {
           const subscription = await stripe.subscriptions.retrieve(userData.stripe_subscription_id);
+          stripeDataFetched = true;
           console.log('[API] Stripe subscription details:', {
             id: subscription.id,
             status: subscription.status,
@@ -1764,14 +1788,15 @@ const httpServer = createServer(async (req, res) => {
                 .update({ subscription_cancel_at: cancelAt })
                 .eq('email', email);
             }
-          } else if (subscription.status === 'active') {
-            // Active subscription - show next billing date
+          } else if (subscription.status === 'active' || subscription.status === 'trialing') {
+            // Active or trialing subscription - show next billing date
             nextBillingDate = subscription.current_period_end || nextBillingDate;
             if (nextBillingDate) {
               console.log('[API] Active subscription, next billing:', new Date(nextBillingDate * 1000).toISOString());
               
               // Update database with fresh billing date
               if (subscription.current_period_end && subscription.current_period_end !== userData.next_billing_date) {
+                console.log('[API] Updating database with fresh billing date...');
                 await supabase
                   .from('users')
                   .update({ next_billing_date: subscription.current_period_end })
@@ -1784,13 +1809,40 @@ const httpServer = createServer(async (req, res) => {
           console.log('[API] Using database values as fallback');
           // Fall back to database values (already set above)
         }
+      } else if (userData.subscription_tier === 'premium' && !userData.stripe_subscription_id) {
+        console.log('[API] Premium user without stripe_subscription_id - using database fallback');
+      }
+
+      // Fallback: If premium user has no billing date from Stripe or database, estimate it
+      // This handles edge cases where data wasn't stored properly
+      if (userData.subscription_tier === 'premium' && !cancelAt && !nextBillingDate) {
+        console.log('[API] Premium user with no billing date - calculating estimate');
+        
+        // Try to estimate based on updated_at (when they became premium) + 30 days
+        const baseDate = userData.updated_at || userData.created_at;
+        if (baseDate) {
+          const baseDateMs = new Date(baseDate).getTime();
+          const now = Date.now();
+          
+          // Calculate when the next billing would be (30-day cycles from base date)
+          let estimatedBillingMs = baseDateMs;
+          const thirtyDaysMs = 30 * 24 * 60 * 60 * 1000;
+          
+          while (estimatedBillingMs < now) {
+            estimatedBillingMs += thirtyDaysMs;
+          }
+          
+          nextBillingDate = Math.floor(estimatedBillingMs / 1000);
+          console.log('[API] Estimated next billing date:', new Date(nextBillingDate * 1000).toISOString());
+        }
       }
 
       console.log('[API] ✓ Subscription status for', email, ':', {
         tier: userData.subscription_tier,
         status: userData.subscription_status,
         cancelAt: cancelAt,
-        nextBillingDate: nextBillingDate
+        nextBillingDate: nextBillingDate,
+        stripeDataFetched: stripeDataFetched
       });
 
       res.writeHead(200);
@@ -1887,7 +1939,7 @@ const httpServer = createServer(async (req, res) => {
   }
 
   // Serve web pages (landing, login, signup, dashboard, success, auth-callback, reset-password)
-  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html', '/success.html', '/auth-callback.html', '/reset-password.html', '/cancel.html'];
+  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html', '/success.html', '/auth-callback.html', '/reset-password.html', '/cancel.html', '/support.html', '/privacy.html', '/terms.html'];
   const pagePath = url.pathname === '/' ? '/index.html' : url.pathname;
   
   if (req.method === "GET" && webPages.includes(url.pathname)) {

@@ -1,0 +1,353 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Terms of Service - AlgoTutor</title>
+  <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --bg-primary: #0a0e17;
+      --bg-secondary: #111827;
+      --bg-card: #1a1f2e;
+      --accent: #3b82f6;
+      --accent-glow: rgba(59, 130, 246, 0.3);
+      --text-primary: #f1f5f9;
+      --text-secondary: #94a3b8;
+      --border: #2d3748;
+      --success: #10b981;
+    }
+
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Space Grotesk', sans-serif;
+      background: var(--bg-primary);
+      color: var(--text-primary);
+      min-height: 100vh;
+    }
+
+    .bg-grid {
+      position: fixed;
+      inset: 0;
+      background-image: 
+        linear-gradient(rgba(59, 130, 246, 0.03) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(59, 130, 246, 0.03) 1px, transparent 1px);
+      background-size: 50px 50px;
+      z-index: -1;
+    }
+
+    nav {
+      padding: 1.5rem 2rem;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--border);
+    }
+
+    .logo {
+      font-size: 1.5rem;
+      font-weight: 700;
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .logo span {
+      color: var(--text-primary);
+    }
+
+    .nav-links {
+      display: flex;
+      gap: 1.5rem;
+    }
+
+    .nav-links a {
+      color: var(--text-secondary);
+      text-decoration: none;
+      font-size: 0.9rem;
+      transition: color 0.2s;
+    }
+
+    .nav-links a:hover {
+      color: var(--text-primary);
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 3rem 2rem;
+    }
+
+    h1 {
+      font-size: 2.5rem;
+      margin-bottom: 0.5rem;
+      color: var(--text-primary);
+    }
+
+    .last-updated {
+      color: var(--text-secondary);
+      font-size: 0.9rem;
+      margin-bottom: 3rem;
+    }
+
+    .terms-section {
+      margin-bottom: 2.5rem;
+    }
+
+    .terms-section h2 {
+      font-size: 1.25rem;
+      margin-bottom: 1rem;
+      color: var(--accent);
+    }
+
+    .terms-section p {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-bottom: 1rem;
+    }
+
+    .terms-section ul {
+      color: var(--text-secondary);
+      line-height: 1.7;
+      margin-left: 1.5rem;
+      margin-bottom: 1rem;
+    }
+
+    .terms-section li {
+      margin-bottom: 0.5rem;
+    }
+
+    .terms-section strong {
+      color: var(--text-primary);
+    }
+
+    .terms-section a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .terms-section a:hover {
+      text-decoration: underline;
+    }
+
+    .highlight-box {
+      background: rgba(59, 130, 246, 0.1);
+      border: 1px solid rgba(59, 130, 246, 0.3);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin: 1.5rem 0;
+    }
+
+    .highlight-box p {
+      margin-bottom: 0;
+    }
+
+    .contact-box {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.5rem;
+      margin-top: 2rem;
+    }
+
+    .contact-box h3 {
+      font-size: 1rem;
+      margin-bottom: 0.75rem;
+      color: var(--text-primary);
+    }
+
+    .contact-box p {
+      color: var(--text-secondary);
+      margin-bottom: 0;
+    }
+
+    .contact-box a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    .contact-box a:hover {
+      text-decoration: underline;
+    }
+
+    footer {
+      text-align: center;
+      padding: 2rem;
+      border-top: 1px solid var(--border);
+      margin-top: 3rem;
+    }
+
+    footer p {
+      color: var(--text-secondary);
+      font-size: 0.875rem;
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover {
+      text-decoration: underline;
+    }
+
+    @media (max-width: 768px) {
+      nav {
+        padding: 1rem;
+        flex-direction: column;
+        gap: 1rem;
+      }
+
+      .container {
+        padding: 2rem 1rem;
+      }
+
+      h1 {
+        font-size: 2rem;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="bg-grid"></div>
+
+  <nav>
+    <a href="/" class="logo">AlgoTutor</a>
+    <div class="nav-links">
+      <a href="/dashboard.html">Dashboard</a>
+      <a href="/pricing.html">Pricing</a>
+      <a href="/support.html">Support</a>
+    </div>
+  </nav>
+
+  <main class="container">
+    <h1>Terms of Service</h1>
+    <p class="last-updated">Last updated: January 2026</p>
+
+    <section class="terms-section">
+      <h2>1. Agreement to Terms</h2>
+      <p>By accessing or using AlgoTutor ("the Service"), you agree to be bound by these Terms of Service. If you do not agree to these terms, please do not use the Service.</p>
+    </section>
+
+    <section class="terms-section">
+      <h2>2. Description of Service</h2>
+      <p>AlgoTutor is an educational tool that helps students learn data structures and algorithms through an interactive ChatGPT integration. The Service provides:</p>
+      <ul>
+        <li><strong>Learn Mode:</strong> Educational content about DSA topics and patterns</li>
+        <li><strong>Build Mode:</strong> Solutions and guidance for coding problems</li>
+        <li><strong>Debug Mode:</strong> Code analysis and bug identification</li>
+      </ul>
+    </section>
+
+    <section class="terms-section">
+      <h2>3. User Accounts</h2>
+      <p>To access certain features, you may need to create an account. You are responsible for:</p>
+      <ul>
+        <li>Maintaining the confidentiality of your account credentials</li>
+        <li>All activities that occur under your account</li>
+        <li>Notifying us immediately of any unauthorized use</li>
+      </ul>
+    </section>
+
+    <section class="terms-section">
+      <h2>4. Subscription and Pricing</h2>
+      <p><strong>Free Tier:</strong> Includes 3 requests per day with access to all modes (Learn, Build, Debug).</p>
+      <p><strong>Premium Subscription:</strong> $9.99 per month for unlimited requests and all features.</p>
+      <div class="highlight-box">
+        <p><strong>Billing:</strong> Premium subscriptions are billed monthly. Your subscription will automatically renew at the end of each billing period unless you cancel before the renewal date.</p>
+      </div>
+    </section>
+
+    <section class="terms-section">
+      <h2>5. Cancellation and Refunds</h2>
+      <p><strong>Cancellation:</strong> You may cancel your subscription at any time through the AlgoTutor widget in ChatGPT. When you cancel:</p>
+      <ul>
+        <li>You will retain premium access until the end of your current billing period</li>
+        <li>You will not be charged again after cancellation</li>
+        <li>After the billing period ends, your account reverts to the free tier</li>
+      </ul>
+      <p><strong>Refunds:</strong> We generally do not provide refunds for subscription payments. However, if you experience technical issues that prevent you from using the Service, please contact us at <a href="mailto:support@algo-tutor.org">support@algo-tutor.org</a> and we will work with you to resolve the issue or discuss a refund on a case-by-case basis.</p>
+    </section>
+
+    <section class="terms-section">
+      <h2>6. Activation Codes</h2>
+      <p>Premium activation codes are:</p>
+      <ul>
+        <li>Personal and non-transferable</li>
+        <li>Linked to a single device/browser</li>
+        <li>Not to be shared, sold, or distributed</li>
+      </ul>
+      <p>We reserve the right to revoke codes that are shared or misused.</p>
+    </section>
+
+    <section class="terms-section">
+      <h2>7. Acceptable Use</h2>
+      <p>You agree not to:</p>
+      <ul>
+        <li>Use the Service for any illegal purpose</li>
+        <li>Share, resell, or redistribute your subscription access</li>
+        <li>Attempt to bypass usage limits or security measures</li>
+        <li>Use automated tools to access the Service excessively</li>
+        <li>Submit malicious code or attempt to compromise the Service</li>
+        <li>Use the Service to cheat on exams or violate academic integrity policies</li>
+      </ul>
+    </section>
+
+    <section class="terms-section">
+      <h2>8. Educational Purpose</h2>
+      <p>AlgoTutor is designed as an educational tool to help you learn and understand data structures and algorithms. The Service is intended to supplement your learning, not replace it.</p>
+      <div class="highlight-box">
+        <p><strong>Academic Integrity:</strong> You are responsible for ensuring your use of AlgoTutor complies with your institution's academic integrity policies. We encourage using AlgoTutor for learning and practice, not for completing graded assignments without proper understanding.</p>
+      </div>
+    </section>
+
+    <section class="terms-section">
+      <h2>9. Disclaimer of Warranties</h2>
+      <p>The Service is provided "as is" without warranties of any kind. We do not guarantee:</p>
+      <ul>
+        <li>That the Service will be uninterrupted or error-free</li>
+        <li>The accuracy or completeness of educational content</li>
+        <li>That the Service will meet your specific requirements</li>
+      </ul>
+      <p>While we strive for accuracy, AI-generated content may occasionally contain errors. Always verify important information independently.</p>
+    </section>
+
+    <section class="terms-section">
+      <h2>10. Limitation of Liability</h2>
+      <p>To the maximum extent permitted by law, AlgoTutor shall not be liable for any indirect, incidental, special, consequential, or punitive damages resulting from your use of the Service.</p>
+    </section>
+
+    <section class="terms-section">
+      <h2>11. Changes to Terms</h2>
+      <p>We may update these Terms of Service from time to time. We will notify you of significant changes by posting the updated terms on this page. Continued use of the Service after changes constitutes acceptance of the new terms.</p>
+    </section>
+
+    <section class="terms-section">
+      <h2>12. Termination</h2>
+      <p>We reserve the right to suspend or terminate your access to the Service at any time for violation of these terms or for any other reason at our discretion.</p>
+    </section>
+
+    <section class="terms-section">
+      <h2>13. Governing Law</h2>
+      <p>These Terms shall be governed by and construed in accordance with the laws of the United States, without regard to conflict of law provisions.</p>
+    </section>
+
+    <div class="contact-box">
+      <h3>Questions About These Terms?</h3>
+      <p>If you have any questions about these Terms of Service, please contact us at <a href="mailto:support@algo-tutor.org">support@algo-tutor.org</a>.</p>
+    </div>
+  </main>
+
+  <footer>
+    <p>
+      <a href="/support.html">Support</a> · 
+      <a href="/privacy.html">Privacy Policy</a> · 
+      <a href="mailto:support@algo-tutor.org">support@algo-tutor.org</a>
+    </p>
+  </footer>
+</body>
+</html>
