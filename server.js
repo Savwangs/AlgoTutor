@@ -1139,6 +1139,40 @@ const httpServer = createServer(async (req, res) => {
         console.log('[API] ✓ Subscription deletion processed for customer:', customerId);
       }
 
+      // Handle invoice.paid - Update next_billing_date after each payment
+      if (event.type === 'invoice.paid') {
+        const invoice = event.data.object;
+        const subscriptionId = invoice.subscription;
+        const customerId = invoice.customer;
+
+        console.log('[API] Invoice paid for subscription:', subscriptionId);
+
+        // Get the period end from the invoice (this is the next billing date)
+        const periodEnd = invoice.lines?.data?.[0]?.period?.end;
+
+        console.log('[API] Invoice details:', {
+          subscriptionId,
+          customerId,
+          periodEnd: periodEnd ? new Date(periodEnd * 1000).toISOString() : 'not available'
+        });
+
+        if (periodEnd && subscriptionId) {
+          // Update next_billing_date for the user with this subscription
+          const { error: updateError } = await supabase
+            .from('users')
+            .update({ next_billing_date: periodEnd })
+            .eq('stripe_subscription_id', subscriptionId);
+
+          if (updateError) {
+            console.error('[API] Error updating next_billing_date:', updateError);
+          } else {
+            console.log('[API] ✓ Updated next_billing_date from invoice.paid:', new Date(periodEnd * 1000).toISOString());
+          }
+        } else {
+          console.log('[API] Could not update next_billing_date - missing periodEnd or subscriptionId');
+        }
+      }
+
       res.writeHead(200);
       return res.end(JSON.stringify({ received: true }));
     } catch (error) {
