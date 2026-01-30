@@ -137,8 +137,10 @@
       document.querySelector('.spinner').style.display = 'none';
     }
 
-    // Start Stripe checkout
+    // EARLY_ACCESS: Checkout disabled during early access - all features free
+    // Start Stripe checkout (disabled during early access)
     async function startCheckout(email) {
+      /* EARLY_ACCESS_START: Stripe checkout disabled
       statusTitle.textContent = 'Redirecting to checkout...';
       statusText.textContent = 'You will be redirected to Stripe to complete your purchase.';
 
@@ -164,6 +166,15 @@
         console.error('Checkout error:', error);
         showError('Failed to start checkout. Please try again.');
       }
+      EARLY_ACCESS_END */
+      
+      // During early access, redirect to dashboard instead of checkout
+      console.log('[AuthCallback] Early access mode - redirecting to dashboard instead of checkout');
+      statusTitle.textContent = 'Welcome to AlgoTutor!';
+      statusText.textContent = 'All features are free during early access. Redirecting to dashboard...';
+      setTimeout(() => {
+        window.location.href = '/dashboard.html';
+      }, 1000);
     }
 
     // Main logic

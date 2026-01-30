@@ -12,6 +12,10 @@ import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
 
+// EARLY_ACCESS: Set to false to re-enable premium/subscription features
+// During early access, all users have unlimited free access to all modes
+const EARLY_ACCESS_MODE = true;
+
 // Initialize Stripe
 const stripe = process.env.STRIPE_SECRET_KEY 
   ? new Stripe(process.env.STRIPE_SECRET_KEY) 
@@ -878,10 +882,21 @@ const httpServer = createServer(async (req, res) => {
   };
 
   // API: Create Stripe Checkout Session
+  // EARLY_ACCESS_START: Disabled during early access - all features are free
   if (req.method === "POST" && url.pathname === "/api/create-checkout") {
     console.log('[API] Create checkout session request');
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "application/json");
+
+    // EARLY_ACCESS: Return message that subscriptions aren't available yet
+    if (EARLY_ACCESS_MODE) {
+      console.log('[API] Early access mode - checkout disabled');
+      res.writeHead(200);
+      return res.end(JSON.stringify({ 
+        error: 'early_access',
+        message: 'AlgoTutor is currently free during early access! Subscriptions will be available soon. Early access users will get a discount ($9.99/mo vs $14.99/mo) when subscriptions launch.' 
+      }));
+    }
 
     if (!stripe) {
       res.writeHead(500);
@@ -921,10 +936,19 @@ const httpServer = createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: error.message }));
     }
   }
+  // EARLY_ACCESS_END
 
   // API: Stripe Webhook
+  // EARLY_ACCESS_START: Disabled during early access - no subscriptions to process
   if (req.method === "POST" && url.pathname === "/api/stripe-webhook") {
     console.log('[API] Stripe webhook received');
+
+    // EARLY_ACCESS: Just acknowledge webhook during early access
+    if (EARLY_ACCESS_MODE) {
+      console.log('[API] Early access mode - webhook acknowledged but not processed');
+      res.writeHead(200);
+      return res.end(JSON.stringify({ received: true, earlyAccess: true }));
+    }
 
     if (!stripe || !supabase) {
       res.writeHead(500);
@@ -1184,12 +1208,24 @@ const httpServer = createServer(async (req, res) => {
       return res.end('Webhook handler error');
     }
   }
+  // EARLY_ACCESS_END
 
   // API: Get premium code by session ID
+  // EARLY_ACCESS_START: Disabled during early access - no premium codes
   if (req.method === "GET" && url.pathname === "/api/get-premium-code") {
     console.log('[API] Get premium code request');
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "application/json");
+
+    // EARLY_ACCESS: No premium codes during early access
+    if (EARLY_ACCESS_MODE) {
+      console.log('[API] Early access mode - premium codes not available');
+      res.writeHead(200);
+      return res.end(JSON.stringify({ 
+        error: 'early_access',
+        message: 'Premium codes are not needed during early access. All features are free!' 
+      }));
+    }
 
     if (!supabase) {
       res.writeHead(500);
@@ -1223,13 +1259,25 @@ const httpServer = createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: error.message }));
     }
   }
+  // EARLY_ACCESS_END
 
   // API: Lookup premium code by email (for code recovery)
   // This allows users to retrieve their premium code if they switch browsers or clear localStorage
+  // EARLY_ACCESS_START: Disabled during early access
   if (req.method === "GET" && url.pathname === "/api/lookup-code") {
     console.log('[API] Lookup code by email request');
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "application/json");
+
+    // EARLY_ACCESS: No premium codes to lookup during early access
+    if (EARLY_ACCESS_MODE) {
+      console.log('[API] Early access mode - code lookup not available');
+      res.writeHead(200);
+      return res.end(JSON.stringify({ 
+        error: 'early_access',
+        message: 'Premium codes are not needed during early access. All features are free!' 
+      }));
+    }
 
     if (!supabase) {
       res.writeHead(500);
@@ -1274,15 +1322,28 @@ const httpServer = createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: error.message }));
     }
   }
+  // EARLY_ACCESS_END
 
   // API: Activate premium with code
   // This endpoint validates the code and directly upgrades the IP-based user to premium.
   // This allows cross-session premium access when the widget auto-activates.
   // Security: Codes are bound to the first widget_id that claims them to prevent code sharing.
+  // EARLY_ACCESS_START: Disabled during early access
   if (req.method === "POST" && url.pathname === "/api/activate-premium") {
     console.log('[API] Activate premium request');
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "application/json");
+
+    // EARLY_ACCESS: Premium activation not needed during early access
+    if (EARLY_ACCESS_MODE) {
+      console.log('[API] Early access mode - premium activation not needed');
+      res.writeHead(200);
+      return res.end(JSON.stringify({ 
+        success: true,
+        earlyAccess: true,
+        message: 'All features are free during early access! No activation needed.' 
+      }));
+    }
 
     if (!supabase) {
       res.writeHead(500);
@@ -1431,8 +1492,10 @@ const httpServer = createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: error.message }));
     }
   }
+  // EARLY_ACCESS_END
 
   // API: Register widget session for free tier tracking
+  // NOTE: This endpoint is kept active during early access for tracking early users
   // This endpoint links a widget_id (from browser localStorage) to the browser's IP
   // so we can track usage across OpenAI proxy IP changes
   if (req.method === "POST" && url.pathname === "/api/register-session") {
@@ -1580,10 +1643,21 @@ const httpServer = createServer(async (req, res) => {
   }
 
   // API: Cancel subscription
+  // EARLY_ACCESS_START: Disabled during early access - no subscriptions to cancel
   if (req.method === "POST" && url.pathname === "/api/cancel-subscription") {
     console.log('[API] Cancel subscription request');
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "application/json");
+
+    // EARLY_ACCESS: No subscriptions to cancel during early access
+    if (EARLY_ACCESS_MODE) {
+      console.log('[API] Early access mode - no subscriptions to cancel');
+      res.writeHead(200);
+      return res.end(JSON.stringify({ 
+        error: 'early_access',
+        message: 'No subscription to cancel - AlgoTutor is currently free during early access!' 
+      }));
+    }
 
     if (!supabase) {
       res.writeHead(500);
@@ -1748,12 +1822,26 @@ const httpServer = createServer(async (req, res) => {
       return res.end(JSON.stringify({ error: error.message }));
     }
   }
+  // EARLY_ACCESS_END
 
   // API: Get subscription status for dashboard
+  // EARLY_ACCESS: Modified to return early_access tier during early access
   if (req.method === "GET" && url.pathname === "/api/subscription-status") {
     console.log('[API] Get subscription status request');
     res.setHeader("Access-Control-Allow-Origin", "*");
     res.setHeader("Content-Type", "application/json");
+
+    // EARLY_ACCESS: Return early access status
+    if (EARLY_ACCESS_MODE) {
+      console.log('[API] Early access mode - returning early_access tier');
+      res.writeHead(200);
+      return res.end(JSON.stringify({ 
+        tier: 'early_access',
+        status: 'active',
+        unlimited: true,
+        message: 'Early access - all features free! You will get the early adopter discount ($9.99/mo vs $14.99/mo) when subscriptions launch.'
+      }));
+    }
 
     if (!supabase) {
       res.writeHead(500);

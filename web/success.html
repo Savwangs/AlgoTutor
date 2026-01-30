@@ -343,7 +343,25 @@
     const urlParams = new URLSearchParams(window.location.search);
     const sessionId = urlParams.get('session_id');
 
+    // EARLY_ACCESS: Set to false to re-enable premium code display
+    const EARLY_ACCESS_MODE = true;
+    
     async function loadPremiumCode() {
+      // EARLY_ACCESS: Redirect to dashboard since there are no premium codes
+      if (EARLY_ACCESS_MODE) {
+        console.log('[Success] Early access mode - redirecting to dashboard');
+        loadingState.innerHTML = `
+          <div class="success-icon">🎉</div>
+          <h1 style="background: linear-gradient(135deg, #10b981, #3b82f6); -webkit-background-clip: text; -webkit-text-fill-color: transparent;">Welcome to AlgoTutor!</h1>
+          <p class="subtitle" style="margin-top: 1rem;">All features are FREE during early access period!</p>
+          <p class="loading" style="margin-top: 1rem;">Redirecting to dashboard...</p>
+        `;
+        setTimeout(() => {
+          window.location.href = '/dashboard.html';
+        }, 2000);
+        return;
+      }
+      
       if (!sessionId) {
         showError('No session ID provided.');
         return;

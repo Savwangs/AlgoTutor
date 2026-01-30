@@ -303,30 +303,33 @@
   </nav>
 
   <div class="container">
-    <h1>Choose Your Plan</h1>
+    <h1>🎉 Early Access - Everything FREE!</h1>
 
-    <div class="early-access-banner">
-      <span class="badge">LIMITED TIME</span>
+    <div class="early-access-banner" style="background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(59, 130, 246, 0.15)); border-color: #10b981;">
+      <span class="badge" style="background: #10b981;">EARLY ACCESS</span>
       <p>
-        <strong>30%+ Early Adopter Discount!</strong> Subscribe now at $9.99/mo
-        Includes early access to personalized exam prep coming soon.
-        Guaranteed for any CS exam prep
+        <strong>All features are FREE during early access!</strong><br>
+        V2 with personalized exam prep is coming soon. Early users will be locked in at 
+        <strong>$9.99/mo</strong> (vs $14.99/mo for regular users) when subscriptions launch.
       </p>
     </div>
 
     <div class="pricing-grid">
-      <div class="pricing-card">
-        <h2>Free</h2>
-        <p class="description">Perfect for trying out AlgoTutor</p>
-        <div class="price">$0<span>/month</span></div>
+      <div class="pricing-card featured" style="border-color: #10b981; box-shadow: 0 0 40px rgba(16, 185, 129, 0.3);">
+        <h2>Early Access</h2>
+        <p class="description">Everything free while we build V2!</p>
+        <div class="price" style="color: #10b981;">FREE<span> - Limited Time</span></div>
         <p class="price-note">No credit card required</p>
         <ul>
-          <li>3 requests per day</li>
+          <li>Unlimited requests</li>
           <li>All three modes (Learn, Build, Debug)</li>
+          <li>Lock in $9.99/mo discount for when subs launch</li>
+          <li>Priority access to V2 personalized prep</li>
         </ul>
-        <a href="/signup.html" class="btn btn-secondary">Get Started Free</a>
+        <a href="https://chatgpt.com/g/g-6834f63e65408191aeb5e2e8bfcb2c83-algotutor" target="_blank" class="btn btn-primary" style="background: #10b981;">Start Learning Now</a>
       </div>
 
+      <!-- EARLY_ACCESS_START: Premium pricing card - hidden during early access
       <div class="pricing-card featured">
         <h2>Premium</h2>
         <p class="description">For serious learners and interview prep</p>
@@ -341,6 +344,13 @@
         </ul>
         <a href="/signup.html?plan=premium" class="btn btn-primary" id="premium-btn">Upgrade to Premium</a>
       </div>
+      EARLY_ACCESS_END -->
+    </div>
+    
+    <div class="guarantee" style="margin-top: 2rem; border: 1px solid #f59e0b;">
+      <h3>💰 Future Pricing (When Subscriptions Launch)</h3>
+      <p>Early users: <strong style="color: #10b981;">$9.99/mo</strong> | Regular users: <span style="color: var(--text-secondary);">$14.99/mo</span></p>
+      <p style="margin-top: 0.5rem; font-size: 0.85rem;">Your early access discount is automatically saved when you use AlgoTutor!</p>
     </div>
 
     <div class="faq">
@@ -369,6 +379,11 @@
   </div>
 
   <script>
+    // EARLY_ACCESS: Checkout flow disabled during early access
+    // All features are free - no Stripe checkout needed
+    console.log('Early access mode - all features free');
+    
+    /* EARLY_ACCESS_START: Stripe checkout - disabled during early access
     // Initialize Supabase
     const SUPABASE_URL = 'https://tlingzzbcnpekhztapmf.supabase.co';
     const SUPABASE_ANON_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRsaW5nenpiY25wZWtoenRhcG1mIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjY2NDc2MTAsImV4cCI6MjA4MjIyMzYxMH0.IkfAgRzwMLyZgMPq4HxKoegnuOkTuzJIF1LA1Ps2TXA';
@@ -426,6 +441,7 @@
         premiumBtn.style.pointerEvents = 'auto';
       }
     });
+    EARLY_ACCESS_END */
   </script>
 </body>
 </html>

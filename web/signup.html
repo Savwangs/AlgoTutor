@@ -366,8 +366,10 @@
       signinTab.href = '/login.html?plan=premium';
     }
 
-    // Redirect to Stripe checkout
+    // EARLY_ACCESS: Checkout disabled during early access - all features free
+    // Redirect to Stripe checkout (disabled during early access)
     async function startCheckout(email) {
+      /* EARLY_ACCESS_START: Stripe checkout disabled
       try {
         const response = await fetch('/api/create-checkout', {
           method: 'POST',
@@ -394,6 +396,14 @@
         submitBtn.disabled = false;
         submitBtn.textContent = 'Create Account';
       }
+      EARLY_ACCESS_END */
+      
+      // During early access, redirect to dashboard instead of checkout
+      console.log('[Signup] Early access mode - redirecting to dashboard instead of checkout');
+      showMessage('Welcome to AlgoTutor! All features are free during early access.', 'success');
+      setTimeout(() => {
+        window.location.href = '/dashboard.html';
+      }, 1000);
     }
 
     function showMessage(text, type) {

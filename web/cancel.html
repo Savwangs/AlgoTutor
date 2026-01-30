@@ -481,8 +481,26 @@
 
       let currentUser = null;
 
+      // EARLY_ACCESS: Set to false to re-enable subscription cancellation
+      const EARLY_ACCESS_MODE = true;
+      
       // Check auth state on load
       async function checkAuth() {
+        // EARLY_ACCESS: Show message that there's nothing to cancel
+        if (EARLY_ACCESS_MODE) {
+          console.log('[Cancel] Early access mode - no subscriptions to cancel');
+          loadingState.innerHTML = `
+            <div style="text-align: center;">
+              <div style="font-size: 4rem; margin-bottom: 1rem;">🎉</div>
+              <h1 style="color: var(--success); margin-bottom: 0.5rem;">Everything is FREE!</h1>
+              <p style="color: var(--text-secondary); margin-bottom: 1.5rem;">During early access, all features are free - no subscription to cancel!</p>
+              <p style="color: var(--text-secondary); font-size: 0.9rem; margin-bottom: 2rem;">Enjoy unlimited access to Learn, Build, and Debug modes.</p>
+              <a href="/dashboard.html" style="display: inline-block; padding: 0.875rem 1.5rem; background: var(--accent); color: white; border-radius: 8px; text-decoration: none; font-weight: 600;">Go to Dashboard</a>
+            </div>
+          `;
+          return;
+        }
+        
         try {
           const { data: { user }, error } = await supabase.auth.getUser();
           

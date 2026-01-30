@@ -73,12 +73,15 @@ export async function getOrCreateUser(userIdentifier) {
 
     console.log('[Auth] User not found, creating new user...');
     // Create new user if not found
+    // EARLY_ACCESS: Mark all new users as early_user for discount eligibility
     const newUserData = {
       chatgpt_user_id: userIdentifier,
       email: `${userIdentifier}@chatgpt.user`, // Placeholder email
       subscription_tier: 'free',
       subscription_status: 'active',
       usage_count: 0,
+      early_user: true,  // EARLY_ACCESS: Track for discounted pricing when subscriptions launch
+      early_user_registered_at: new Date().toISOString(),
     };
     console.log('[Auth] New user data:', newUserData);
 
@@ -108,6 +111,12 @@ export async function getOrCreateUser(userIdentifier) {
  * Check if user has access to a specific mode
  */
 export function canAccessMode(user, mode) {
+  // EARLY_ACCESS_START: All modes free during early access period
+  // When re-enabling subscriptions, uncomment the code below and remove the return true
+  console.log(`[Auth] EARLY ACCESS: All modes available for free`);
+  return true;
+  
+  /*
   console.log(`[Auth] Checking if user can access mode:`, { tier: user.subscription_tier, mode });
   
   if (!supabase || !isAuthEnabled()) {
@@ -125,6 +134,8 @@ export function canAccessMode(user, mode) {
   const allowed = accessRules[tier]?.includes(mode) ?? false;
   console.log(`[Auth] Access check result:`, { tier, mode, allowed, allowedModes: accessRules[tier] });
   return allowed;
+  */
+  // EARLY_ACCESS_END
 }
 
 /**
@@ -133,6 +144,12 @@ export function canAccessMode(user, mode) {
  * Checks both user_id and widget_id for accurate tracking across IP changes
  */
 export async function checkUsageLimit(user, widgetId = null) {
+  // EARLY_ACCESS_START: Unlimited usage during early access period
+  // When re-enabling subscriptions, uncomment the code below and remove the return statement
+  console.log('[Auth] EARLY ACCESS: Unlimited usage for all users');
+  return { allowed: true, remaining: null };
+  
+  /*
   console.log('[Auth] Checking usage limit for user:', { email: user.email, id: user.id, widgetId });
   
   if (!supabase || !isAuthEnabled()) {
@@ -249,6 +266,8 @@ export async function checkUsageLimit(user, widgetId = null) {
     // Fall back to allowing access on error
     return { allowed: true, remaining: null };
   }
+  */
+  // EARLY_ACCESS_END
 }
 
 /**

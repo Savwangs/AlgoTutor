@@ -664,6 +664,33 @@
         box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
       }
 
+      /* EARLY_ACCESS: Early Access Banner */
+      .early-access-banner {
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(59, 130, 246, 0.15));
+        border: 1px solid rgba(16, 185, 129, 0.4);
+        border-radius: 8px;
+        padding: 10px 16px;
+        margin-bottom: 12px;
+        text-align: center;
+      }
+
+      .early-access-banner-title {
+        font-size: 0.9rem;
+        font-weight: 700;
+        color: #10b981;
+        margin-bottom: 4px;
+      }
+
+      .early-access-banner-text {
+        font-size: 0.8rem;
+        color: var(--text-main);
+        line-height: 1.4;
+      }
+
+      .early-access-banner-text strong {
+        color: #fbbf24;
+      }
+
       /* Early adopter promo banner */
       .promo-banner {
         background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
@@ -1072,6 +1099,14 @@
   <body>
     <main>
       <header>
+        <!-- EARLY_ACCESS: Banner shown during free early access period -->
+        <div class="early-access-banner">
+          <div class="early-access-banner-title">🎉 Early Access - All Features FREE!</div>
+          <div class="early-access-banner-text">
+            V2 with personalized prep coming soon! Early users get <strong>$9.99/mo</strong> (vs $14.99) when subscriptions launch.
+          </div>
+        </div>
+        
         <div class="header-top">
           <div>
             <h1>🚀 AlgoTutor</h1>
@@ -1084,12 +1119,14 @@
             <button class="help-link" id="help-btn" title="Contact support">
               Need Help?
             </button>
+            <!-- EARLY_ACCESS_START: Premium buttons hidden during early access
             <button class="cancel-subscription-btn" id="cancel-subscription-btn">
               Cancel Subscription
             </button>
             <button class="activate-premium-btn" id="activate-premium-btn">
               ⚡ Activate Premium
             </button>
+            EARLY_ACCESS_END -->
           </div>
         </div>
         <div class="mode-selector">
@@ -1364,7 +1401,7 @@
       </div>
     </main>
 
-    <!-- Premium Activation Modal -->
+    <!-- EARLY_ACCESS_START: Premium Activation Modal hidden during early access
     <div class="modal-overlay" id="premium-modal">
       <div class="modal">
         <h2>⚡ Activate Premium</h2>
@@ -1383,6 +1420,7 @@
         </div>
       </div>
     </div>
+    EARLY_ACCESS_END -->
 
     <!-- Feedback Modal -->
     <div class="feedback-modal-overlay" id="feedback-modal">
@@ -1421,9 +1459,14 @@
     </div>
 
     <script type="module">
+      // EARLY_ACCESS: Set to false to re-enable premium activation features
+      // During early access, all features are free - no premium activation needed
+      const EARLY_ACCESS_MODE = true;
+      
       // DEBUGGING: Log everything available on window
       console.log("============================================");
       console.log("[Widget] INITIAL LOAD - Checking window object");
+      console.log("[Widget] EARLY_ACCESS_MODE:", EARLY_ACCESS_MODE);
       console.log("[Widget] window.openai:", window.openai);
       console.log("[Widget] window.state:", window.state);
       console.log("[Widget] Full window keys:", Object.keys(window).filter(k => k.includes('openai') || k.includes('state') || k.includes('widget')));
@@ -2556,73 +2599,80 @@
       console.log("[Widget] ==================== INITIALIZATION COMPLETE ====================");
 
       // ==================== AUTO-ACTIVATE PREMIUM FROM LOCALSTORAGE ====================
-      // Check if user has a stored premium code and auto-activate it for this session
-      const storedPremiumCode = localStorage.getItem('algotutor_premium_code');
-      const cancelBtn = document.getElementById('cancel-subscription-btn');
-      const currentWidgetId = getChatGPTUserId(); // Get widget ID for device binding
-      
-      if (storedPremiumCode) {
-        console.log('[Widget] Found stored premium code, auto-activating:', storedPremiumCode, 'widgetId:', currentWidgetId);
+      // EARLY_ACCESS_START: Auto-activation disabled during early access
+      let storedPremiumCode = null;
+      if (!EARLY_ACCESS_MODE) {
+        // Check if user has a stored premium code and auto-activate it for this session
+        storedPremiumCode = localStorage.getItem('algotutor_premium_code');
+        const cancelBtn = document.getElementById('cancel-subscription-btn');
+        const currentWidgetId = getChatGPTUserId(); // Get widget ID for device binding
         
-        // Show cancel button since user has a stored code
-        if (cancelBtn) {
-          cancelBtn.style.display = 'inline-block';
-        }
-        
-        // Auto-activate in background (don't block UI)
-        // Include widgetId to verify this device is the one that claimed the code
-        fetch('https://algo-tutor.org/api/activate-premium', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ code: storedPremiumCode, widgetId: currentWidgetId })
-        })
-        .then(response => response.json())
-        .then(data => {
-          if (data.error) {
-            console.log('[Widget] Auto-activation failed:', data.error);
-            // If code is invalid, revoked, or claimed by another device, remove it from storage
-            if (data.error.includes('Invalid') || data.error.includes('not found') || data.error.includes('revoked') || data.error.includes('another device')) {
-              localStorage.removeItem('algotutor_premium_code');
-              console.log('[Widget] Removed invalid/revoked/claimed code from localStorage');
-              // Hide cancel button since code is no longer valid
-              if (cancelBtn) {
-                cancelBtn.style.display = 'none';
+        if (storedPremiumCode) {
+          console.log('[Widget] Found stored premium code, auto-activating:', storedPremiumCode, 'widgetId:', currentWidgetId);
+          
+          // Show cancel button since user has a stored code
+          if (cancelBtn) {
+            cancelBtn.style.display = 'inline-block';
+          }
+          
+          // Auto-activate in background (don't block UI)
+          // Include widgetId to verify this device is the one that claimed the code
+          fetch('https://algo-tutor.org/api/activate-premium', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ code: storedPremiumCode, widgetId: currentWidgetId })
+          })
+          .then(response => response.json())
+          .then(data => {
+            if (data.error) {
+              console.log('[Widget] Auto-activation failed:', data.error);
+              // If code is invalid, revoked, or claimed by another device, remove it from storage
+              if (data.error.includes('Invalid') || data.error.includes('not found') || data.error.includes('revoked') || data.error.includes('another device')) {
+                localStorage.removeItem('algotutor_premium_code');
+                console.log('[Widget] Removed invalid/revoked/claimed code from localStorage');
+                // Hide cancel button since code is no longer valid
+                if (cancelBtn) {
+                  cancelBtn.style.display = 'none';
+                }
+              }
+            } else {
+              console.log('[Widget] ✓ Auto-activation successful! Premium status restored.');
+              // Update the activate button to show premium is active
+              const activateBtn = document.getElementById('activate-premium-btn');
+              if (activateBtn) {
+                activateBtn.textContent = '✓ Premium Active';
+                activateBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                activateBtn.disabled = true;
               }
             }
-          } else {
-            console.log('[Widget] ✓ Auto-activation successful! Premium status restored.');
-            // Update the activate button to show premium is active
-            const activateBtn = document.getElementById('activate-premium-btn');
-            if (activateBtn) {
-              activateBtn.textContent = '✓ Premium Active';
-              activateBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-              activateBtn.disabled = true;
-            }
+          })
+          .catch(error => {
+            console.error('[Widget] Auto-activation error:', error);
+          });
+        } else {
+          console.log('[Widget] No stored premium code found');
+          // Hide cancel button if no code stored
+          if (cancelBtn) {
+            cancelBtn.style.display = 'none';
           }
-        })
-        .catch(error => {
-          console.error('[Widget] Auto-activation error:', error);
-        });
-      } else {
-        console.log('[Widget] No stored premium code found');
-        // Hide cancel button if no code stored
-        if (cancelBtn) {
-          cancelBtn.style.display = 'none';
         }
+        
+        // Cancel subscription button click handler
+        if (cancelBtn) {
+          cancelBtn.addEventListener('click', () => {
+            console.log('[Widget] Opening cancel subscription page');
+            window.open('https://algo-tutor.org/cancel.html', '_blank');
+          });
+        }
+      } else {
+        console.log('[Widget] Early access mode - premium auto-activation disabled');
       }
-      
-      // Cancel subscription button click handler
-      if (cancelBtn) {
-        cancelBtn.addEventListener('click', () => {
-          console.log('[Widget] Opening cancel subscription page');
-          window.open('https://algo-tutor.org/cancel.html', '_blank');
-        });
-      }
+      // EARLY_ACCESS_END
 
       // ==================== CHECK COOLDOWN FROM LOCALSTORAGE ====================
-      // If user has an active cooldown from a previous session, show it
+      // EARLY_ACCESS: Cooldown checking disabled during early access - unlimited usage
       const storedCooldown = localStorage.getItem('algotutor_cooldown_expires');
-      if (storedCooldown && !storedPremiumCode) {
+      if (!EARLY_ACCESS_MODE && storedCooldown && !storedPremiumCode) {
         const now = Date.now();
         const expires = new Date(storedCooldown).getTime();
         const remaining = expires - now;
@@ -2639,32 +2689,38 @@
       }
 
       // ==================== PREMIUM ACTIVATION MODAL ====================
-      const premiumModal = document.getElementById('premium-modal');
-      const activatePremiumBtn = document.getElementById('activate-premium-btn');
-      const modalCancel = document.getElementById('modal-cancel');
-      const modalActivate = document.getElementById('modal-activate');
-      const premiumCodeInput = document.getElementById('premium-code-input');
-      const modalMessage = document.getElementById('modal-message');
+      // EARLY_ACCESS_START: Premium activation code - disabled during early access
+      if (!EARLY_ACCESS_MODE) {
+        const premiumModal = document.getElementById('premium-modal');
+        const activatePremiumBtn = document.getElementById('activate-premium-btn');
+        const modalCancel = document.getElementById('modal-cancel');
+        const modalActivate = document.getElementById('modal-activate');
+        const premiumCodeInput = document.getElementById('premium-code-input');
+        const modalMessage = document.getElementById('modal-message');
 
-      // Open modal
-      activatePremiumBtn.addEventListener('click', () => {
-        premiumModal.classList.add('active');
-        premiumCodeInput.value = '';
-        modalMessage.style.display = 'none';
-        premiumCodeInput.focus();
-      });
+        // Open modal
+        activatePremiumBtn.addEventListener('click', () => {
+          premiumModal.classList.add('active');
+          premiumCodeInput.value = '';
+          modalMessage.style.display = 'none';
+          premiumCodeInput.focus();
+        });
 
-      // Close modal
-      modalCancel.addEventListener('click', () => {
-        premiumModal.classList.remove('active');
-      });
-
-      // Close on overlay click
-      premiumModal.addEventListener('click', (e) => {
-        if (e.target === premiumModal) {
+        // Close modal
+        modalCancel.addEventListener('click', () => {
           premiumModal.classList.remove('active');
-        }
-      });
+        });
+
+        // Close on overlay click
+        premiumModal.addEventListener('click', (e) => {
+          if (e.target === premiumModal) {
+            premiumModal.classList.remove('active');
+          }
+        });
+      } else {
+        console.log('[Widget] Early access mode - premium activation disabled');
+      }
+      // EARLY_ACCESS_END
 
       // ==================== HELP MODAL ====================
       const helpModal = document.getElementById('help-modal');
@@ -2689,14 +2745,21 @@
       });
 
       // Format input as user types
-      premiumCodeInput.addEventListener('input', (e) => {
-        let value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-        // Auto-add ALGO- prefix if not present
-        if (value.length > 0 && !value.startsWith('ALGO-') && !value.startsWith('A')) {
-          value = 'ALGO-' + value;
+      // EARLY_ACCESS_START: Premium code input formatting - disabled during early access
+      if (!EARLY_ACCESS_MODE) {
+        const premiumCodeInput = document.getElementById('premium-code-input');
+        if (premiumCodeInput) {
+          premiumCodeInput.addEventListener('input', (e) => {
+            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
+            // Auto-add ALGO- prefix if not present
+            if (value.length > 0 && !value.startsWith('ALGO-') && !value.startsWith('A')) {
+              value = 'ALGO-' + value;
+            }
+            e.target.value = value;
+          });
         }
-        e.target.value = value;
-      });
+      }
+      // EARLY_ACCESS_END
 
       // Helper to get chatgpt user ID (from context or generate one based on session)
       function getChatGPTUserId() {
@@ -2741,100 +2804,112 @@
       })();
 
       // Activate premium
-      modalActivate.addEventListener('click', async () => {
-        const code = premiumCodeInput.value.trim().toUpperCase();
+      // EARLY_ACCESS_START: Premium activation handler - disabled during early access
+      if (!EARLY_ACCESS_MODE) {
+        const modalActivate = document.getElementById('modal-activate');
+        const premiumCodeInput = document.getElementById('premium-code-input');
+        const modalMessage = document.getElementById('modal-message');
+        const premiumModal = document.getElementById('premium-modal');
+        const activatePremiumBtn = document.getElementById('activate-premium-btn');
         
-        if (!code || code.length < 5) {
-          modalMessage.textContent = 'Please enter a valid activation code.';
-          modalMessage.className = 'modal-message error';
-          modalMessage.style.display = 'block';
-          return;
-        }
+        if (modalActivate && premiumCodeInput) {
+          modalActivate.addEventListener('click', async () => {
+            const code = premiumCodeInput.value.trim().toUpperCase();
+            
+            if (!code || code.length < 5) {
+              modalMessage.textContent = 'Please enter a valid activation code.';
+              modalMessage.className = 'modal-message error';
+              modalMessage.style.display = 'block';
+              return;
+            }
 
-        modalActivate.disabled = true;
-        modalActivate.textContent = 'Activating...';
+            modalActivate.disabled = true;
+            modalActivate.textContent = 'Activating...';
 
-        try {
-          // Get widget ID for device binding - this binds the code to this specific device
-          const widgetId = getChatGPTUserId();
-          console.log('[Widget] Activating premium with widgetId:', widgetId);
-          
-          const response = await fetch('https://algo-tutor.org/api/activate-premium', {
-            method: 'POST',
-            headers: {
-              'Content-Type': 'application/json',
-            },
-            body: JSON.stringify({
-              code: code,
-              widgetId: widgetId
-            })
+            try {
+              // Get widget ID for device binding - this binds the code to this specific device
+              const widgetId = getChatGPTUserId();
+              console.log('[Widget] Activating premium with widgetId:', widgetId);
+              
+              const response = await fetch('https://algo-tutor.org/api/activate-premium', {
+                method: 'POST',
+                headers: {
+                  'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                  code: code,
+                  widgetId: widgetId
+                })
+              });
+
+              const data = await response.json();
+
+              if (data.error) {
+                modalMessage.textContent = data.error;
+                modalMessage.className = 'modal-message error';
+                modalMessage.style.display = 'block';
+              } else {
+                modalMessage.textContent = '✓ ' + (data.message || 'Premium activated successfully!');
+                modalMessage.className = 'modal-message success';
+                modalMessage.style.display = 'block';
+                
+                // Store the code in localStorage for cross-session persistence
+                localStorage.setItem('algotutor_premium_code', code);
+                console.log('[Widget] Premium code stored in localStorage:', code);
+                
+                // Show cancel button now that user has activated premium
+                const cancelBtn = document.getElementById('cancel-subscription-btn');
+                if (cancelBtn) {
+                  cancelBtn.style.display = 'inline-block';
+                }
+                
+                // Close modal after brief delay
+                setTimeout(() => {
+                  premiumModal.classList.remove('active');
+                  
+                  // Update the activate button to show premium is active
+                  activatePremiumBtn.textContent = '✓ Premium Active';
+                  activatePremiumBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
+                  activatePremiumBtn.disabled = true;
+                  
+                  // Clear any error display and show success state in the output container
+                  outputContainer.innerHTML = `
+                    <div class="premium-success-container">
+                      <div class="premium-success-icon">🎉</div>
+                      <div class="premium-success-title">Premium Activated!</div>
+                      <div class="premium-success-message">
+                        Your account now has unlimited access to all AlgoTutor modes.
+                      </div>
+                      <div class="premium-success-hint">
+                        Begin interacting with AlgoTutor widget to start learning with premium access!
+                      </div>
+                      <div class="premium-success-hint" style="margin-top: 12px; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3);">
+                        📊 Forgot your code? Visit <strong>algo-tutor.org</strong> and sign in to recover it anytime.
+                      </div>
+                    </div>
+                  `;
+                }, 1500);
+              }
+            } catch (error) {
+              console.error('Activation error:', error);
+              modalMessage.textContent = 'Failed to activate. Please try again.';
+              modalMessage.className = 'modal-message error';
+              modalMessage.style.display = 'block';
+            }
+
+            modalActivate.disabled = false;
+            modalActivate.textContent = 'Activate';
           });
 
-          const data = await response.json();
-
-          if (data.error) {
-            modalMessage.textContent = data.error;
-            modalMessage.className = 'modal-message error';
-            modalMessage.style.display = 'block';
-          } else {
-            modalMessage.textContent = '✓ ' + (data.message || 'Premium activated successfully!');
-            modalMessage.className = 'modal-message success';
-            modalMessage.style.display = 'block';
-            
-            // Store the code in localStorage for cross-session persistence
-            localStorage.setItem('algotutor_premium_code', code);
-            console.log('[Widget] Premium code stored in localStorage:', code);
-            
-            // Show cancel button now that user has activated premium
-            const cancelBtn = document.getElementById('cancel-subscription-btn');
-            if (cancelBtn) {
-              cancelBtn.style.display = 'inline-block';
+          // Handle Enter key in input
+          premiumCodeInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+              modalActivate.click();
             }
-            
-            // Close modal after brief delay
-            setTimeout(() => {
-              premiumModal.classList.remove('active');
-              
-              // Update the activate button to show premium is active
-              activatePremiumBtn.textContent = '✓ Premium Active';
-              activatePremiumBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-              activatePremiumBtn.disabled = true;
-              
-              // Clear any error display and show success state in the output container
-              outputContainer.innerHTML = `
-                <div class="premium-success-container">
-                  <div class="premium-success-icon">🎉</div>
-                  <div class="premium-success-title">Premium Activated!</div>
-                  <div class="premium-success-message">
-                    Your account now has unlimited access to all AlgoTutor modes.
-                  </div>
-                  <div class="premium-success-hint">
-                    Begin interacting with AlgoTutor widget to start learning with premium access!
-                  </div>
-                  <div class="premium-success-hint" style="margin-top: 12px; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3);">
-                    📊 Forgot your code? Visit <strong>algo-tutor.org</strong> and sign in to recover it anytime.
-                  </div>
-                </div>
-              `;
-            }, 1500);
-          }
-        } catch (error) {
-          console.error('Activation error:', error);
-          modalMessage.textContent = 'Failed to activate. Please try again.';
-          modalMessage.className = 'modal-message error';
-          modalMessage.style.display = 'block';
+          });
         }
-
-        modalActivate.disabled = false;
-        modalActivate.textContent = 'Activate';
-      });
-
-      // Handle Enter key in input
-      premiumCodeInput.addEventListener('keypress', (e) => {
-        if (e.key === 'Enter') {
-          modalActivate.click();
-        }
-      });
+      }
+      // EARLY_ACCESS_END
 
       // ==================== FEEDBACK SYSTEM ====================
       const feedbackModal = document.getElementById('feedback-modal');
