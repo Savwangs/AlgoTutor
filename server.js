@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { generateLearnContent, generateBuildSolution, generateDebugAnalysis } from './llm.js';
+import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateTraceAndWalkthrough, generateRealWorldExample } from './llm.js';
 import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -72,15 +72,23 @@ console.log('[STARTUP] Widget HTML loaded successfully');
 // 2. Zod schemas for tool inputs
 //
 
-// Learn Mode Schema - ONLY INPUT FIELDS
+// Learn Mode Schema - ONLY INPUT FIELDS (simplified - removed toggle options)
 const learnModeInputSchema = z.object({
   topic: z.string().min(1).describe("DSA topic/pattern to learn (e.g., BFS, heaps, two pointers, sliding window, dynamic programming)"),
   difficulty: z.enum(["basic", "normal", "dumb-it-down"]).default("normal").describe("Difficulty level"),
   depth: z.enum(["tiny", "normal", "full"]).default("normal").describe("Explanation depth: tiny (5 steps), normal, or full walkthrough"),
   exampleSize: z.enum(["small", "medium"]).default("small").describe("Size of example to use"),
-  showPatternKeywords: z.boolean().default(true).describe("Whether to show pattern signature keywords that signal when to use this pattern"),
-  showDryRun: z.boolean().default(true).describe("Whether to include exam-format trace table (3-4 steps)"),
-  showPaperVersion: z.boolean().default(true).describe("Whether to include paper summary for exam day"),
+});
+
+// Learn Mode Trace/Walkthrough Schema - for follow-up requests
+const learnTraceWalkthroughSchema = z.object({
+  topic: z.string().min(1).describe("The DSA topic/algorithm to generate trace table and walkthrough for"),
+  code: z.string().optional().describe("Optional: The code from the initial learn response to trace through"),
+});
+
+// Learn Mode Real World Example Schema - for follow-up requests
+const learnRealWorldExampleSchema = z.object({
+  topic: z.string().min(1).describe("The DSA topic/algorithm to generate a practice problem for"),
 });
 
 // Build Mode Schema - ONLY INPUT FIELDS
@@ -442,6 +450,142 @@ function createAlgoTutorServer() {
       } catch (error) {
         logError('LEARN MODE ERROR', error);
         logError('Error stack', error.stack);
+        throw error;
+      }
+    }
+  );
+
+  //
+  // 🚀 Tool 1b: Learn Mode - Trace Table & Walkthrough (follow-up)
+  //
+  server.registerTool(
+    "learn_trace_walkthrough",
+    {
+      title: "AlgoTutor Trace Table & Walkthrough",
+      description:
+        "Generates a detailed trace table and example walkthrough for a DSA topic. Use this when the user clicks 'See trace table and example walkthrough' in Learn Mode.",
+      inputSchema: learnTraceWalkthroughSchema,
+      _meta: {
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/toolInvocation/invoking": "Generating trace table and walkthrough...",
+        "openai/toolInvocation/invoked": "Trace table ready! Check the AlgoTutor panel.",
+        "openai/instruction": "The trace table and walkthrough are displayed in the AlgoTutor panel above. Do NOT repeat the content. Simply acknowledge that the trace table is ready.",
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (args, context) => {
+      logSection('LEARN TRACE WALKTHROUGH TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
+      try {
+        // Authenticate (counts as a usage)
+        const authResult = await authenticateRequest(mockReq, 'learn');
+        
+        if (!authResult.success) {
+          const errorWithUpgrade = {
+            ...authResult.error,
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+          };
+          const errorData = {
+            _widgetOnly: true,
+            _instruction: "Display the error in the AlgoTutor panel.",
+            mode: "learn",
+            error: errorWithUpgrade
+          };
+          return { content: [{ type: "text", text: JSON.stringify(errorData) }] };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}`);
+        
+        // Generate trace table and walkthrough
+        const outputs = await generateTraceAndWalkthrough(args);
+        
+        // Check for validation errors
+        if (outputs.error === 'INVALID_INPUT') {
+          return makeToolOutput("learn", {
+            invalidInput: true,
+            message: outputs.message || 'Please enter a valid DSA topic.'
+          });
+        }
+        
+        // Log usage
+        const logId = await logUsage(user, 'learn_trace', args.topic, authResult.widgetId, { type: 'trace_walkthrough' });
+        
+        return makeToolOutput("learn", outputs, null, logId);
+      } catch (error) {
+        logError('LEARN TRACE WALKTHROUGH ERROR', error);
+        throw error;
+      }
+    }
+  );
+
+  //
+  // 🚀 Tool 1c: Learn Mode - Real World Example (follow-up)
+  //
+  server.registerTool(
+    "learn_real_world_example",
+    {
+      title: "AlgoTutor Real World Example",
+      description:
+        "Generates an interactive fill-in-the-blank coding problem to test understanding of a DSA topic. Use this when the user clicks 'See a real world example' in Learn Mode.",
+      inputSchema: learnRealWorldExampleSchema,
+      _meta: {
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/toolInvocation/invoking": "Generating practice problem...",
+        "openai/toolInvocation/invoked": "Practice problem ready! Check the AlgoTutor panel.",
+        "openai/instruction": "The practice problem is displayed in the AlgoTutor panel above. Do NOT repeat the problem or give hints. Simply acknowledge that the problem is ready and encourage the user to try it.",
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (args, context) => {
+      logSection('LEARN REAL WORLD EXAMPLE TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
+      try {
+        // Authenticate (counts as a usage)
+        const authResult = await authenticateRequest(mockReq, 'learn');
+        
+        if (!authResult.success) {
+          const errorWithUpgrade = {
+            ...authResult.error,
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+          };
+          const errorData = {
+            _widgetOnly: true,
+            _instruction: "Display the error in the AlgoTutor panel.",
+            mode: "learn",
+            error: errorWithUpgrade
+          };
+          return { content: [{ type: "text", text: JSON.stringify(errorData) }] };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}`);
+        
+        // Generate real world example
+        const outputs = await generateRealWorldExample(args);
+        
+        // Check for validation errors
+        if (outputs.error === 'INVALID_INPUT') {
+          return makeToolOutput("learn", {
+            invalidInput: true,
+            message: outputs.message || 'Please enter a valid DSA topic.'
+          });
+        }
+        
+        // Log usage
+        const logId = await logUsage(user, 'learn_example', args.topic, authResult.widgetId, { type: 'real_world_example' });
+        
+        return makeToolOutput("learn", outputs, null, logId);
+      } catch (error) {
+        logError('LEARN REAL WORLD EXAMPLE ERROR', error);
         throw error;
       }
     }

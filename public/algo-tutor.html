@@ -1093,6 +1093,342 @@
         color: var(--text-main);
         border-color: var(--border-main);
       }
+
+      /* Follow-up Question Buttons (Learn Mode) */
+      .followup-buttons-container {
+        margin-top: 24px;
+        padding: 16px;
+        border-top: 1px solid var(--border-subtle);
+        display: flex;
+        flex-direction: column;
+        gap: 12px;
+      }
+
+      .followup-buttons-title {
+        font-size: 0.85rem;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        text-align: center;
+      }
+
+      .followup-btn {
+        display: flex;
+        align-items: center;
+        gap: 12px;
+        padding: 14px 18px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.1), rgba(59, 130, 246, 0.05));
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 10px;
+        color: var(--text-main);
+        font-size: 0.9rem;
+        cursor: pointer;
+        transition: all 0.2s ease;
+        text-align: left;
+      }
+
+      .followup-btn:hover {
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.2), rgba(59, 130, 246, 0.1));
+        border-color: var(--accent);
+        transform: translateX(4px);
+      }
+
+      .followup-btn-icon {
+        font-size: 1.4rem;
+        flex-shrink: 0;
+      }
+
+      .followup-btn-text {
+        flex: 1;
+      }
+
+      .followup-btn-arrow {
+        color: var(--accent);
+        font-size: 1.2rem;
+      }
+
+      /* Fill-in-the-Blank Interactive UI */
+      .fillin-container {
+        background: var(--bg-panel);
+        border: 1px solid var(--border-subtle);
+        border-radius: 12px;
+        padding: 20px;
+        margin-top: 16px;
+      }
+
+      .fillin-problem-title {
+        font-size: 1.1rem;
+        font-weight: 700;
+        color: var(--text-strong);
+        margin-bottom: 12px;
+      }
+
+      .fillin-problem-description {
+        font-size: 0.9rem;
+        color: var(--text-main);
+        line-height: 1.6;
+        margin-bottom: 16px;
+        padding: 12px;
+        background: rgba(59, 130, 246, 0.05);
+        border-radius: 8px;
+        border-left: 3px solid var(--accent);
+      }
+
+      .fillin-testcases {
+        margin-bottom: 16px;
+      }
+
+      .fillin-testcases-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        margin-bottom: 8px;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+      }
+
+      .fillin-testcase {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.8rem;
+        padding: 8px 12px;
+        background: #0a0e27;
+        border-radius: 6px;
+        margin-bottom: 6px;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .fillin-testcase-input {
+        color: #60a5fa;
+      }
+
+      .fillin-testcase-output {
+        color: #10b981;
+      }
+
+      .fillin-code-container {
+        margin-bottom: 20px;
+      }
+
+      .fillin-code {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.85rem;
+        background: #0a0e27;
+        border-radius: 8px;
+        padding: 16px;
+        border: 1px solid var(--border-subtle);
+        overflow-x: auto;
+        white-space: pre;
+        line-height: 1.6;
+      }
+
+      .fillin-blanks-section {
+        margin-top: 20px;
+      }
+
+      .fillin-blanks-title {
+        font-size: 0.9rem;
+        font-weight: 600;
+        color: var(--text-strong);
+        margin-bottom: 16px;
+      }
+
+      .fillin-blank-item {
+        background: rgba(59, 130, 246, 0.05);
+        border: 1px solid var(--border-subtle);
+        border-radius: 10px;
+        padding: 16px;
+        margin-bottom: 16px;
+      }
+
+      .fillin-blank-label {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--accent);
+        margin-bottom: 8px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .fillin-blank-context {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        margin-bottom: 12px;
+        padding: 8px;
+        background: #0a0e27;
+        border-radius: 4px;
+      }
+
+      .fillin-input-row {
+        display: flex;
+        gap: 10px;
+        align-items: center;
+      }
+
+      .fillin-select {
+        flex: 1;
+        padding: 10px 12px;
+        background: #0a0e27;
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        color: var(--text-main);
+        font-size: 0.9rem;
+        cursor: pointer;
+      }
+
+      .fillin-select:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .fillin-text-input {
+        flex: 1;
+        padding: 10px 12px;
+        background: #0a0e27;
+        border: 1px solid var(--border-subtle);
+        border-radius: 6px;
+        color: var(--text-main);
+        font-size: 0.9rem;
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+      }
+
+      .fillin-text-input:focus {
+        outline: none;
+        border-color: var(--accent);
+      }
+
+      .fillin-check-btn {
+        padding: 10px 16px;
+        background: var(--accent);
+        border: none;
+        border-radius: 6px;
+        color: white;
+        font-weight: 600;
+        font-size: 0.85rem;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .fillin-check-btn:hover {
+        background: #2563eb;
+      }
+
+      .fillin-check-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .fillin-feedback {
+        margin-top: 10px;
+        padding: 10px 14px;
+        border-radius: 6px;
+        font-size: 0.85rem;
+        display: none;
+      }
+
+      .fillin-feedback.correct {
+        display: block;
+        background: rgba(16, 185, 129, 0.1);
+        border: 1px solid rgba(16, 185, 129, 0.3);
+        color: #10b981;
+      }
+
+      .fillin-feedback.incorrect {
+        display: block;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        color: #ef4444;
+      }
+
+      .fillin-hint-btn {
+        background: transparent;
+        border: none;
+        color: var(--text-muted);
+        font-size: 0.8rem;
+        cursor: pointer;
+        padding: 4px 8px;
+        margin-left: 8px;
+      }
+
+      .fillin-hint-btn:hover {
+        color: var(--accent);
+      }
+
+      .fillin-hint {
+        font-size: 0.8rem;
+        color: var(--text-muted);
+        font-style: italic;
+        margin-top: 8px;
+        display: none;
+      }
+
+      .fillin-hint.visible {
+        display: block;
+      }
+
+      .fillin-explanation {
+        margin-top: 8px;
+        font-size: 0.85rem;
+        color: var(--text-main);
+        line-height: 1.5;
+      }
+
+      .fillin-why-tests {
+        margin-top: 20px;
+        padding: 14px;
+        background: rgba(139, 92, 246, 0.1);
+        border: 1px solid rgba(139, 92, 246, 0.3);
+        border-radius: 8px;
+      }
+
+      .fillin-why-tests-title {
+        font-size: 0.8rem;
+        font-weight: 600;
+        color: #8b5cf6;
+        margin-bottom: 6px;
+        text-transform: uppercase;
+      }
+
+      .fillin-why-tests-text {
+        font-size: 0.85rem;
+        color: var(--text-main);
+      }
+
+      /* Trace Table and Walkthrough Specific Styles */
+      .trace-walkthrough-container {
+        padding: 16px;
+      }
+
+      .example-io {
+        display: flex;
+        gap: 16px;
+        margin-bottom: 16px;
+        flex-wrap: wrap;
+      }
+
+      .example-io-item {
+        flex: 1;
+        min-width: 200px;
+        padding: 12px;
+        background: rgba(59, 130, 246, 0.05);
+        border-radius: 8px;
+        border: 1px solid var(--border-subtle);
+      }
+
+      .example-io-label {
+        font-size: 0.75rem;
+        font-weight: 600;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        margin-bottom: 6px;
+      }
+
+      .example-io-value {
+        font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+        font-size: 0.9rem;
+        color: var(--text-strong);
+      }
     </style>
   </head>
 
@@ -1172,21 +1508,6 @@
                   <option value="small" selected>Small</option>
                   <option value="medium">Medium</option>
                 </select>
-              </div>
-            </div>
-
-            <div class="toggles-section">
-              <div class="toggle-item">
-                <input type="checkbox" id="learn-pattern-keywords" checked />
-                <label for="learn-pattern-keywords">Show pattern keywords</label>
-              </div>
-              <div class="toggle-item">
-                <input type="checkbox" id="learn-dry-run" checked />
-                <label for="learn-dry-run">Show trace table (exam format)</label>
-              </div>
-              <div class="toggle-item">
-                <input type="checkbox" id="learn-paper-version" checked />
-                <label for="learn-paper-version">Show paper summary</label>
               </div>
             </div>
 
@@ -1471,6 +1792,8 @@
         outputs: null,
       };
       let currentLogId = null; // For feedback tracking
+      let currentLearnTopic = null; // For Learn Mode follow-up questions
+      let currentLearnCode = ''; // For Learn Mode trace walkthrough
 
       // DOM Elements
       const modeBtns = document.querySelectorAll(".mode-btn");
@@ -1993,6 +2316,61 @@
           
           outputContainer.appendChild(blockEl);
         }
+
+        // === TRACE TABLE & WALKTHROUGH RESPONSE ===
+        if (outputs.isTraceWalkthrough) {
+          // Render example input/output
+          if (outputs.exampleInput || outputs.exampleOutput) {
+            const ioDiv = document.createElement("div");
+            ioDiv.className = "example-io";
+            if (outputs.exampleInput) {
+              ioDiv.innerHTML += `
+                <div class="example-io-item">
+                  <div class="example-io-label">Example Input</div>
+                  <div class="example-io-value">${escapeHtml(outputs.exampleInput)}</div>
+                </div>
+              `;
+            }
+            if (outputs.exampleOutput) {
+              ioDiv.innerHTML += `
+                <div class="example-io-item">
+                  <div class="example-io-label">Expected Output</div>
+                  <div class="example-io-value">${escapeHtml(outputs.exampleOutput)}</div>
+                </div>
+              `;
+            }
+            outputContainer.appendChild(ioDiv);
+          }
+        }
+
+        // === REAL WORLD EXAMPLE (FILL-IN-THE-BLANK) RESPONSE ===
+        if (outputs.isRealWorldExample) {
+          renderFillInBlankProblem(outputs);
+        }
+
+        // === LEARN MODE FOLLOW-UP BUTTONS ===
+        if (outputs.isLearnMode && outputs.topicIdentified) {
+          const followupContainer = document.createElement("div");
+          followupContainer.className = "followup-buttons-container";
+          followupContainer.innerHTML = `
+            <div class="followup-buttons-title">Want to learn more?</div>
+            <button class="followup-btn" data-action="trace-walkthrough" data-topic="${escapeHtml(outputs.topicIdentified)}" data-code="${escapeHtml(outputs.code || '')}">
+              <span class="followup-btn-icon">📊</span>
+              <span class="followup-btn-text">See a trace table and example walkthrough</span>
+              <span class="followup-btn-arrow">→</span>
+            </button>
+            <button class="followup-btn" data-action="real-world" data-topic="${escapeHtml(outputs.topicIdentified)}">
+              <span class="followup-btn-icon">🧩</span>
+              <span class="followup-btn-text">Try a real-world practice problem</span>
+              <span class="followup-btn-arrow">→</span>
+            </button>
+          `;
+          outputContainer.appendChild(followupContainer);
+          
+          // Store current topic for follow-up requests
+          currentLearnTopic = outputs.topicIdentified;
+          currentLearnCode = outputs.code || '';
+        }
         
         // Add feedback buttons for premium users
         const isPremium = !!localStorage.getItem('algotutor_premium_code');
@@ -2056,6 +2434,200 @@
           .replace(/>/g, "&gt;")
           .replace(/"/g, "&quot;");
 
+      // Render Fill-in-the-Blank Problem (for Real World Example)
+      const renderFillInBlankProblem = (outputs) => {
+        const container = document.createElement("div");
+        container.className = "fillin-container";
+        
+        // Problem Title
+        if (outputs.problemTitle) {
+          const titleEl = document.createElement("h2");
+          titleEl.className = "fillin-problem-title";
+          titleEl.textContent = outputs.problemTitle;
+          container.appendChild(titleEl);
+        }
+        
+        // Problem Description
+        if (outputs.problemDescription) {
+          const descEl = document.createElement("div");
+          descEl.className = "fillin-problem-description";
+          descEl.innerHTML = escapeHtml(outputs.problemDescription).replace(/\n/g, '<br>');
+          container.appendChild(descEl);
+        }
+        
+        // Test Cases
+        if (outputs.testCases && Array.isArray(outputs.testCases)) {
+          const testSection = document.createElement("div");
+          testSection.className = "fillin-testcases";
+          testSection.innerHTML = `<div class="fillin-testcases-title">Test Cases</div>`;
+          
+          outputs.testCases.forEach((tc, idx) => {
+            const tcEl = document.createElement("div");
+            tcEl.className = "fillin-testcase";
+            tcEl.innerHTML = `
+              <span class="fillin-testcase-input">Input: ${escapeHtml(tc.input || tc)}</span>
+              ${tc.output ? `<br><span class="fillin-testcase-output">Output: ${escapeHtml(tc.output)}</span>` : ''}
+            `;
+            testSection.appendChild(tcEl);
+          });
+          container.appendChild(testSection);
+        }
+        
+        // Code with Blanks
+        if (outputs.codeWithBlanks) {
+          const codeSection = document.createElement("div");
+          codeSection.className = "fillin-code-container";
+          const codeEl = document.createElement("pre");
+          codeEl.className = "fillin-code";
+          // Highlight blanks
+          let highlightedCode = escapeHtml(outputs.codeWithBlanks);
+          highlightedCode = highlightedCode.replace(/___BLANK_(\d+)___/g, 
+            '<span style="background: rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 4px; color: #fbbf24;">[ BLANK $1 ]</span>');
+          codeEl.innerHTML = highlightedCode;
+          codeSection.appendChild(codeEl);
+          container.appendChild(codeSection);
+        }
+        
+        // Fill-in-the-Blanks Section
+        if (outputs.blanks && Array.isArray(outputs.blanks)) {
+          const blanksSection = document.createElement("div");
+          blanksSection.className = "fillin-blanks-section";
+          blanksSection.innerHTML = `<div class="fillin-blanks-title">Fill in the Blanks</div>`;
+          
+          outputs.blanks.forEach((blank, idx) => {
+            const blankItem = document.createElement("div");
+            blankItem.className = "fillin-blank-item";
+            blankItem.dataset.blankId = blank.id || idx + 1;
+            blankItem.dataset.answer = blank.correctAnswer || '';
+            blankItem.dataset.explanation = blank.explanation || '';
+            
+            // Label
+            const labelEl = document.createElement("div");
+            labelEl.className = "fillin-blank-label";
+            labelEl.innerHTML = `<span>Blank ${blank.id || idx + 1}</span>`;
+            blankItem.appendChild(labelEl);
+            
+            // Line Context
+            if (blank.lineContext) {
+              const contextEl = document.createElement("div");
+              contextEl.className = "fillin-blank-context";
+              contextEl.textContent = blank.lineContext;
+              blankItem.appendChild(contextEl);
+            }
+            
+            // Input Row
+            const inputRow = document.createElement("div");
+            inputRow.className = "fillin-input-row";
+            
+            if (blank.type === 'multiple_choice' && blank.options) {
+              // Dropdown for multiple choice
+              const select = document.createElement("select");
+              select.className = "fillin-select";
+              select.dataset.blankId = blank.id || idx + 1;
+              select.innerHTML = `<option value="">-- Select answer --</option>`;
+              blank.options.forEach(opt => {
+                select.innerHTML += `<option value="${escapeHtml(opt)}">${escapeHtml(opt)}</option>`;
+              });
+              inputRow.appendChild(select);
+            } else {
+              // Text input
+              const input = document.createElement("input");
+              input.type = "text";
+              input.className = "fillin-text-input";
+              input.dataset.blankId = blank.id || idx + 1;
+              input.placeholder = "Type your answer...";
+              inputRow.appendChild(input);
+              
+              // Hint button (for text inputs)
+              if (blank.hint) {
+                const hintBtn = document.createElement("button");
+                hintBtn.className = "fillin-hint-btn";
+                hintBtn.textContent = "💡 Hint";
+                hintBtn.onclick = () => {
+                  const hintEl = blankItem.querySelector('.fillin-hint');
+                  if (hintEl) hintEl.classList.toggle('visible');
+                };
+                inputRow.appendChild(hintBtn);
+              }
+            }
+            
+            // Check button
+            const checkBtn = document.createElement("button");
+            checkBtn.className = "fillin-check-btn";
+            checkBtn.textContent = "Check";
+            checkBtn.onclick = () => checkBlankAnswer(blankItem);
+            inputRow.appendChild(checkBtn);
+            
+            blankItem.appendChild(inputRow);
+            
+            // Hint text (hidden by default)
+            if (blank.hint) {
+              const hintEl = document.createElement("div");
+              hintEl.className = "fillin-hint";
+              hintEl.textContent = blank.hint;
+              blankItem.appendChild(hintEl);
+            }
+            
+            // Feedback area
+            const feedbackEl = document.createElement("div");
+            feedbackEl.className = "fillin-feedback";
+            blankItem.appendChild(feedbackEl);
+            
+            blanksSection.appendChild(blankItem);
+          });
+          
+          container.appendChild(blanksSection);
+        }
+        
+        // Why This Tests section
+        if (outputs.whyThisTests) {
+          const whySection = document.createElement("div");
+          whySection.className = "fillin-why-tests";
+          whySection.innerHTML = `
+            <div class="fillin-why-tests-title">What This Tests</div>
+            <div class="fillin-why-tests-text">${escapeHtml(outputs.whyThisTests)}</div>
+          `;
+          container.appendChild(whySection);
+        }
+        
+        outputContainer.appendChild(container);
+      };
+      
+      // Check blank answer
+      const checkBlankAnswer = (blankItem) => {
+        const answer = blankItem.dataset.answer;
+        const explanation = blankItem.dataset.explanation;
+        const feedbackEl = blankItem.querySelector('.fillin-feedback');
+        
+        // Get user's answer
+        const selectEl = blankItem.querySelector('.fillin-select');
+        const inputEl = blankItem.querySelector('.fillin-text-input');
+        const userAnswer = selectEl ? selectEl.value : (inputEl ? inputEl.value.trim() : '');
+        
+        // Compare answers (case-insensitive, trim whitespace)
+        const isCorrect = userAnswer.toLowerCase().trim() === answer.toLowerCase().trim();
+        
+        // Show feedback
+        feedbackEl.className = `fillin-feedback ${isCorrect ? 'correct' : 'incorrect'}`;
+        if (isCorrect) {
+          feedbackEl.innerHTML = `
+            <strong>✅ Correct!</strong>
+            ${explanation ? `<div class="fillin-explanation">${escapeHtml(explanation)}</div>` : ''}
+          `;
+        } else {
+          feedbackEl.innerHTML = `
+            <strong>❌ Not quite.</strong> Try again!
+          `;
+        }
+        
+        // Disable input if correct
+        if (isCorrect) {
+          if (selectEl) selectEl.disabled = true;
+          if (inputEl) inputEl.disabled = true;
+          blankItem.querySelector('.fillin-check-btn').disabled = true;
+        }
+      };
+
       // Form submissions
       modeForms.learn.addEventListener("submit", async (e) => {
         e.preventDefault();
@@ -2065,9 +2637,6 @@
         const difficulty = document.querySelector("#learn-difficulty").value;
         const depth = document.querySelector("#learn-depth").value;
         const exampleSize = document.querySelector("#learn-example-size").value;
-        const showPatternKeywords = document.querySelector("#learn-pattern-keywords").checked;
-        const showDryRun = document.querySelector("#learn-dry-run").checked;
-        const showPaperVersion = document.querySelector("#learn-paper-version").checked;
 
         if (!topic) {
           statusEl.textContent = "Please enter a pattern/topic.";
@@ -2076,12 +2645,9 @@
 
         statusEl.textContent = "Generating lesson...";
         
-        // Build natural language prompt for ChatGPT - Learn Mode
+        // Build natural language prompt for ChatGPT - Learn Mode (simplified)
         let prompt = `Use AlgoTutor Learn Mode to teach me ${topic} with ${difficulty} difficulty and ${depth} depth.`;
         prompt += ` Use ${exampleSize} example size.`;
-        prompt += showPatternKeywords ? ` Show pattern signature keywords.` : ` Do NOT show pattern keywords.`;
-        prompt += showDryRun ? ` Include exam-format trace table.` : ` Do NOT include trace table.`;
-        prompt += showPaperVersion ? ` Include paper summary.` : ` Do NOT include paper summary.`;
 
         try {
           await sendFollowUp(prompt);
@@ -3012,6 +3578,50 @@
       feedbackModal.addEventListener('click', (e) => {
         if (e.target === feedbackModal) {
           feedbackModal.classList.remove('active');
+        }
+      });
+
+      // ==================== LEARN MODE FOLLOW-UP BUTTON HANDLERS ====================
+      document.addEventListener('click', async (e) => {
+        const followupBtn = e.target.closest('.followup-btn');
+        if (!followupBtn) return;
+        
+        const action = followupBtn.dataset.action;
+        const topic = followupBtn.dataset.topic || currentLearnTopic;
+        const code = followupBtn.dataset.code || currentLearnCode;
+        
+        console.log('[Widget] Follow-up button clicked:', action, 'topic:', topic);
+        
+        if (!topic) {
+          console.warn('[Widget] No topic available for follow-up');
+          return;
+        }
+        
+        // Disable button to prevent double-clicks
+        followupBtn.disabled = true;
+        followupBtn.style.opacity = '0.6';
+        const originalText = followupBtn.querySelector('.followup-btn-text').textContent;
+        followupBtn.querySelector('.followup-btn-text').textContent = 'Loading...';
+        
+        try {
+          let prompt;
+          if (action === 'trace-walkthrough') {
+            prompt = `Use AlgoTutor learn_trace_walkthrough tool to show me a trace table and example walkthrough for ${topic}.`;
+            if (code) {
+              prompt += ` Use this code as reference: \`\`\`python\n${code}\n\`\`\``;
+            }
+          } else if (action === 'real-world') {
+            prompt = `Use AlgoTutor learn_real_world_example tool to generate a fill-in-the-blank practice problem for ${topic}.`;
+          }
+          
+          await sendFollowUp(prompt);
+          console.log('[Widget] Follow-up request sent successfully');
+        } catch (err) {
+          console.error('[Widget] Follow-up request failed:', err);
+          // Re-enable button on error
+          followupBtn.disabled = false;
+          followupBtn.style.opacity = '1';
+          followupBtn.querySelector('.followup-btn-text').textContent = originalText;
         }
       });
     </script>

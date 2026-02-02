@@ -86,7 +86,7 @@ async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
   }
 }
 
-// Generate Learn Mode content
+// Generate Learn Mode content (simplified - no trace table, pattern keywords, paper summary, example walkthrough)
 export async function generateLearnContent(args) {
   console.log('[generateLearnContent] Starting Learn Mode content for:', args.topic);
   console.log('[generateLearnContent] Args:', JSON.stringify(args, null, 2));
@@ -136,19 +136,15 @@ ${exampleInstruction}
 
 REQUIRED JSON SECTIONS (include ONLY these fields):
 
-- theTrick: REQUIRED - One-liner critical insight that makes this pattern work. Format: "PATTERN_NAME = Key insight. If you see X or Y → use this pattern." Example: "BFS = Use a queue. If you see 'level-by-level' or 'shortest path' → it's BFS."
+- topicIdentified: REQUIRED - The canonical name of the data structure or algorithm being taught. Use standardized naming like "Binary Search", "BFS", "Two Pointers", "Sliding Window", "Hash Map", "Binary Tree", etc.
 
-${args.showPatternKeywords !== false ? '- patternSignature: REQUIRED - Array of 3-5 keywords/phrases in problem descriptions that signal when to use this pattern. Example: ["shortest path", "level order", "nearest", "minimum steps"]' : '- patternSignature: DO NOT INCLUDE THIS FIELD'}
+- theTrick: REQUIRED - One-liner critical insight that makes this pattern work. Format: "PATTERN_NAME = Key insight. If you see X or Y → use this pattern." Example: "BFS = Use a queue. If you see 'level-by-level' or 'shortest path' → it's BFS."
 
 - stepByStep: REQUIRED - Numbered explanation of how the pattern works (use \\n for line breaks)
 
 - memorableTemplate: REQUIRED - A 5-line paper-friendly code skeleton that students can memorize and write in 2 minutes. Use simple syntax only - NO list comprehensions, NO lambda, NO fancy libraries. Include comments marking the key lines.
 
 - code: REQUIRED - Full working Python code (5-15 lines, minimal style, no fancy syntax, paper-friendly)
-
-${args.showDryRun ? '- dryRunTable: REQUIRED - Array of 3-4 objects with exam-format columns. Use these exact keys: {iteration, variables, state, action}. Keep it SHORT - max 4 rows. This should match what professors expect on written exams.' : '- dryRunTable: DO NOT INCLUDE THIS FIELD'}
-
-- exampleWalkthrough: REQUIRED - One concrete example with specific input values traced through the algorithm step by step. Show the actual values changing.
 
 - whatProfessorsTest: REQUIRED - THE #1 edge case that appears on exams for this pattern. Not a list of 3 - just THE ONE that professors love to test. Explain why it breaks basic approaches. Include a 1-2 sentence tip on how students can prepare for this edge case.
 
@@ -158,12 +154,10 @@ ${args.showDryRun ? '- dryRunTable: REQUIRED - Array of 3-4 objects with exam-fo
 
 - relatedPatterns: REQUIRED - Array of 3-5 related DSA patterns that students should also study. Example: ["Two Pointers", "Sliding Window", "Binary Search"]
 
-${args.showPaperVersion ? '- paperSummary: REQUIRED - Quick reference for exam day. Array of 4-5 bullet points covering: when to use, key data structure, time complexity, the gotcha to avoid.' : '- paperSummary: DO NOT INCLUDE THIS FIELD'}
-
-Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
+Return ONLY valid JSON with the required fields.`;
 
   try {
-    const response = await callOpenAI(systemPrompt, userPrompt, 3000);
+    const response = await callOpenAI(systemPrompt, userPrompt, 2500);
     console.log('[generateLearnContent] Raw response received, length:', response.length);
     
     const parsed = JSON.parse(response);
@@ -179,6 +173,9 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
       };
     }
     
+    // Add flag indicating this is learn mode (for follow-up buttons)
+    parsed.isLearnMode = true;
+    
     return parsed;
   } catch (error) {
     console.error('[generateLearnContent] ❌ Failed:', error);
@@ -189,18 +186,16 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
     
     // Return error fallback
     return {
+      topicIdentified: args.topic,
       theTrick: "Error generating content. Please try again.",
-      patternSignature: [],
       stepByStep: "Content generation failed.",
       memorableTemplate: "# Error occurred",
       code: "# Error occurred",
-      dryRunTable: args.showDryRun ? [] : null,
-      exampleWalkthrough: "Error occurred",
       whatProfessorsTest: "Error occurred",
       complexity: "N/A",
       difficultyScore: null,
       relatedPatterns: [],
-      paperSummary: args.showPaperVersion ? [] : null,
+      isLearnMode: true,
     };
   }
 }
@@ -522,3 +517,218 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
   }
 }
 
+// Generate Trace Table and Example Walkthrough (on-demand for Learn Mode)
+export async function generateTraceAndWalkthrough(args) {
+  console.log('[generateTraceAndWalkthrough] Starting for topic:', args.topic);
+  console.log('[generateTraceAndWalkthrough] Args:', JSON.stringify(args, null, 2));
+  
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a detailed trace table and example walkthrough for the given algorithm/data structure. This is for EXAM PREP - format everything like professors expect on written exams. Respond with valid JSON only.`;
+  
+  const userPrompt = `Generate a TRACE TABLE and EXAMPLE WALKTHROUGH for: ${args.topic}
+
+${args.code ? `REFERENCE CODE:\n\`\`\`python\n${args.code}\n\`\`\`` : ''}
+
+REQUIRED JSON SECTIONS (include ONLY these fields):
+
+- dryRunTable: REQUIRED - Array of 4-6 objects with exam-format columns. Use these exact keys: {iteration, variables, state, action}. This should match what professors expect on written exams. Show the algorithm executing step by step.
+
+- exampleWalkthrough: REQUIRED - One concrete example with specific input values traced through the algorithm step by step. Show the actual values changing at each step. Use a clear format with numbered steps. Make it detailed enough that a student could follow along and understand exactly what happens at each iteration.
+
+- exampleInput: REQUIRED - The specific input used in the walkthrough. Example: "[1, 3, 5, 7, 9], target=5"
+
+- exampleOutput: REQUIRED - The expected output for the example. Example: "2 (index where 5 is found)"
+
+Return ONLY valid JSON with the required fields.`;
+
+  try {
+    const response = await callOpenAI(systemPrompt, userPrompt, 2000);
+    console.log('[generateTraceAndWalkthrough] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateTraceAndWalkthrough] ✓ Successfully parsed JSON response');
+    
+    // Check if LLM returned an error (invalid input detected)
+    if (parsed.error === 'INVALID_INPUT') {
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Please enter a valid DSA topic.'
+      };
+    }
+    
+    // Add flag indicating this is trace/walkthrough response
+    parsed.isTraceWalkthrough = true;
+    parsed.topicIdentified = args.topic;
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateTraceAndWalkthrough] ❌ Failed:', error);
+    return {
+      dryRunTable: [],
+      exampleWalkthrough: "Error generating walkthrough. Please try again.",
+      exampleInput: "N/A",
+      exampleOutput: "N/A",
+      isTraceWalkthrough: true,
+      topicIdentified: args.topic,
+    };
+  }
+}
+
+// Data structure and algorithm rankings for complexity-appropriate problem generation
+const DSA_RANKINGS = {
+  // Data Structures (1-15)
+  'arrays': 1, 'array': 1, 'strings': 1, 'string': 1,
+  'linked lists': 2, 'linked list': 2, 'linkedlist': 2, 'singly linked list': 2, 'doubly linked list': 2,
+  'stacks': 3, 'stack': 3, 'queues': 3, 'queue': 3,
+  'hash maps': 4, 'hash map': 4, 'hashmap': 4, 'hash tables': 4, 'hash table': 4, 'hashtable': 4, 'dictionary': 4, 'dict': 4,
+  'sets': 5, 'set': 5, 'hashset': 5,
+  'binary trees': 6, 'binary tree': 6, 'trees': 6, 'tree': 6,
+  'bst': 7, 'binary search tree': 7, 'binary search trees': 7,
+  'heaps': 8, 'heap': 8, 'min heap': 8, 'max heap': 8, 'priority queue': 8,
+  'graphs': 9, 'graph': 9,
+  'tries': 10, 'trie': 10, 'prefix tree': 10,
+  'avl': 11, 'avl tree': 11, 'red-black tree': 11, 'b-tree': 11, 'advanced trees': 11,
+  'union find': 12, 'union-find': 12, 'disjoint set': 12,
+  'segment tree': 13, 'segment trees': 13,
+  'fenwick tree': 14, 'fenwick trees': 14, 'binary indexed tree': 14,
+  
+  // Algorithms & Techniques (15-32)
+  'two pointers': 15, 'two pointer': 15,
+  'sliding window': 16,
+  'binary search': 17,
+  'sorting': 18, 'bubble sort': 18, 'selection sort': 18, 'insertion sort': 18, 'merge sort': 18, 'quick sort': 18, 'heap sort': 18,
+  'recursion': 19, 'recursive': 19,
+  'backtracking': 20, 'backtrack': 20,
+  'bfs': 21, 'breadth first search': 21, 'breadth-first search': 21,
+  'dfs': 22, 'depth first search': 22, 'depth-first search': 22,
+  'tree traversal': 23, 'tree traversals': 23, 'inorder': 23, 'preorder': 23, 'postorder': 23,
+  'greedy': 24, 'greedy algorithm': 24,
+  'dynamic programming': 25, 'dp': 25, 'memoization': 25,
+  'topological sort': 26, 'cycle detection': 26, 'bipartite': 26,
+  'dijkstra': 27, 'bellman-ford': 27, 'floyd-warshall': 27, 'shortest path': 27,
+  'kruskal': 28, 'prim': 28, 'minimum spanning tree': 28, 'mst': 28,
+  'bit manipulation': 29, 'bitwise': 29,
+  'kmp': 30, 'rabin-karp': 30, 'z-algorithm': 30, 'string matching': 30,
+  'bitmask dp': 31, 'digit dp': 31, 'dp on trees': 31,
+  'scc': 32, 'strongly connected components': 32, 'articulation points': 32, 'bridges': 32,
+};
+
+function getTopicRanking(topic) {
+  const lowerTopic = topic.toLowerCase();
+  for (const [key, rank] of Object.entries(DSA_RANKINGS)) {
+    if (lowerTopic.includes(key)) {
+      return rank;
+    }
+  }
+  return 10; // Default to middle ranking if not found
+}
+
+// Generate Real World Example with Fill-in-the-Blank (on-demand for Learn Mode)
+export async function generateRealWorldExample(args) {
+  console.log('[generateRealWorldExample] Starting for topic:', args.topic);
+  console.log('[generateRealWorldExample] Args:', JSON.stringify(args, null, 2));
+  
+  const topicRanking = getTopicRanking(args.topic);
+  console.log('[generateRealWorldExample] Topic ranking:', topicRanking);
+  
+  // Build list of allowed data structures/algorithms based on ranking
+  const allowedConcepts = Object.entries(DSA_RANKINGS)
+    .filter(([_, rank]) => rank <= topicRanking)
+    .map(([name, _]) => name)
+    .join(', ');
+  
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a LeetCode-style fill-in-the-blank coding problem that tests understanding of the given algorithm/data structure. The problem should test CRITICAL understanding, not trivial syntax. Respond with valid JSON only.`;
+  
+  const userPrompt = `Generate a REAL WORLD EXAMPLE fill-in-the-blank problem for: ${args.topic}
+
+CRITICAL CONSTRAINT: The problem must ONLY use data structures and algorithms at or BELOW this ranking level: ${topicRanking}
+ALLOWED concepts: ${allowedConcepts}
+DO NOT use any advanced concepts not in the allowed list.
+
+The fill-in-the-blanks should test CRITICAL understanding of ${args.topic}, not trivial syntax.
+
+REQUIRED JSON SECTIONS (include ONLY these fields):
+
+- problemTitle: REQUIRED - A concise title for the problem. Example: "Two Sum" or "Valid Parentheses"
+
+- problemDescription: REQUIRED - A clear problem description in LeetCode style. Include:
+  - What the function should do
+  - Input format
+  - Output format
+  - Any constraints
+
+- testCases: REQUIRED - Array of 3 test cases. Each object has: {input: "the input", output: "expected output"}. Show only input/output, no explanations.
+
+- codeWithBlanks: REQUIRED - Python code with 2-3 blanks marked as ___BLANK_1___, ___BLANK_2___, etc. The blanks should test:
+  - At least one blank should test a CRITICAL part of the algorithm (e.g., the core logic, the key data structure operation)
+  - Blanks should NOT be trivial (e.g., don't blank out variable names or simple syntax)
+  - The code should be 10-20 lines
+
+- blanks: REQUIRED - Array of 2-3 blank objects. Format:
+  [
+    {
+      "id": 1,
+      "type": "multiple_choice",
+      "placeholder": "___BLANK_1___",
+      "lineContext": "the line of code containing this blank",
+      "options": ["option1", "option2", "option3", "option4"],
+      "correctAnswer": "the correct option",
+      "explanation": "Why this is correct - explain the algorithm logic"
+    },
+    {
+      "id": 2,
+      "type": "text_input",
+      "placeholder": "___BLANK_2___",
+      "lineContext": "the line of code containing this blank",
+      "correctAnswer": "the exact answer expected",
+      "hint": "A subtle hint if they're stuck",
+      "explanation": "Why this is correct - explain the algorithm logic"
+    }
+  ]
+  
+  IMPORTANT:
+  - First blank MUST be multiple_choice
+  - Remaining 1-2 blanks should be text_input
+  - Multiple choice should have 4 plausible options
+  - Correct answers should test understanding of ${args.topic}
+
+- fullSolution: REQUIRED - The complete code with all blanks filled in correctly.
+
+- whyThisTests: REQUIRED - One sentence explaining what understanding this problem tests. Example: "This tests understanding that BFS uses a queue to process nodes level-by-level."
+
+Return ONLY valid JSON with the required fields.`;
+
+  try {
+    const response = await callOpenAI(systemPrompt, userPrompt, 3000);
+    console.log('[generateRealWorldExample] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateRealWorldExample] ✓ Successfully parsed JSON response');
+    
+    // Check if LLM returned an error (invalid input detected)
+    if (parsed.error === 'INVALID_INPUT') {
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Please enter a valid DSA topic.'
+      };
+    }
+    
+    // Add flag indicating this is real world example response
+    parsed.isRealWorldExample = true;
+    parsed.topicIdentified = args.topic;
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateRealWorldExample] ❌ Failed:', error);
+    return {
+      problemTitle: "Error",
+      problemDescription: "Error generating problem. Please try again.",
+      testCases: [],
+      codeWithBlanks: "# Error occurred",
+      blanks: [],
+      fullSolution: "# Error occurred",
+      whyThisTests: "Error occurred",
+      isRealWorldExample: true,
+      topicIdentified: args.topic,
+    };
+  }
+}
