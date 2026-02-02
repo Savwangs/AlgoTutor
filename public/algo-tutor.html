@@ -1362,6 +1362,13 @@
         display: none;
       }
 
+      .fillin-hint-feedback {
+        font-size: 0.85rem;
+        color: #fbbf24;
+        margin-top: 6px;
+        font-style: italic;
+      }
+
       .fillin-hint.visible {
         display: block;
       }
@@ -2272,8 +2279,8 @@
           outputContainer.appendChild(blockEl);
         }
 
-        // Test Cases
-        if (outputs.testCases && Array.isArray(outputs.testCases)) {
+        // Test Cases (skip for real-world examples - they have test cases in the problem description)
+        if (outputs.testCases && Array.isArray(outputs.testCases) && !outputs.isRealWorldExample) {
           const blockEl = document.createElement("div");
           blockEl.className = "output-block";
           blockEl.innerHTML = `<h3>Test Cases</h3>`;
@@ -2349,27 +2356,35 @@
         }
 
         // === LEARN MODE FOLLOW-UP BUTTONS ===
-        if (outputs.isLearnMode && outputs.topicIdentified) {
+        // Show follow-up buttons after Learn Mode, Trace/Walkthrough, and Real-World Example responses
+        const showFollowupButtons = outputs.isLearnMode || outputs.isTraceWalkthrough || outputs.isRealWorldExample;
+        const topicForFollowup = outputs.topicIdentified || currentLearnTopic;
+        
+        if (showFollowupButtons && topicForFollowup) {
+          // Update stored topic if we have a new one
+          if (outputs.topicIdentified) {
+            currentLearnTopic = outputs.topicIdentified;
+          }
+          if (outputs.code) {
+            currentLearnCode = outputs.code;
+          }
+          
           const followupContainer = document.createElement("div");
           followupContainer.className = "followup-buttons-container";
           followupContainer.innerHTML = `
-            <div class="followup-buttons-title">Want to learn more?</div>
-            <button class="followup-btn" data-action="trace-walkthrough" data-topic="${escapeHtml(outputs.topicIdentified)}" data-code="${escapeHtml(outputs.code || '')}">
+            <div class="followup-buttons-title">Want to continue learning?</div>
+            <button class="followup-btn" data-action="trace-walkthrough" data-topic="${escapeHtml(topicForFollowup)}" data-code="${escapeHtml(currentLearnCode || '')}">
               <span class="followup-btn-icon">📊</span>
               <span class="followup-btn-text">See a trace table and example walkthrough</span>
               <span class="followup-btn-arrow">→</span>
             </button>
-            <button class="followup-btn" data-action="real-world" data-topic="${escapeHtml(outputs.topicIdentified)}">
+            <button class="followup-btn" data-action="real-world" data-topic="${escapeHtml(topicForFollowup)}">
               <span class="followup-btn-icon">🧩</span>
               <span class="followup-btn-text">Try a real-world practice problem</span>
               <span class="followup-btn-arrow">→</span>
             </button>
           `;
           outputContainer.appendChild(followupContainer);
-          
-          // Store current topic for follow-up requests
-          currentLearnTopic = outputs.topicIdentified;
-          currentLearnCode = outputs.code || '';
         }
         
         // Add feedback buttons for premium users
@@ -2455,24 +2470,6 @@
           container.appendChild(descEl);
         }
         
-        // Test Cases
-        if (outputs.testCases && Array.isArray(outputs.testCases)) {
-          const testSection = document.createElement("div");
-          testSection.className = "fillin-testcases";
-          testSection.innerHTML = `<div class="fillin-testcases-title">Test Cases</div>`;
-          
-          outputs.testCases.forEach((tc, idx) => {
-            const tcEl = document.createElement("div");
-            tcEl.className = "fillin-testcase";
-            tcEl.innerHTML = `
-              <span class="fillin-testcase-input">Input: ${escapeHtml(tc.input || tc)}</span>
-              ${tc.output ? `<br><span class="fillin-testcase-output">Output: ${escapeHtml(tc.output)}</span>` : ''}
-            `;
-            testSection.appendChild(tcEl);
-          });
-          container.appendChild(testSection);
-        }
-        
         // Code with Blanks
         if (outputs.codeWithBlanks) {
           const codeSection = document.createElement("div");
@@ -2500,6 +2497,7 @@
             blankItem.dataset.blankId = blank.id || idx + 1;
             blankItem.dataset.answer = blank.correctAnswer || '';
             blankItem.dataset.explanation = blank.explanation || '';
+            blankItem.dataset.hint = blank.hint || '';
             
             // Label
             const labelEl = document.createElement("div");
@@ -2597,6 +2595,7 @@
       const checkBlankAnswer = (blankItem) => {
         const answer = blankItem.dataset.answer;
         const explanation = blankItem.dataset.explanation;
+        const hint = blankItem.dataset.hint;
         const feedbackEl = blankItem.querySelector('.fillin-feedback');
         
         // Get user's answer
@@ -2615,8 +2614,11 @@
             ${explanation ? `<div class="fillin-explanation">${escapeHtml(explanation)}</div>` : ''}
           `;
         } else {
+          // Show hint when wrong
+          const hintText = hint || 'Think about what this part of the algorithm needs to accomplish.';
           feedbackEl.innerHTML = `
-            <strong>❌ Not quite.</strong> Try again!
+            <strong>❌ Not quite.</strong>
+            <div class="fillin-hint-feedback">💡 Hint: ${escapeHtml(hintText)}</div>
           `;
         }
         

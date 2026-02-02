@@ -4,7 +4,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MODEL = 'gpt-4o-mini'; // Cheapest GPT-4 model (~$0.00015/1K input tokens)
+const MODEL = 'gpt-4o-mini'; // Cheapest GPT-5 model (~$0.00015/1K input tokens)
 
 // Input validation prefix - added to all system prompts
 const VALIDATION_PREFIX = `
@@ -528,15 +528,23 @@ export async function generateTraceAndWalkthrough(args) {
 
 ${args.code ? `REFERENCE CODE:\n\`\`\`python\n${args.code}\n\`\`\`` : ''}
 
+CRITICAL: Pick ONE specific test case first. ALL sections below MUST use this EXACT SAME test case.
+
 REQUIRED JSON SECTIONS (include ONLY these fields):
 
-- dryRunTable: REQUIRED - Array of 4-6 objects with exam-format columns. Use these exact keys: {iteration, variables, state, action}. This should match what professors expect on written exams. Show the algorithm executing step by step.
+- exampleInput: REQUIRED - The specific input for the test case. Example: "[1, 3, 5, 7, 9], target=5"
 
-- exampleWalkthrough: REQUIRED - One concrete example with specific input values traced through the algorithm step by step. Show the actual values changing at each step. Use a clear format with numbered steps. Make it detailed enough that a student could follow along and understand exactly what happens at each iteration.
+- exampleOutput: REQUIRED - The expected output for the test case. Example: "2 (index where 5 is found)"
 
-- exampleInput: REQUIRED - The specific input used in the walkthrough. Example: "[1, 3, 5, 7, 9], target=5"
+- dryRunTable: REQUIRED - Array of 4-6 objects tracing the algorithm with the EXACT input from exampleInput. Use these exact keys: {iteration, variables, state, action}. Each row should show one step of the algorithm executing with the actual values from the test case.
 
-- exampleOutput: REQUIRED - The expected output for the example. Example: "2 (index where 5 is found)"
+- exampleWalkthrough: REQUIRED - Step-by-step trace using the EXACT SAME input from exampleInput. Format as a STRING with each step on a NEW LINE using \\n. Use this EXACT format:
+  "Step 1: [What happens in this iteration, showing actual values]\\nStep 2: [Next iteration with actual values]\\nStep 3: [Continue...]\\n..."
+  
+  Example format:
+  "Step 1: Initialize left=0, right=4. Array is [1,3,5,7,9], looking for target=5\\nStep 2: Calculate mid=(0+4)//2=2. arr[2]=5 equals target!\\nStep 3: Return index 2. Found!"
+
+  IMPORTANT: Each step MUST be on its own line (use \\n). Do NOT write as a paragraph.
 
 Return ONLY valid JSON with the required fields.`;
 
@@ -644,8 +652,6 @@ CRITICAL CONSTRAINT: The problem must ONLY use data structures and algorithms at
 ALLOWED concepts: ${allowedConcepts}
 DO NOT use any advanced concepts not in the allowed list.
 
-The fill-in-the-blanks should test CRITICAL understanding of ${args.topic}, not trivial syntax.
-
 REQUIRED JSON SECTIONS (include ONLY these fields):
 
 - problemTitle: REQUIRED - A concise title for the problem. Example: "Two Sum" or "Valid Parentheses"
@@ -654,48 +660,56 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
   - What the function should do
   - Input format
   - Output format
+  - 2-3 example test cases showing input → output (include these IN the description text)
   - Any constraints
 
-- testCases: REQUIRED - Array of 3 test cases. Each object has: {input: "the input", output: "expected output"}. Show only input/output, no explanations.
+- codeWithBlanks: REQUIRED - Python code with EXACTLY 2 or 3 blanks marked as ___BLANK_1___, ___BLANK_2___, ___BLANK_3___. 
 
-- codeWithBlanks: REQUIRED - Python code with 2-3 blanks marked as ___BLANK_1___, ___BLANK_2___, etc. The blanks should test:
-  - At least one blank should test a CRITICAL part of the algorithm (e.g., the core logic, the key data structure operation)
-  - Blanks should NOT be trivial (e.g., don't blank out variable names or simple syntax)
-  - The code should be 10-20 lines
+**CRITICAL BLANK RULES:**
+1. The number of ___BLANK_X___ placeholders in codeWithBlanks MUST EXACTLY match the number of objects in the blanks array
+2. If you have 2 blanks in the array, codeWithBlanks must have ___BLANK_1___ and ___BLANK_2___
+3. If you have 3 blanks in the array, codeWithBlanks must have ___BLANK_1___, ___BLANK_2___, and ___BLANK_3___
+4. Each blank tests a DIFFERENT part of the algorithm - NO DUPLICATES
+5. Blanks should test CRITICAL algorithm logic (e.g., don't blank out variable names or simple syntax)
+6. When ALL blanks are filled with correct answers, the code MUST produce correct output
+7. The code must be in ${args.language} with valid ${args.language} syntax
+8. For TEXT INPUT blanks (where user types): The blank MUST be SUBSTANTIAL - blank out the ENTIRE LINE or a significant portion of code (at least 15+ characters). Do NOT make tiny blanks where user only types a single argument, variable name, or small expression. Example: if it's a recursive call, blank out the ENTIRE line like "return ___BLANK_2___" not just one argument. MCQ blanks can be smaller since user selects from options.
 
-- blanks: REQUIRED - Array of 2-3 blank objects. Format:
+- blanks: REQUIRED - Array of EXACTLY 2 or 3 blank objects (must match codeWithBlanks). Format:
   [
     {
       "id": 1,
       "type": "multiple_choice",
       "placeholder": "___BLANK_1___",
-      "lineContext": "the line of code containing this blank",
+      "lineContext": "the EXACT line of code containing ___BLANK_1___",
       "options": ["option1", "option2", "option3", "option4"],
-      "correctAnswer": "the correct option",
+      "correctAnswer": "the correct option (must be one of the 4 options)",
+      "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
       "explanation": "Why this is correct - explain the algorithm logic"
     },
     {
       "id": 2,
       "type": "text_input",
       "placeholder": "___BLANK_2___",
-      "lineContext": "the line of code containing this blank",
-      "correctAnswer": "the exact answer expected",
-      "hint": "A subtle hint if they're stuck",
+      "lineContext": "the EXACT line of code containing ___BLANK_2___",
+      "correctAnswer": "exact code that goes in this blank",
+      "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
       "explanation": "Why this is correct - explain the algorithm logic"
     }
   ]
   
-  IMPORTANT:
-  - First blank MUST be multiple_choice
-  - Remaining 1-2 blanks should be text_input
-  - Multiple choice should have 4 plausible options
-  - Correct answers should test understanding of ${args.topic}
+  **BLANK REQUIREMENTS:**
+  - Blank 1: MUST be multiple_choice - test a CRITICAL decision point (e.g., comparison operator, data structure choice). Can be smaller pieces of code.
+  - Blank 2-3: MUST be text_input - MUST be SUBSTANTIAL (entire line or significant code chunk, 15+ characters). Examples of GOOD text_input blanks: "return helper(n-1) + helper(n-2)", "left, right = 0, len(nums)-1", "result.append(current[:])". Examples of BAD text_input blanks: "n-1", "left", "append" (too small!)
+  - Each blank MUST test a DIFFERENT concept - DO NOT ask the same question twice
+  - Each blank MUST have a hint that helps WITHOUT giving away the answer
+  - All 4 options in multiple choice should be plausible
 
-- fullSolution: REQUIRED - The complete code with all blanks filled in correctly.
+- fullSolution: REQUIRED - The complete code with all blanks filled in correctly. This code MUST work and produce correct output.
 
-- whyThisTests: REQUIRED - One sentence explaining what understanding this problem tests. Example: "This tests understanding that BFS uses a queue to process nodes level-by-level."
+- whyThisTests: REQUIRED - One sentence explaining what understanding this problem tests.
 
-Return ONLY valid JSON with the required fields.`;
+Return ONLY valid JSON with the required fields. Do NOT include a separate testCases field.`;
 
   try {
     const response = await callOpenAI(systemPrompt, userPrompt, 3000);
@@ -722,7 +736,6 @@ Return ONLY valid JSON with the required fields.`;
     return {
       problemTitle: "Error",
       problemDescription: "Error generating problem. Please try again.",
-      testCases: [],
       codeWithBlanks: "# Error occurred",
       blanks: [],
       fullSolution: "# Error occurred",
