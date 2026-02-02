@@ -1969,7 +1969,7 @@
         // Determine mode based on outputs
         const isDebugMode = outputs.exactBugLine || outputs.fillInBlankAnswers || outputs.beforeCode;
         const isBuildMode = outputs.theShortcut || outputs.dontForget || outputs.timeEstimate;
-        const isLearnMode = outputs.patternSignature || outputs.memorableTemplate || outputs.whatProfessorsTest;
+        const isLearnMode = outputs.patternSignature || outputs.whatProfessorsTest || outputs.isLearnMode;
 
         // === RENDER TRICK BOX FIRST (TOP OF OUTPUT) ===
         if (outputs.theTrick) {
@@ -2031,15 +2031,6 @@
             title: "Step-by-Step",
             content: outputs.stepByStep,
             type: "text",
-          });
-        }
-
-        // Memorable Template (Learn mode)
-        if (outputs.memorableTemplate) {
-          blocks.push({
-            title: "5-Line Memorizable Template",
-            content: outputs.memorableTemplate,
-            type: "code",
           });
         }
 

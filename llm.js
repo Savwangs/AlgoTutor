@@ -4,7 +4,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MODEL = 'gpt-5.2'; // Cheapest GPT-5 model (~$0.00015/1K input tokens)
+const MODEL = 'gpt-4o-mini'; // Cheapest GPT-5 model (~$0.00015/1K input tokens)
 
 // Input validation prefix - added to all system prompts
 const VALIDATION_PREFIX = `
@@ -142,9 +142,7 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
 
 - theTrick: REQUIRED - One-liner critical insight that makes this pattern work. Format: "PATTERN_NAME = Key insight. If you see X or Y → use this pattern." Example: "BFS = Use a queue. If you see 'level-by-level' or 'shortest path' → it's BFS."
 
-- stepByStep: REQUIRED - Numbered explanation of how the pattern works (use \\n for line breaks)
-
-- memorableTemplate: REQUIRED - A 5-line paper-friendly code skeleton that students can memorize and write in 2 minutes. Use simple syntax only - NO list comprehensions, NO lambda, NO fancy libraries. Include comments marking the key lines.
+- stepByStep: REQUIRED - Numbered explanation of how the pattern works (use \\n for line breaks). Adjust the number of steps based on the DEPTH setting above.
 
 - code: REQUIRED - Full working Python code (5-15 lines, minimal style, no fancy syntax, paper-friendly)
 
@@ -191,7 +189,6 @@ Return ONLY valid JSON with the required fields.`;
       topicIdentified: args.topic,
       theTrick: "Error generating content. Please try again.",
       stepByStep: "Content generation failed.",
-      memorableTemplate: "# Error occurred",
       code: "# Error occurred",
       whatProfessorsTest: "Error occurred",
       complexity: "N/A",
