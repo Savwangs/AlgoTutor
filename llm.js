@@ -4,7 +4,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MODEL = 'gpt-4o-mini'; // Cheapest GPT-5 model (~$0.00015/1K input tokens)
+const MODEL = 'gpt-4.1'; // Cheapest GPT-5 model (~$0.00015/1K input tokens)
 
 // Input validation prefix - added to all system prompts
 const VALIDATION_PREFIX = `
@@ -34,12 +34,13 @@ VALID INPUT HANDLING:
 `;
 
 // Helper function to call OpenAI
-async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
+async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048, temperature = 0.7) {
   console.log('\n' + '='.repeat(80));
   console.log('[LLM] CALLING OPENAI API');
   console.log('='.repeat(80));
   console.log('[LLM] Model:', MODEL);
   console.log('[LLM] Max tokens:', maxTokens);
+  console.log('[LLM] Temperature:', temperature);
   console.log('[LLM] System prompt length:', systemPrompt.length, 'chars');
   console.log('[LLM] User prompt length:', userPrompt.length, 'chars');
   console.log('[LLM] User prompt preview:', userPrompt.substring(0, 150) + '...');
@@ -51,6 +52,7 @@ async function callOpenAI(systemPrompt, userPrompt, maxTokens = 2048) {
     const completion = await openai.chat.completions.create({
       model: MODEL,
       max_completion_tokens: maxTokens,
+      temperature: temperature,
       response_format: { type: "json_object" }, // Force JSON mode for valid output
       messages: [
         { role: 'system', content: systemPrompt },
@@ -646,7 +648,9 @@ export async function generateRealWorldExample(args) {
   
   const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a LeetCode-style fill-in-the-blank coding problem that tests understanding of the given algorithm/data structure. The problem should test CRITICAL understanding, not trivial syntax. Respond with valid JSON only.`;
   
-  const userPrompt = `Generate a REAL WORLD EXAMPLE fill-in-the-blank problem for: ${args.topic}
+  const userPrompt = `Generate a UNIQUE and DIFFERENT fill-in-the-blank problem for: ${args.topic}
+
+IMPORTANT: Generate a FRESH, CREATIVE problem that is DIFFERENT from common examples. Be creative with the problem scenario and approach while still testing the core concept.
 
 CRITICAL CONSTRAINT: The problem must ONLY use data structures and algorithms at or BELOW this ranking level: ${topicRanking}
 ALLOWED concepts: ${allowedConcepts}
@@ -673,7 +677,18 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
 5. Blanks should test CRITICAL algorithm logic (e.g., don't blank out variable names or simple syntax)
 6. When ALL blanks are filled with correct answers, the code MUST produce correct output
 7. The code must be in ${args.language} with valid ${args.language} syntax
-8. For TEXT INPUT blanks (where user types): The blank MUST be SUBSTANTIAL - blank out the ENTIRE LINE or a significant portion of code (at least 15+ characters). Do NOT make tiny blanks where user only types a single argument, variable name, or small expression. Example: if it's a recursive call, blank out the ENTIRE line like "return ___BLANK_2___" not just one argument. MCQ blanks can be smaller since user selects from options.
+8. For TEXT INPUT blanks (where user types): The blank MUST be SUBSTANTIAL - blank out the ENTIRE LINE or a significant portion of code. Do NOT make tiny blanks where user only types a single argument, variable name, or small expression. MCQ blanks can be smaller since user selects from options.
+9. For COMPOUND EXPRESSIONS with "and" or "or" between two function calls/operations: SPLIT into SEPARATE blanks!
+   BAD: "___BLANK_2___" = "helper(left) and helper(right)" (too complex for one blank)
+   GOOD: "___BLANK_2___ and ___BLANK_3___" where BLANK_2 = "helper(left)" and BLANK_3 = "helper(right)"
+   Each recursive call or distinct operation should be its own blank.
+10. TEXT INPUT BLANK CHARACTER LIMITS:
+    - MINIMUM: 10 characters (no trivial blanks like "n-1", "left", "append")
+    - MAXIMUM: 40 characters (anything longer MUST be split into multiple blanks)
+    GOOD examples (10-40 chars): "helper(node.left)" (17), "left, right = 0, len(nums)-1" (29), "return helper(n-1) + helper(n-2)" (32)
+    BAD examples: "node.left" (9 chars - TOO SHORT), "helper(a, b, c) and helper(d, e, f)" (70+ chars - TOO LONG, must split)
+
+VERIFICATION STEP: Before outputting, COUNT the ___BLANK_X___ placeholders in your codeWithBlanks and VERIFY it matches blanks.length. If they don't match, FIX IT.
 
 - blanks: REQUIRED - Array of EXACTLY 2 or 3 blank objects (must match codeWithBlanks). Format:
   [
@@ -685,7 +700,8 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
       "options": ["option1", "option2", "option3", "option4"],
       "correctAnswer": "the correct option (must be one of the 4 options)",
       "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
-      "explanation": "Why this is correct - explain the algorithm logic"
+      "explanation": "Why this is correct - explain the algorithm logic",
+      "reviewTip": "Brief tip on what pattern/concept to review (e.g., 'Review: BST property - left < root < right')"
     },
     {
       "id": 2,
@@ -694,7 +710,8 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
       "lineContext": "the EXACT line of code containing ___BLANK_2___",
       "correctAnswer": "exact code that goes in this blank",
       "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
-      "explanation": "Why this is correct - explain the algorithm logic"
+      "explanation": "Why this is correct - explain the algorithm logic",
+      "reviewTip": "Brief tip on what pattern/concept to review"
     }
   ]
   
@@ -703,6 +720,7 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
   - Blank 2-3: MUST be text_input - MUST be SUBSTANTIAL (entire line or significant code chunk, 15+ characters). Examples of GOOD text_input blanks: "return helper(n-1) + helper(n-2)", "left, right = 0, len(nums)-1", "result.append(current[:])". Examples of BAD text_input blanks: "n-1", "left", "append" (too small!)
   - Each blank MUST test a DIFFERENT concept - DO NOT ask the same question twice
   - Each blank MUST have a hint that helps WITHOUT giving away the answer
+  - Each blank MUST have a reviewTip: a brief 1-line tip (10-20 words max) pointing out what pattern/concept to review. Format: "Review: [concept] - [key insight]". Examples: "Review: Two pointers - move inward when sum too large", "Review: Recursion base case - always handle empty/null first"
   - All 4 options in multiple choice should be plausible
 
 - fullSolution: REQUIRED - The complete code with all blanks filled in correctly. This code MUST work and produce correct output.
@@ -712,7 +730,8 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
 Return ONLY valid JSON with the required fields. Do NOT include a separate testCases field.`;
 
   try {
-    const response = await callOpenAI(systemPrompt, userPrompt, 3000);
+    // Use higher temperature (0.95) for variety in problem generation
+    const response = await callOpenAI(systemPrompt, userPrompt, 3000, 0.95);
     console.log('[generateRealWorldExample] Raw response received, length:', response.length);
     
     const parsed = JSON.parse(response);
@@ -724,6 +743,37 @@ Return ONLY valid JSON with the required fields. Do NOT include a separate testC
         error: 'INVALID_INPUT',
         message: parsed.message || 'Please enter a valid DSA topic.'
       };
+    }
+    
+    // POST-VALIDATION: Verify blank count matches
+    if (parsed.codeWithBlanks && parsed.blanks) {
+      const blankMatches = parsed.codeWithBlanks.match(/___BLANK_\d+___/g) || [];
+      const codeBlankCount = blankMatches.length;
+      const arrayBlankCount = parsed.blanks.length;
+      
+      console.log('[generateRealWorldExample] Blank validation:', {
+        blanksInCode: codeBlankCount,
+        blanksInArray: arrayBlankCount,
+        matches: blankMatches
+      });
+      
+      if (codeBlankCount !== arrayBlankCount) {
+        console.warn('[generateRealWorldExample] ⚠️ BLANK COUNT MISMATCH! Code has', codeBlankCount, 'blanks, array has', arrayBlankCount);
+        // Log details for debugging but still return the response
+        // The UI will handle any display issues
+      }
+      
+      // Validate character limits for text_input blanks
+      parsed.blanks.forEach((blank, idx) => {
+        if (blank.type === 'text_input' && blank.correctAnswer) {
+          const answerLength = blank.correctAnswer.length;
+          if (answerLength < 10) {
+            console.warn(`[generateRealWorldExample] ⚠️ Blank ${idx + 1} answer too short (${answerLength} chars): "${blank.correctAnswer}"`);
+          } else if (answerLength > 40) {
+            console.warn(`[generateRealWorldExample] ⚠️ Blank ${idx + 1} answer too long (${answerLength} chars): "${blank.correctAnswer}"`);
+          }
+        }
+      });
     }
     
     // Add flag indicating this is real world example response

@@ -1369,6 +1369,39 @@
         font-style: italic;
       }
 
+      .fillin-tries-left {
+        font-size: 0.85rem;
+        color: #f97316;
+        font-weight: 500;
+      }
+
+      .fillin-answer-reveal {
+        margin-top: 10px;
+        padding: 10px 14px;
+        background: rgba(239, 68, 68, 0.1);
+        border: 1px solid rgba(239, 68, 68, 0.3);
+        border-radius: 8px;
+        font-family: 'JetBrains Mono', monospace;
+      }
+      
+      .fillin-answer-reveal code {
+        background: rgba(0, 0, 0, 0.3);
+        padding: 2px 6px;
+        border-radius: 4px;
+        color: #f87171;
+      }
+
+      .fillin-review-tip {
+        margin-top: 12px;
+        padding: 10px 14px;
+        background: rgba(59, 130, 246, 0.1);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 8px;
+        font-size: 0.9rem;
+        color: #93c5fd;
+        line-height: 1.4;
+      }
+
       .fillin-hint.visible {
         display: block;
       }
@@ -2498,6 +2531,8 @@
             blankItem.dataset.answer = blank.correctAnswer || '';
             blankItem.dataset.explanation = blank.explanation || '';
             blankItem.dataset.hint = blank.hint || '';
+            blankItem.dataset.reviewTip = blank.reviewTip || '';
+            blankItem.dataset.attempts = '0';
             
             // Label
             const labelEl = document.createElement("div");
@@ -2591,12 +2626,17 @@
         outputContainer.appendChild(container);
       };
       
-      // Check blank answer
+      // Check blank answer (with 3-try limit)
       const checkBlankAnswer = (blankItem) => {
         const answer = blankItem.dataset.answer;
         const explanation = blankItem.dataset.explanation;
         const hint = blankItem.dataset.hint;
+        const reviewTip = blankItem.dataset.reviewTip;
         const feedbackEl = blankItem.querySelector('.fillin-feedback');
+        
+        // Increment attempt counter
+        let attempts = parseInt(blankItem.dataset.attempts || '0') + 1;
+        blankItem.dataset.attempts = attempts.toString();
         
         // Get user's answer
         const selectEl = blankItem.querySelector('.fillin-select');
@@ -2613,20 +2653,35 @@
             <strong>✅ Correct!</strong>
             ${explanation ? `<div class="fillin-explanation">${escapeHtml(explanation)}</div>` : ''}
           `;
-        } else {
-          // Show hint when wrong
-          const hintText = hint || 'Think about what this part of the algorithm needs to accomplish.';
-          feedbackEl.innerHTML = `
-            <strong>❌ Not quite.</strong>
-            <div class="fillin-hint-feedback">💡 Hint: ${escapeHtml(hintText)}</div>
-          `;
-        }
-        
-        // Disable input if correct
-        if (isCorrect) {
+          // Disable input on correct answer
           if (selectEl) selectEl.disabled = true;
           if (inputEl) inputEl.disabled = true;
           blankItem.querySelector('.fillin-check-btn').disabled = true;
+        } else {
+          // Check if out of tries (3 max)
+          if (attempts >= 3) {
+            // Show answer with explanation and review tip after 3 failed attempts
+            feedbackEl.innerHTML = `
+              <strong>❌ Out of tries!</strong>
+              <div class="fillin-answer-reveal">
+                <strong>Answer:</strong> <code>${escapeHtml(answer)}</code>
+              </div>
+              ${explanation ? `<div class="fillin-explanation">${escapeHtml(explanation)}</div>` : ''}
+              ${reviewTip ? `<div class="fillin-review-tip">📚 ${escapeHtml(reviewTip)}</div>` : ''}
+            `;
+            // Disable input after 3 failed attempts
+            if (selectEl) selectEl.disabled = true;
+            if (inputEl) inputEl.disabled = true;
+            blankItem.querySelector('.fillin-check-btn').disabled = true;
+          } else {
+            // Show hint with remaining tries
+            const remainingTries = 3 - attempts;
+            const hintText = hint || 'Think about what this part of the algorithm needs to accomplish.';
+            feedbackEl.innerHTML = `
+              <strong>❌ Not quite.</strong> <span class="fillin-tries-left">(${remainingTries} ${remainingTries === 1 ? 'try' : 'tries'} left)</span>
+              <div class="fillin-hint-feedback">💡 Hint: ${escapeHtml(hintText)}</div>
+            `;
+          }
         }
       };
 
