@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateTraceAndWalkthrough, generateRealWorldExample } from './llm.js';
+import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildExplainSimple } from './llm.js';
 import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -91,17 +91,28 @@ const learnRealWorldExampleSchema = z.object({
   topic: z.string().min(1).describe("The DSA topic/algorithm to generate a practice problem for"),
 });
 
-// Build Mode Schema - ONLY INPUT FIELDS
+// Build Mode Schema - SIMPLIFIED (test cases and constraints are detected from problem description)
 const buildModeInputSchema = z.object({
-  problem: z.string().min(1).describe("The coding problem description"),
-  testCases: z.string().optional().describe("Optional test cases or doctests the solution should pass"),
-  constraints: z.string().optional().describe("Optional time/space complexity constraints (e.g., 'O(n) time, O(1) space')"),
+  problem: z.string().min(1).describe("The coding problem description (may include test cases and constraints inline)"),
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
   allowRecursion: z.boolean().default(true).describe("Whether recursion is allowed"),
-  skeletonOnly: z.boolean().default(false).describe("Whether to show skeleton only (no full solution)"),
-  includeDryRun: z.boolean().default(true).describe("Whether to include dry-run demonstration (2-3 iterations, exam format)"),
   minimalCode: z.boolean().default(true).describe("Whether to use minimal code style"),
-  showTimeEstimate: z.boolean().default(true).describe("Whether to show time estimate for writing on paper"),
+});
+
+// Build Mode Trace/Walkthrough Schema - for progressive follow-up requests
+const buildTraceWalkthroughSchema = z.object({
+  problem: z.string().min(1).describe("The original problem description"),
+  code: z.string().min(1).describe("The code from the build mode response"),
+  testCases: z.string().optional().describe("Optional test cases extracted from problem description"),
+  constraints: z.string().optional().describe("Optional constraints extracted from problem description"),
+  level: z.number().min(1).max(3).default(1).describe("Iteration level: 1=normal case, 2=edge case, 3=both cases with detailed steps"),
+});
+
+// Build Mode Explain Simple Schema - for progressive follow-up requests
+const buildExplainSimpleSchema = z.object({
+  problem: z.string().min(1).describe("The original problem description"),
+  code: z.string().min(1).describe("The code from the build mode response"),
+  level: z.number().min(1).max(3).default(1).describe("Explanation level: 1=simpler terms, 2=more clear/slow, 3=explain like I'm 5"),
 });
 
 // Debug Mode Schema - ONLY INPUT FIELDS
@@ -599,7 +610,7 @@ function createAlgoTutorServer() {
     {
       title: "AlgoTutor Build Mode",
       description:
-        "Builds complete solutions for coding problems. Shows 'The Shortcut' callout, pattern detection, working code (supports trees, graphs, recursion when needed), time estimate, 'Don't Forget' warning box, and exam-format dry-run with test case tracing. Perfect for exam prep.",
+        "Builds complete solutions for coding problems. Shows 'The Shortcut' callout, pattern detection, working code (supports trees, graphs, recursion when needed), 'Don't Forget' warning box, complexity analysis, and related patterns. Test cases and constraints are automatically detected from the problem description. Perfect for exam prep.",
       inputSchema: buildModeInputSchema,
       _meta: {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
@@ -673,6 +684,9 @@ function createAlgoTutorServer() {
           });
         }
         
+        // Add isBuildMode flag to outputs for UI detection
+        outputs.isBuildMode = true;
+        
         // Log usage with V2 personalization metadata
         const buildMetadata = {
           patternDetected: outputs.pattern || null,
@@ -682,23 +696,22 @@ function createAlgoTutorServer() {
           timeComplexity: outputs.complexity || null,
           difficultyScore: outputs.difficultyScore || null,
           relatedPatterns: outputs.relatedPatterns || null,
+          testCasesDetected: outputs.testCasesDetected || null,
+          constraintsDetected: outputs.constraintsDetected || null,
           requestData: {
             problem: args.problem.substring(0, 200), // Truncate long problems
             language: args.language,
             allowRecursion: args.allowRecursion,
-            skeletonOnly: args.skeletonOnly,
-            includeDryRun: args.includeDryRun,
-            minimalCode: args.minimalCode,
-            constraints: args.constraints || null
+            minimalCode: args.minimalCode
           },
           responseSummary: {
             hasPattern: !!outputs.pattern,
             hasCode: !!outputs.code,
-            hasDryRunTable: !!(outputs.dryRunTable && outputs.dryRunTable.length > 0),
-            hasTimeEstimate: !!outputs.timeEstimate,
             hasDontForget: !!outputs.dontForget,
             hasDifficultyScore: !!outputs.difficultyScore,
-            hasRelatedPatterns: !!(outputs.relatedPatterns && outputs.relatedPatterns.length > 0)
+            hasRelatedPatterns: !!(outputs.relatedPatterns && outputs.relatedPatterns.length > 0),
+            hasTestCasesDetected: !!outputs.testCasesDetected,
+            hasConstraintsDetected: !!outputs.constraintsDetected
           }
         };
         
@@ -719,6 +732,144 @@ function createAlgoTutorServer() {
         return finalResponse;
       } catch (error) {
         logError('BUILD MODE ERROR', error);
+        throw error;
+      }
+    }
+  );
+
+  //
+  // 🚀 Tool 2b: Build Mode - Trace Table & Walkthrough (follow-up)
+  //
+  server.registerTool(
+    "build_trace_walkthrough",
+    {
+      title: "AlgoTutor Build Mode Trace & Walkthrough",
+      description:
+        "Generates a dry-run table and example walkthrough for a Build Mode solution. Use this when the user clicks the trace/walkthrough follow-up button. Supports 3 progressive levels: 1=normal case, 2=edge case, 3=both cases with detailed steps.",
+      inputSchema: buildTraceWalkthroughSchema,
+      _meta: {
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/toolInvocation/invoking": "Generating trace table and walkthrough...",
+        "openai/toolInvocation/invoked": "Trace table ready! Check the AlgoTutor panel.",
+        "openai/instruction": "STOP. The trace table and walkthrough are displayed in the AlgoTutor panel above. DO NOT repeat the content or explain it yourself. Simply say: 'The trace table and walkthrough are ready in the AlgoTutor panel above.' Nothing more.",
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (args, context) => {
+      logSection('BUILD TRACE WALKTHROUGH TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
+      try {
+        const authResult = await authenticateRequest(mockReq, 'build');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication/Authorization failed', authResult.error);
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                _widgetOnly: true,
+                _instruction: "Display the error in the AlgoTutor panel.",
+                mode: "build",
+                error: authResult.error
+              })
+            }]
+          };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}`);
+        
+        // Generate trace table and walkthrough
+        const outputs = await generateBuildTraceWalkthrough(args);
+        
+        // Check for validation errors
+        if (outputs.error === 'INVALID_INPUT') {
+          return makeToolOutput("build", {
+            invalidInput: true,
+            message: outputs.message || 'Unable to generate trace table.'
+          });
+        }
+        
+        // Log usage
+        const logId = await logUsage(user, 'build_trace', args.problem?.substring(0, 200) || 'trace', authResult.widgetId, { type: 'trace_walkthrough', level: args.level });
+        
+        return makeToolOutput("build", outputs, null, logId);
+      } catch (error) {
+        logError('BUILD TRACE WALKTHROUGH ERROR', error);
+        throw error;
+      }
+    }
+  );
+
+  //
+  // 🚀 Tool 2c: Build Mode - Explain Simple (follow-up)
+  //
+  server.registerTool(
+    "build_explain_simple",
+    {
+      title: "AlgoTutor Build Mode Explain Simple",
+      description:
+        "Explains a Build Mode solution in simpler terms. Use this when the user clicks the explain follow-up button. Supports 3 progressive levels: 1=simpler terms, 2=more clear/slow, 3=explain like I'm 5.",
+      inputSchema: buildExplainSimpleSchema,
+      _meta: {
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/toolInvocation/invoking": "Generating simpler explanation...",
+        "openai/toolInvocation/invoked": "Explanation ready! Check the AlgoTutor panel.",
+        "openai/instruction": "STOP. The simplified explanation is displayed in the AlgoTutor panel above. DO NOT repeat the content or explain it yourself. Simply say: 'The explanation is ready in the AlgoTutor panel above.' Nothing more.",
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (args, context) => {
+      logSection('BUILD EXPLAIN SIMPLE TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
+      try {
+        const authResult = await authenticateRequest(mockReq, 'build');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication/Authorization failed', authResult.error);
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                _widgetOnly: true,
+                _instruction: "Display the error in the AlgoTutor panel.",
+                mode: "build",
+                error: authResult.error
+              })
+            }]
+          };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}`);
+        
+        // Generate simple explanation
+        const outputs = await generateBuildExplainSimple(args);
+        
+        // Check for validation errors
+        if (outputs.error === 'INVALID_INPUT') {
+          return makeToolOutput("build", {
+            invalidInput: true,
+            message: outputs.message || 'Unable to generate explanation.'
+          });
+        }
+        
+        // Log usage
+        const logId = await logUsage(user, 'build_explain', args.problem?.substring(0, 200) || 'explain', authResult.widgetId, { type: 'explain_simple', level: args.level });
+        
+        return makeToolOutput("build", outputs, null, logId);
+      } catch (error) {
+        logError('BUILD EXPLAIN SIMPLE ERROR', error);
         throw error;
       }
     }

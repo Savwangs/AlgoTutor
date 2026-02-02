@@ -213,6 +213,12 @@ CODE STYLE PRINCIPLES:
 - If the problem needs a TreeNode or ListNode class, define it simply
 - The goal is READABLE, CORRECT code - not artificially simple code
 
+CRITICAL: Parse the problem description carefully to detect:
+1. TEST CASES - Look for "Example:", "Input:", "Output:", "Test Case 1:", etc.
+2. CONSTRAINTS - Look for "O(n) time", "O(1) space", "must use recursion", "no extra data structures", etc.
+
+The generated code MUST respect any detected constraints!
+
 Keep explanations direct and actionable. Avoid unnecessary filler words. Respond with valid JSON only.`;
   
   // Build code style instruction
@@ -223,14 +229,6 @@ Keep explanations direct and actionable. Avoid unnecessary filler words. Respond
     codeStyleInstruction = 'Include helpful comments explaining key steps in the code.';
   }
   
-  // Build skeleton instruction
-  let skeletonInstruction = '';
-  if (args.skeletonOnly) {
-    skeletonInstruction = 'IMPORTANT: Provide ONLY the function signature with TODO comments. DO NOT write any implementation code. Just the skeleton structure.';
-  } else {
-    skeletonInstruction = 'Provide a full working implementation with complete logic.';
-  }
-  
   // Build recursion instruction
   let recursionInstruction = '';
   if (args.allowRecursion) {
@@ -238,45 +236,17 @@ Keep explanations direct and actionable. Avoid unnecessary filler words. Respond
   } else {
     recursionInstruction = 'DO NOT use recursion. Use ONLY iterative approaches (loops, stacks, queues). Convert recursive solutions to iterative using explicit stacks if needed.';
   }
-
-  // Build test case tracing instruction
-  let testCaseInstruction = '';
-  if (args.testCases) {
-    testCaseInstruction = `TEST CASES PROVIDED BY USER:
-${args.testCases}
-
-IMPORTANT: For the dryRunTable, trace through each test case step-by-step:
-- Show 3-5 iterations/steps for each test case (enough to see the pattern)
-- After showing the key steps, use "..." to indicate fast-forwarding
-- Then show the final output/result for that test case
-- Format each trace entry to match exam expectations`;
-  } else {
-    testCaseInstruction = `NO TEST CASES PROVIDED - Generate 3 test cases yourself:
-- Include at least 1 typical case
-- Include at least 1 edge case (empty input, single element, etc.)
-- Include at least 1 boundary case
-
-For the dryRunTable, trace through each generated test case.`;
-  }
-
-  // Build constraints instruction
-  let constraintsInstruction = '';
-  if (args.constraints) {
-    constraintsInstruction = `CONSTRAINTS: ${args.constraints}
-The solution MUST meet these time/space constraints. Choose the algorithm accordingly.`;
-  } else {
-    constraintsInstruction = `NO CONSTRAINTS PROVIDED - Use the most efficient algorithm possible.
-Consider both time and space complexity when choosing the approach.`;
-  }
   
   const userPrompt = `Solve this problem for a WRITTEN EXAM: ${args.problem}
 
-${testCaseInstruction}
-
-${constraintsInstruction}
-
 LANGUAGE: ${args.language}
 Write all code in ${args.language}.
+
+IMPORTANT: First, analyze the problem description to extract:
+1. Any TEST CASES mentioned (look for "Example:", "Input/Output:", etc.)
+2. Any CONSTRAINTS mentioned (look for time/space complexity, restrictions like "no extra space", "must use X approach", etc.)
+
+The solution MUST respect any detected constraints. If O(n) time is required, don't use O(n²) algorithms. If O(1) space is required, don't create large data structures.
 
 CODE STYLE (Paper-Friendly):
 - Default to simple for/while loops. Exception: If a one-liner is genuinely cleaner AND commonly used for this pattern, it's fine - but add an inline comment explaining the logic.
@@ -289,9 +259,6 @@ CODE STYLE (Paper-Friendly):
 CODE STYLE CONSTRAINTS:
 ${codeStyleInstruction}
 
-SKELETON VS FULL SOLUTION:
-${skeletonInstruction}
-
 RECURSION CONSTRAINT:
 ${recursionInstruction}
 
@@ -303,16 +270,9 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
 
 - stepByStep: REQUIRED - Numbered solution logic (use \\n for line breaks), 5-10 steps explaining how to arrive at the solution
 
-- code: REQUIRED - ${args.skeletonOnly ? 'Function skeleton with TODO comments only, NO implementation' : 'Full working solution'} in ${args.language}. Include any helper classes needed (TreeNode, ListNode, etc.). Keep syntax clean but use appropriate data structures.
-
-- dryRunTable: REQUIRED - Array of objects showing exam-format trace. Use keys: {step, variables, action, output}.
-${args.testCases ? 'For EACH provided test case: Show 3-5 key iterations, then a row with "..." in step to indicate fast-forward, then final result. Clearly label which test case each trace is for.' : 'Generate 3 test cases (including at least 1 edge case). For each: Show 3-5 key iterations, then "..." to fast-forward, then final result.'}
-
-${args.showTimeEstimate !== false ? '- timeEstimate: REQUIRED - How long to write this on paper. Format: "~X minutes to write on paper". Be realistic based on problem complexity.' : '- timeEstimate: DO NOT INCLUDE THIS FIELD'}
+- code: REQUIRED - Full working solution in ${args.language}. Include any helper classes needed (TreeNode, ListNode, etc.). Keep syntax clean but use appropriate data structures.
 
 - dontForget: REQUIRED - The ONE line or check that students always mess up. Be specific about what and why. Example: "Line 5: Check 'if not root:' at the START of recursive function - forgetting this causes infinite recursion on empty trees."
-
-- paperVersion: REQUIRED - Array of 4-6 steps for writing this solution on paper. Include which key lines to write first, and any helper classes needed.
 
 - complexity: REQUIRED - Time and space complexity analysis (e.g., "O(n) time, O(h) space for recursion stack") with brief explanation
 
@@ -320,10 +280,14 @@ ${args.showTimeEstimate !== false ? '- timeEstimate: REQUIRED - How long to writ
 
 - relatedPatterns: REQUIRED - Array of 3-5 related DSA patterns that use similar techniques. Example: ["Two Pointers", "Sliding Window", "Binary Search"]
 
-Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
+- testCasesDetected: REQUIRED - If you found test cases in the problem description, include them as a string here. If no test cases found, set to null. Example: "Input: [1,2,3], Output: 6" or null
+
+- constraintsDetected: REQUIRED - If you found constraints in the problem description, include them as a string here. If no constraints found, set to null. Example: "O(n) time, O(1) space" or null
+
+Return ONLY valid JSON with the required fields.`;
 
   try {
-    const response = await callOpenAI(systemPrompt, userPrompt, 3000);
+    const response = await callOpenAI(systemPrompt, userPrompt, 2500);
     console.log('[generateBuildSolution] Raw response:', response.substring(0, 200) + '...');
     const parsed = JSON.parse(response);
     
@@ -347,13 +311,12 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
       pattern: "Error generating solution. Please try again.",
       stepByStep: "Solution generation failed.",
       code: "# Error occurred",
-      dryRunTable: [],
-      timeEstimate: "N/A",
       dontForget: "Error occurred",
-      paperVersion: ["Error occurred"],
       complexity: "N/A",
       difficultyScore: null,
       relatedPatterns: [],
+      testCasesDetected: null,
+      constraintsDetected: null,
     };
   }
 }
@@ -789,6 +752,209 @@ Return ONLY valid JSON with the required fields. Do NOT include a separate testC
       whyThisTests: "Error occurred",
       isRealWorldExample: true,
       topicIdentified: args.topic,
+    };
+  }
+}
+
+// Generate Build Mode Trace Table & Walkthrough (on-demand follow-up)
+export async function generateBuildTraceWalkthrough(args) {
+  console.log('[generateBuildTraceWalkthrough] Starting for level:', args.level);
+  console.log('[generateBuildTraceWalkthrough] Args:', JSON.stringify(args, null, 2));
+  
+  const level = args.level || 1;
+  
+  let levelInstruction = '';
+  if (level === 1) {
+    levelInstruction = `LEVEL 1 - NORMAL CASE:
+- Use a TYPICAL/NORMAL test case (not an edge case)
+- If test cases were detected in the problem, pick one that is NOT an edge case (avoid empty, single element, etc.)
+- If no test cases detected, generate a normal-sized test case that demonstrates the main algorithm flow
+- Show 4-6 step trace with the algorithm working as expected`;
+  } else if (level === 2) {
+    levelInstruction = `LEVEL 2 - EDGE CASE:
+- Use an EDGE CASE (empty input, single element, maximum values, boundary conditions)
+- If constraints were detected, use them to generate appropriate edge cases
+- Show how the algorithm handles the edge case correctly
+- Explain WHY this edge case is important and what could go wrong`;
+  } else if (level === 3) {
+    levelInstruction = `LEVEL 3 - BOTH CASES WITH DETAILED STEPS:
+- Show BOTH a normal case AND an edge case
+- For EACH case, provide MORE DETAILED step-by-step walkthrough
+- Slow down - explain what happens at EACH iteration in more detail
+- Explain WHY each step is happening, not just what
+- Return two separate trace tables and walkthroughs: normalCase and edgeCase`;
+  }
+  
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a detailed trace table and example walkthrough for the given code solution. This is for EXAM PREP - format everything like professors expect on written exams. Respond with valid JSON only.`;
+  
+  const userPrompt = `Generate a TRACE TABLE and EXAMPLE WALKTHROUGH for this code solution.
+
+PROBLEM: ${args.problem || 'Analyze the code to determine the problem'}
+
+CODE:
+\`\`\`
+${args.code}
+\`\`\`
+
+${args.testCases ? `DETECTED TEST CASES FROM PROBLEM:\n${args.testCases}\n` : ''}
+${args.constraints ? `DETECTED CONSTRAINTS:\n${args.constraints}\n` : ''}
+
+${levelInstruction}
+
+REQUIRED JSON SECTIONS:
+
+${level === 3 ? `
+- normalCase: REQUIRED - Object containing:
+  - exampleInput: The normal test case input
+  - exampleOutput: The expected output
+  - dryRunTable: Array of 5-7 objects with keys {iteration, variables, state, action} - MORE DETAIL than usual
+  - exampleWalkthrough: STRING with step-by-step trace, each step on NEW LINE using \\n, explain WHY each step happens
+
+- edgeCase: REQUIRED - Object containing:
+  - exampleInput: The edge case input (empty, single element, boundary)
+  - exampleOutput: The expected output
+  - dryRunTable: Array of 3-5 objects with keys {iteration, variables, state, action}
+  - exampleWalkthrough: STRING with step-by-step trace explaining WHY this edge case matters
+  - whyImportant: Why professors test this edge case
+` : `
+- exampleInput: REQUIRED - The specific input for the test case
+
+- exampleOutput: REQUIRED - The expected output for the test case
+
+- dryRunTable: REQUIRED - Array of 4-6 objects tracing the algorithm with the EXACT input from exampleInput. Use these exact keys: {iteration, variables, state, action}
+
+- exampleWalkthrough: REQUIRED - Step-by-step trace using the EXACT SAME input from exampleInput. Format as a STRING with each step on a NEW LINE using \\n.
+`}
+
+- isBuildTraceWalkthrough: REQUIRED - Set to true
+
+Return ONLY valid JSON with the required fields.`;
+
+  try {
+    const maxTokens = level === 3 ? 3000 : 2000;
+    const response = await callOpenAI(systemPrompt, userPrompt, maxTokens);
+    console.log('[generateBuildTraceWalkthrough] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateBuildTraceWalkthrough] ✓ Successfully parsed JSON response');
+    
+    if (parsed.error === 'INVALID_INPUT') {
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Unable to generate trace table.'
+      };
+    }
+    
+    // Ensure the flag is set
+    parsed.isBuildTraceWalkthrough = true;
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateBuildTraceWalkthrough] ❌ Failed:', error);
+    return {
+      exampleInput: "N/A",
+      exampleOutput: "N/A",
+      dryRunTable: [],
+      exampleWalkthrough: "Error generating walkthrough. Please try again.",
+      isBuildTraceWalkthrough: true,
+    };
+  }
+}
+
+// Generate Build Mode Explain Simple (on-demand follow-up)
+export async function generateBuildExplainSimple(args) {
+  console.log('[generateBuildExplainSimple] Starting for level:', args.level);
+  console.log('[generateBuildExplainSimple] Args:', JSON.stringify(args, null, 2));
+  
+  const level = args.level || 1;
+  
+  let levelInstruction = '';
+  let vocabularyInstruction = '';
+  
+  if (level === 1) {
+    levelInstruction = `LEVEL 1 - SIMPLER TERMS:
+- Explain the code step-by-step in simpler technical terms
+- Break down the pattern and approach
+- Include a skeleton with TODO comments
+- Use clear language but standard CS terminology is OK`;
+    vocabularyInstruction = 'Use simpler technical terms. Avoid complex jargon.';
+  } else if (level === 2) {
+    levelInstruction = `LEVEL 2 - MORE CLEAR AND SLOW:
+- Even MORE detailed step-by-step breakdown
+- Explain WHY each step is needed, not just what
+- Use analogies and examples where helpful
+- Slower pace with more context
+- Include common mistakes students make`;
+    vocabularyInstruction = 'Use very clear language. Explain every technical term. Use analogies.';
+  } else if (level === 3) {
+    levelInstruction = `LEVEL 3 - EXPLAIN LIKE I'M 5:
+- Use VERY SIMPLE language, almost no jargon
+- Heavy use of analogies and real-world examples
+- Explain every single concept from basics
+- Assume ZERO prior programming knowledge
+- Make it fun and relatable
+- Include a real-world analogy that captures the essence of the algorithm`;
+    vocabularyInstruction = 'Use extremely simple language. Pretend you are explaining to a child. Use everyday analogies like toys, games, or simple activities.';
+  }
+  
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator known for making complex concepts simple. Your job is to explain code solutions in progressively simpler terms. ${vocabularyInstruction} Respond with valid JSON only.`;
+  
+  const userPrompt = `Explain this code solution in simpler terms.
+
+PROBLEM: ${args.problem || 'Analyze the code to determine the problem'}
+
+CODE:
+\`\`\`
+${args.code}
+\`\`\`
+
+${levelInstruction}
+
+REQUIRED JSON SECTIONS:
+
+- detailedExplanation: REQUIRED - Step-by-step explanation of the code (use \\n for line breaks). ${level === 3 ? 'Use VERY simple language and everyday analogies.' : 'Break down each part clearly.'}
+
+- patternExplanation: REQUIRED - How to recognize and approach this type of problem. ${level === 3 ? 'Explain like teaching a child how to solve a puzzle.' : 'Include pattern recognition tips.'}
+
+- skeleton: REQUIRED - The code skeleton with TODO comments explaining what each part should do. This helps students understand the structure before the implementation.
+
+- keyInsights: REQUIRED - Array of 3-5 key insights or "aha moments" for understanding this solution. ${level === 3 ? 'Make them simple and memorable.' : ''}
+
+${level >= 2 ? '- commonMistakes: REQUIRED - Array of 2-3 common mistakes students make with this pattern and how to avoid them.' : ''}
+
+${level === 3 ? '- realWorldAnalogy: REQUIRED - A fun, relatable real-world analogy that explains how this algorithm works. Example: "Binary search is like finding a word in a dictionary - you open to the middle, see if your word comes before or after, and repeat!"' : ''}
+
+- isBuildExplainSimple: REQUIRED - Set to true
+
+Return ONLY valid JSON with the required fields.`;
+
+  try {
+    const maxTokens = level === 3 ? 3000 : 2500;
+    const response = await callOpenAI(systemPrompt, userPrompt, maxTokens);
+    console.log('[generateBuildExplainSimple] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateBuildExplainSimple] ✓ Successfully parsed JSON response');
+    
+    if (parsed.error === 'INVALID_INPUT') {
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Unable to generate explanation.'
+      };
+    }
+    
+    // Ensure the flag is set
+    parsed.isBuildExplainSimple = true;
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateBuildExplainSimple] ❌ Failed:', error);
+    return {
+      detailedExplanation: "Error generating explanation. Please try again.",
+      patternExplanation: "Error occurred",
+      skeleton: "# Error occurred",
+      keyInsights: [],
+      isBuildExplainSimple: true,
     };
   }
 }

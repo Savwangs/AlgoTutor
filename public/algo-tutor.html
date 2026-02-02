@@ -518,24 +518,6 @@
         border: 1px solid rgba(59, 130, 246, 0.3);
       }
 
-      /* Time Estimate Badge */
-      .time-estimate {
-        display: inline-flex;
-        align-items: center;
-        gap: 6px;
-        background: rgba(16, 185, 129, 0.15);
-        color: #10b981;
-        padding: 6px 12px;
-        border-radius: 8px;
-        font-size: 0.85rem;
-        font-weight: 600;
-        margin: 8px 0;
-      }
-
-      .time-estimate::before {
-        content: "⏱️";
-      }
-
       /* Exact Bug Line Highlight */
       .bug-line-box {
         background: rgba(239, 68, 68, 0.1);
@@ -1574,30 +1556,6 @@
               ></textarea>
             </div>
 
-            <div class="field-block">
-              <label for="build-testcases">Test Cases (optional)</label>
-              <textarea
-                id="build-testcases"
-                placeholder="Enter test cases the solution should pass..."
-                style="min-height: 80px;"
-              ></textarea>
-              <p class="hint">
-                Provide example inputs/outputs to verify the solution.
-              </p>
-            </div>
-
-            <div class="field-block">
-              <label for="build-constraints">Constraints (optional)</label>
-              <textarea
-                id="build-constraints"
-                placeholder="e.g., O(n) time, O(1) space, no extra data structures..."
-                style="min-height: 60px;"
-              ></textarea>
-              <p class="hint">
-                Specify time/space constraints if required.
-              </p>
-            </div>
-
             <div class="row">
               <div class="field-block">
                 <label for="build-language">Language</label>
@@ -1615,20 +1573,8 @@
                 <label for="build-recursion">Allow recursion</label>
               </div>
               <div class="toggle-item">
-                <input type="checkbox" id="build-skeleton" />
-                <label for="build-skeleton">Skeleton only (no implementation)</label>
-              </div>
-              <div class="toggle-item">
-                <input type="checkbox" id="build-dry-run" checked />
-                <label for="build-dry-run">Include dry-run (exam format)</label>
-              </div>
-              <div class="toggle-item">
                 <input type="checkbox" id="build-minimal-code" checked />
                 <label for="build-minimal-code">Minimal code style</label>
-              </div>
-              <div class="toggle-item">
-                <input type="checkbox" id="build-time-estimate" checked />
-                <label for="build-time-estimate">Show time estimate</label>
               </div>
             </div>
 
@@ -1834,6 +1780,14 @@
       let currentLogId = null; // For feedback tracking
       let currentLearnTopic = null; // For Learn Mode follow-up questions
       let currentLearnCode = ''; // For Learn Mode trace walkthrough
+      
+      // Build Mode follow-up state
+      let currentBuildProblem = ''; // For Build Mode follow-up context
+      let currentBuildCode = ''; // Code from Build Mode response
+      let currentBuildTestCases = ''; // Detected test cases from problem
+      let currentBuildConstraints = ''; // Detected constraints from problem
+      let buildTraceClickCount = 0; // Track trace/walkthrough button clicks (max 3)
+      let buildExplainClickCount = 0; // Track explain button clicks (max 3)
 
       // DOM Elements
       const modeBtns = document.querySelectorAll(".mode-btn");
@@ -1968,7 +1922,7 @@
         
         // Determine mode based on outputs
         const isDebugMode = outputs.exactBugLine || outputs.fillInBlankAnswers || outputs.beforeCode;
-        const isBuildMode = outputs.theShortcut || outputs.dontForget || outputs.timeEstimate;
+        const isBuildMode = outputs.theShortcut || outputs.dontForget || outputs.isBuildMode;
         const isLearnMode = outputs.patternSignature || outputs.whatProfessorsTest || outputs.isLearnMode;
 
         // === RENDER TRICK BOX FIRST (TOP OF OUTPUT) ===
@@ -2040,15 +1994,6 @@
             title: "Code Solution",
             content: outputs.code,
             type: "code",
-          });
-        }
-
-        // Time Estimate (Build mode)
-        if (outputs.timeEstimate) {
-          blocks.push({
-            title: null, // No title - rendered as inline badge
-            content: outputs.timeEstimate,
-            type: "timeEstimate",
           });
         }
 
@@ -2127,15 +2072,6 @@
 
         // Render main blocks
         blocks.forEach((block, idx) => {
-          if (block.type === "timeEstimate") {
-            // Render as inline badge
-            const badgeEl = document.createElement("div");
-            badgeEl.className = "time-estimate";
-            badgeEl.textContent = block.content;
-            outputContainer.appendChild(badgeEl);
-            return;
-          }
-
           if (block.type === "keywords") {
             // Render as keyword tags
             const blockEl = document.createElement("div");
@@ -2272,22 +2208,7 @@
 
         // === BOTTOM SECTION ===
 
-        // Paper Version / Paper Summary (both modes)
-        if (outputs.paperVersion && Array.isArray(outputs.paperVersion)) {
-          const blockEl = document.createElement("div");
-          blockEl.className = "output-block";
-          blockEl.innerHTML = `<h3>Paper Version</h3>`;
-          const ul = document.createElement("ul");
-          ul.className = "list-block";
-          outputs.paperVersion.forEach((item) => {
-            const li = document.createElement("li");
-            li.textContent = item;
-            ul.appendChild(li);
-          });
-          blockEl.appendChild(ul);
-          outputContainer.appendChild(blockEl);
-        }
-
+        // Paper Summary (Learn mode only - paperVersion removed from Build mode)
         if (outputs.paperSummary && Array.isArray(outputs.paperSummary)) {
           const blockEl = document.createElement("div");
           blockEl.className = "output-block";
@@ -2348,7 +2269,7 @@
           outputContainer.appendChild(blockEl);
         }
 
-        // === TRACE TABLE & WALKTHROUGH RESPONSE ===
+        // === TRACE TABLE & WALKTHROUGH RESPONSE (Learn Mode) ===
         if (outputs.isTraceWalkthrough) {
           // Render example input/output
           if (outputs.exampleInput || outputs.exampleOutput) {
@@ -2373,6 +2294,181 @@
             outputContainer.appendChild(ioDiv);
           }
         }
+        
+        // === BUILD MODE TRACE TABLE & WALKTHROUGH RESPONSE ===
+        if (outputs.isBuildTraceWalkthrough) {
+          // Check if this is a level 3 response with both normal and edge cases
+          if (outputs.normalCase && outputs.edgeCase) {
+            // Level 3: Render both cases
+            const bothCasesContainer = document.createElement("div");
+            bothCasesContainer.className = "trace-walkthrough-container";
+            
+            // Normal Case
+            bothCasesContainer.innerHTML += `
+              <h3 style="color: var(--accent); margin-bottom: 12px;">📊 Normal Case</h3>
+            `;
+            if (outputs.normalCase.exampleInput || outputs.normalCase.exampleOutput) {
+              const normalIoDiv = document.createElement("div");
+              normalIoDiv.className = "example-io";
+              normalIoDiv.innerHTML = `
+                ${outputs.normalCase.exampleInput ? `<div class="example-io-item"><div class="example-io-label">Input</div><div class="example-io-value">${escapeHtml(outputs.normalCase.exampleInput)}</div></div>` : ''}
+                ${outputs.normalCase.exampleOutput ? `<div class="example-io-item"><div class="example-io-label">Output</div><div class="example-io-value">${escapeHtml(outputs.normalCase.exampleOutput)}</div></div>` : ''}
+              `;
+              bothCasesContainer.appendChild(normalIoDiv);
+            }
+            if (outputs.normalCase.dryRunTable && Array.isArray(outputs.normalCase.dryRunTable)) {
+              const tableEl = renderTable(outputs.normalCase.dryRunTable);
+              if (tableEl) bothCasesContainer.appendChild(tableEl);
+            }
+            if (outputs.normalCase.exampleWalkthrough) {
+              const walkthroughEl = document.createElement("div");
+              walkthroughEl.className = "output-block";
+              walkthroughEl.innerHTML = `<h3>Walkthrough</h3><div class="text-block">${escapeHtml(outputs.normalCase.exampleWalkthrough).replace(/\\n/g, '<br>')}</div>`;
+              bothCasesContainer.appendChild(walkthroughEl);
+            }
+            
+            // Edge Case
+            bothCasesContainer.innerHTML += `
+              <h3 style="color: #f59e0b; margin-top: 24px; margin-bottom: 12px;">⚠️ Edge Case</h3>
+            `;
+            if (outputs.edgeCase.exampleInput || outputs.edgeCase.exampleOutput) {
+              const edgeIoDiv = document.createElement("div");
+              edgeIoDiv.className = "example-io";
+              edgeIoDiv.innerHTML = `
+                ${outputs.edgeCase.exampleInput ? `<div class="example-io-item"><div class="example-io-label">Input</div><div class="example-io-value">${escapeHtml(outputs.edgeCase.exampleInput)}</div></div>` : ''}
+                ${outputs.edgeCase.exampleOutput ? `<div class="example-io-item"><div class="example-io-label">Output</div><div class="example-io-value">${escapeHtml(outputs.edgeCase.exampleOutput)}</div></div>` : ''}
+              `;
+              bothCasesContainer.appendChild(edgeIoDiv);
+            }
+            if (outputs.edgeCase.dryRunTable && Array.isArray(outputs.edgeCase.dryRunTable)) {
+              const tableEl = renderTable(outputs.edgeCase.dryRunTable);
+              if (tableEl) bothCasesContainer.appendChild(tableEl);
+            }
+            if (outputs.edgeCase.exampleWalkthrough) {
+              const walkthroughEl = document.createElement("div");
+              walkthroughEl.className = "output-block";
+              walkthroughEl.innerHTML = `<h3>Walkthrough</h3><div class="text-block">${escapeHtml(outputs.edgeCase.exampleWalkthrough).replace(/\\n/g, '<br>')}</div>`;
+              bothCasesContainer.appendChild(walkthroughEl);
+            }
+            if (outputs.edgeCase.whyImportant) {
+              const whyEl = document.createElement("div");
+              whyEl.className = "warning-box";
+              whyEl.innerHTML = `<div class="warning-title">Why This Edge Case Matters</div><div>${escapeHtml(outputs.edgeCase.whyImportant)}</div>`;
+              bothCasesContainer.appendChild(whyEl);
+            }
+            
+            outputContainer.appendChild(bothCasesContainer);
+          } else {
+            // Level 1 or 2: Single case
+            if (outputs.exampleInput || outputs.exampleOutput) {
+              const ioDiv = document.createElement("div");
+              ioDiv.className = "example-io";
+              if (outputs.exampleInput) {
+                ioDiv.innerHTML += `
+                  <div class="example-io-item">
+                    <div class="example-io-label">Example Input</div>
+                    <div class="example-io-value">${escapeHtml(outputs.exampleInput)}</div>
+                  </div>
+                `;
+              }
+              if (outputs.exampleOutput) {
+                ioDiv.innerHTML += `
+                  <div class="example-io-item">
+                    <div class="example-io-label">Expected Output</div>
+                    <div class="example-io-value">${escapeHtml(outputs.exampleOutput)}</div>
+                  </div>
+                `;
+              }
+              outputContainer.appendChild(ioDiv);
+            }
+          }
+        }
+        
+        // === BUILD MODE EXPLAIN SIMPLE RESPONSE ===
+        if (outputs.isBuildExplainSimple) {
+          const explainContainer = document.createElement("div");
+          explainContainer.className = "trace-walkthrough-container";
+          
+          // Real World Analogy (Level 3)
+          if (outputs.realWorldAnalogy) {
+            const analogyEl = document.createElement("div");
+            analogyEl.className = "trick-box";
+            analogyEl.innerHTML = `
+              <div class="trick-box-title">🌍 Real-World Analogy</div>
+              <div class="trick-box-content">${escapeHtml(outputs.realWorldAnalogy)}</div>
+            `;
+            explainContainer.appendChild(analogyEl);
+          }
+          
+          // Detailed Explanation
+          if (outputs.detailedExplanation) {
+            const detailEl = document.createElement("div");
+            detailEl.className = "output-block";
+            detailEl.innerHTML = `
+              <h3>Step-by-Step Explanation</h3>
+              <div class="text-block">${escapeHtml(outputs.detailedExplanation).replace(/\\n/g, '<br>')}</div>
+            `;
+            explainContainer.appendChild(detailEl);
+          }
+          
+          // Pattern Explanation
+          if (outputs.patternExplanation) {
+            const patternEl = document.createElement("div");
+            patternEl.className = "output-block";
+            patternEl.innerHTML = `
+              <h3>How to Approach This Pattern</h3>
+              <div class="text-block">${escapeHtml(outputs.patternExplanation).replace(/\\n/g, '<br>')}</div>
+            `;
+            explainContainer.appendChild(patternEl);
+          }
+          
+          // Skeleton Code
+          if (outputs.skeleton) {
+            const skeletonEl = document.createElement("div");
+            skeletonEl.className = "output-block";
+            skeletonEl.innerHTML = `
+              <h3>Code Skeleton</h3>
+              <pre class="code-block">${escapeHtml(outputs.skeleton)}</pre>
+            `;
+            explainContainer.appendChild(skeletonEl);
+          }
+          
+          // Key Insights
+          if (outputs.keyInsights && Array.isArray(outputs.keyInsights)) {
+            const insightsEl = document.createElement("div");
+            insightsEl.className = "output-block";
+            insightsEl.innerHTML = `<h3>💡 Key Insights</h3>`;
+            const ul = document.createElement("ul");
+            ul.className = "list-block";
+            outputs.keyInsights.forEach(insight => {
+              const li = document.createElement("li");
+              li.textContent = insight;
+              ul.appendChild(li);
+            });
+            insightsEl.appendChild(ul);
+            explainContainer.appendChild(insightsEl);
+          }
+          
+          // Common Mistakes (Level 2+)
+          if (outputs.commonMistakes && Array.isArray(outputs.commonMistakes)) {
+            const mistakesEl = document.createElement("div");
+            mistakesEl.className = "warning-box";
+            mistakesEl.innerHTML = `<div class="warning-title">⚠️ Common Mistakes to Avoid</div>`;
+            const ul = document.createElement("ul");
+            ul.style.marginTop = "8px";
+            ul.style.paddingLeft = "20px";
+            outputs.commonMistakes.forEach(mistake => {
+              const li = document.createElement("li");
+              li.textContent = mistake;
+              li.style.marginBottom = "4px";
+              ul.appendChild(li);
+            });
+            mistakesEl.appendChild(ul);
+            explainContainer.appendChild(mistakesEl);
+          }
+          
+          outputContainer.appendChild(explainContainer);
+        }
 
         // === REAL WORLD EXAMPLE (FILL-IN-THE-BLANK) RESPONSE ===
         if (outputs.isRealWorldExample) {
@@ -2381,10 +2477,10 @@
 
         // === LEARN MODE FOLLOW-UP BUTTONS ===
         // Show follow-up buttons after Learn Mode, Trace/Walkthrough, and Real-World Example responses
-        const showFollowupButtons = outputs.isLearnMode || outputs.isTraceWalkthrough || outputs.isRealWorldExample;
+        const showLearnFollowupButtons = outputs.isLearnMode || outputs.isTraceWalkthrough || outputs.isRealWorldExample;
         const topicForFollowup = outputs.topicIdentified || currentLearnTopic;
         
-        if (showFollowupButtons && topicForFollowup) {
+        if (showLearnFollowupButtons && topicForFollowup) {
           // Update stored topic if we have a new one
           if (outputs.topicIdentified) {
             currentLearnTopic = outputs.topicIdentified;
@@ -2409,6 +2505,115 @@
             </button>
           `;
           outputContainer.appendChild(followupContainer);
+        }
+        
+        // === BUILD MODE FOLLOW-UP BUTTONS ===
+        // Show progressive follow-up buttons after Build Mode responses
+        const showBuildFollowupButtons = isBuildMode && outputs.code && !outputs.isBuildTraceWalkthrough && !outputs.isBuildExplainSimple;
+        
+        if (showBuildFollowupButtons) {
+          // Store Build Mode context for follow-ups
+          if (outputs.code) {
+            currentBuildCode = outputs.code;
+          }
+          // Problem is stored via form submission, but also from detected context
+          if (outputs.testCasesDetected) {
+            currentBuildTestCases = outputs.testCasesDetected;
+          }
+          if (outputs.constraintsDetected) {
+            currentBuildConstraints = outputs.constraintsDetected;
+          }
+          // Reset click counts for new Build Mode response
+          buildTraceClickCount = 0;
+          buildExplainClickCount = 0;
+          
+          // Define button text for each level
+          const traceButtonTexts = [
+            "See a dry-run table and example walkthrough",
+            "Show dry-run table and example walkthrough with an edge case",
+            "Show dry-run table and example walkthrough more clearly and slow down with each step"
+          ];
+          const explainButtonTexts = [
+            "Explain in simpler terms",
+            "Explain more clearly and slow down with each step",
+            "Explain like I am 5"
+          ];
+          
+          const buildFollowupContainer = document.createElement("div");
+          buildFollowupContainer.className = "followup-buttons-container";
+          buildFollowupContainer.id = "build-followup-container";
+          buildFollowupContainer.innerHTML = `
+            <div class="followup-buttons-title">Want to understand better?</div>
+            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough" data-level="1" id="build-trace-btn">
+              <span class="followup-btn-icon">📊</span>
+              <span class="followup-btn-text">${traceButtonTexts[0]}</span>
+              <span class="followup-btn-arrow">→</span>
+            </button>
+            <button class="followup-btn build-followup-btn" data-action="build-explain-simple" data-level="1" id="build-explain-btn">
+              <span class="followup-btn-icon">💡</span>
+              <span class="followup-btn-text">${explainButtonTexts[0]}</span>
+              <span class="followup-btn-arrow">→</span>
+            </button>
+          `;
+          outputContainer.appendChild(buildFollowupContainer);
+        }
+        
+        // === BUILD MODE TRACE/WALKTHROUGH FOLLOW-UP RESPONSE ===
+        // Update buttons after receiving a trace/walkthrough response
+        if (outputs.isBuildTraceWalkthrough) {
+          buildTraceClickCount++;
+          // Update or hide the trace button based on click count
+          const traceBtn = document.getElementById('build-trace-btn');
+          const explainBtn = document.getElementById('build-explain-btn');
+          const container = document.getElementById('build-followup-container');
+          
+          if (traceBtn) {
+            if (buildTraceClickCount >= 3) {
+              traceBtn.style.display = 'none';
+            } else {
+              const traceButtonTexts = [
+                "See a dry-run table and example walkthrough",
+                "Show dry-run table and example walkthrough with an edge case",
+                "Show dry-run table and example walkthrough more clearly and slow down with each step"
+              ];
+              traceBtn.querySelector('.followup-btn-text').textContent = traceButtonTexts[buildTraceClickCount];
+              traceBtn.dataset.level = String(buildTraceClickCount + 1);
+            }
+          }
+          
+          // Hide entire container if both buttons are at max
+          if (container && buildTraceClickCount >= 3 && buildExplainClickCount >= 3) {
+            container.style.display = 'none';
+          }
+        }
+        
+        // === BUILD MODE EXPLAIN SIMPLE FOLLOW-UP RESPONSE ===
+        // Update buttons after receiving an explain simple response
+        if (outputs.isBuildExplainSimple) {
+          buildExplainClickCount++;
+          // Update or hide the explain button based on click count
+          const traceBtn = document.getElementById('build-trace-btn');
+          const explainBtn = document.getElementById('build-explain-btn');
+          const container = document.getElementById('build-followup-container');
+          
+          if (explainBtn) {
+            if (buildExplainClickCount >= 3) {
+              explainBtn.style.display = 'none';
+            } else {
+              const explainButtonTexts = [
+                "Explain in simpler terms",
+                "Explain more clearly and slow down with each step",
+                "Explain like I am 5"
+              ];
+              explainBtn.querySelector('.followup-btn-text').textContent = explainButtonTexts[buildExplainClickCount];
+              explainBtn.dataset.level = String(buildExplainClickCount + 1);
+            }
+          }
+          
+          // Hide entire container if both buttons are at max
+          if (container && buildTraceClickCount >= 3 && buildExplainClickCount >= 3) {
+            container.style.display = 'none';
+          }
         }
         
         // Add feedback buttons for premium users
@@ -2711,31 +2916,31 @@
         const statusEl = document.querySelector("#build-status");
 
         const problem = document.querySelector("#build-problem").value.trim();
-        const testCases = document.querySelector("#build-testcases").value.trim();
-        const constraints = document.querySelector("#build-constraints").value.trim();
         const language = document.querySelector("#build-language").value;
         const allowRecursion = document.querySelector("#build-recursion").checked;
-        const skeletonOnly = document.querySelector("#build-skeleton").checked;
-        const includeDryRun = document.querySelector("#build-dry-run").checked;
         const minimalCode = document.querySelector("#build-minimal-code").checked;
-        const showTimeEstimate = document.querySelector("#build-time-estimate").checked;
 
         if (!problem) {
           statusEl.textContent = "Please enter a problem.";
           return;
         }
 
+        // Store problem for Build Mode follow-ups
+        currentBuildProblem = problem;
+        // Reset follow-up tracking for new Build Mode submission
+        currentBuildCode = '';
+        currentBuildTestCases = '';
+        currentBuildConstraints = '';
+        buildTraceClickCount = 0;
+        buildExplainClickCount = 0;
+
         statusEl.textContent = "Building solution...";
         
         // Build natural language prompt for ChatGPT - Build Mode
+        // Test cases and constraints are now detected from the problem description by the LLM
         let prompt = `Use AlgoTutor Build Mode to solve this problem in ${language}: ${problem}.`;
-        if (testCases) prompt += ` The solution must pass these test cases: ${testCases}.`;
-        if (constraints) prompt += ` The solution must meet these constraints: ${constraints}.`;
         prompt += minimalCode ? ` Use minimal paper-friendly code.` : ` Include helpful comments in code.`;
         prompt += allowRecursion ? ` Recursion is allowed.` : ` Do NOT use recursion - use iterative solutions only.`;
-        prompt += skeletonOnly ? ` Show skeleton only.` : ` Show full working solution.`;
-        prompt += includeDryRun ? ` Include exam-format dry-run.` : ` Do NOT include dry-run table.`;
-        prompt += showTimeEstimate ? ` Show time estimate.` : ` Do NOT show time estimate.`;
 
         try {
           await sendFollowUp(prompt);
@@ -3629,7 +3834,7 @@
         }
       });
 
-      // ==================== LEARN MODE FOLLOW-UP BUTTON HANDLERS ====================
+      // ==================== FOLLOW-UP BUTTON HANDLERS (Learn Mode & Build Mode) ====================
       document.addEventListener('click', async (e) => {
         const followupBtn = e.target.closest('.followup-btn');
         if (!followupBtn) return;
@@ -3637,13 +3842,9 @@
         const action = followupBtn.dataset.action;
         const topic = followupBtn.dataset.topic || currentLearnTopic;
         const code = followupBtn.dataset.code || currentLearnCode;
+        const level = parseInt(followupBtn.dataset.level) || 1;
         
-        console.log('[Widget] Follow-up button clicked:', action, 'topic:', topic);
-        
-        if (!topic) {
-          console.warn('[Widget] No topic available for follow-up');
-          return;
-        }
+        console.log('[Widget] Follow-up button clicked:', action, 'topic:', topic, 'level:', level);
         
         // Disable button to prevent double-clicks
         followupBtn.disabled = true;
@@ -3653,17 +3854,66 @@
         
         try {
           let prompt;
+          
+          // === LEARN MODE ACTIONS ===
           if (action === 'trace-walkthrough') {
+            if (!topic) {
+              console.warn('[Widget] No topic available for follow-up');
+              return;
+            }
             prompt = `Use AlgoTutor learn_trace_walkthrough tool to show me a trace table and example walkthrough for ${topic}.`;
             if (code) {
               prompt += ` Use this code as reference: \`\`\`python\n${code}\n\`\`\``;
             }
           } else if (action === 'real-world') {
+            if (!topic) {
+              console.warn('[Widget] No topic available for follow-up');
+              return;
+            }
             prompt = `Use AlgoTutor learn_real_world_example tool to generate a fill-in-the-blank practice problem for ${topic}.`;
           }
           
-          await sendFollowUp(prompt);
-          console.log('[Widget] Follow-up request sent successfully');
+          // === BUILD MODE ACTIONS ===
+          else if (action === 'build-trace-walkthrough') {
+            if (!currentBuildCode) {
+              console.warn('[Widget] No build code available for trace/walkthrough');
+              followupBtn.disabled = false;
+              followupBtn.style.opacity = '1';
+              followupBtn.querySelector('.followup-btn-text').textContent = originalText;
+              return;
+            }
+            prompt = `Use AlgoTutor build_trace_walkthrough tool to show a dry-run table and example walkthrough for the solution.`;
+            prompt += ` Level: ${level}.`;
+            prompt += ` Code: \`\`\`\n${currentBuildCode}\n\`\`\``;
+            if (currentBuildProblem) {
+              prompt += ` Problem: ${currentBuildProblem}`;
+            }
+            if (currentBuildTestCases) {
+              prompt += ` Test cases detected: ${currentBuildTestCases}`;
+            }
+            if (currentBuildConstraints) {
+              prompt += ` Constraints: ${currentBuildConstraints}`;
+            }
+          } else if (action === 'build-explain-simple') {
+            if (!currentBuildCode) {
+              console.warn('[Widget] No build code available for explanation');
+              followupBtn.disabled = false;
+              followupBtn.style.opacity = '1';
+              followupBtn.querySelector('.followup-btn-text').textContent = originalText;
+              return;
+            }
+            prompt = `Use AlgoTutor build_explain_simple tool to explain the solution in simpler terms.`;
+            prompt += ` Level: ${level}.`;
+            prompt += ` Code: \`\`\`\n${currentBuildCode}\n\`\`\``;
+            if (currentBuildProblem) {
+              prompt += ` Problem: ${currentBuildProblem}`;
+            }
+          }
+          
+          if (prompt) {
+            await sendFollowUp(prompt);
+            console.log('[Widget] Follow-up request sent successfully');
+          }
         } catch (err) {
           console.error('[Widget] Follow-up request failed:', err);
           // Re-enable button on error
