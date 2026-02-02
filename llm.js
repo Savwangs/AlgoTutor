@@ -4,7 +4,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MODEL = 'gpt-4.1'; // Cheapest GPT-5 model (~$0.00015/1K input tokens)
+const MODEL = 'gpt-5.2'; // Cheapest GPT-5 model (~$0.00015/1K input tokens)
 
 // Input validation prefix - added to all system prompts
 const VALIDATION_PREFIX = `
