@@ -2299,7 +2299,7 @@
         if (outputs.isBuildTraceWalkthrough) {
           // Check if this is a level 3 response with both normal and edge cases
           if (outputs.normalCase && outputs.edgeCase) {
-            // Level 3: Render both cases
+            // Level 3: Render both cases - Order: Walkthrough → Input/Output → Table
             const bothCasesContainer = document.createElement("div");
             bothCasesContainer.className = "trace-walkthrough-container";
             
@@ -2307,49 +2307,58 @@
             bothCasesContainer.innerHTML += `
               <h3 style="color: var(--accent); margin-bottom: 12px;">📊 Normal Case</h3>
             `;
-            if (outputs.normalCase.exampleInput || outputs.normalCase.exampleOutput) {
-              const normalIoDiv = document.createElement("div");
-              normalIoDiv.className = "example-io";
-              normalIoDiv.innerHTML = `
-                ${outputs.normalCase.exampleInput ? `<div class="example-io-item"><div class="example-io-label">Input</div><div class="example-io-value">${escapeHtml(outputs.normalCase.exampleInput)}</div></div>` : ''}
-                ${outputs.normalCase.exampleOutput ? `<div class="example-io-item"><div class="example-io-label">Output</div><div class="example-io-value">${escapeHtml(outputs.normalCase.exampleOutput)}</div></div>` : ''}
-              `;
-              bothCasesContainer.appendChild(normalIoDiv);
-            }
-            if (outputs.normalCase.dryRunTable && Array.isArray(outputs.normalCase.dryRunTable)) {
-              const tableEl = renderTable(outputs.normalCase.dryRunTable);
-              if (tableEl) bothCasesContainer.appendChild(tableEl);
-            }
+            // 1. Walkthrough FIRST
             if (outputs.normalCase.exampleWalkthrough) {
               const walkthroughEl = document.createElement("div");
               walkthroughEl.className = "output-block";
               walkthroughEl.innerHTML = `<h3>Walkthrough</h3><div class="text-block">${escapeHtml(outputs.normalCase.exampleWalkthrough).replace(/\\n/g, '<br>')}</div>`;
               bothCasesContainer.appendChild(walkthroughEl);
             }
+            // 2. Input/Output SECOND
+            if (outputs.normalCase.exampleInput || outputs.normalCase.exampleOutput) {
+              const normalIoDiv = document.createElement("div");
+              normalIoDiv.className = "example-io";
+              normalIoDiv.style.marginTop = "12px";
+              normalIoDiv.innerHTML = `
+                ${outputs.normalCase.exampleInput ? `<div class="example-io-item"><div class="example-io-label">Input (used in trace below)</div><div class="example-io-value">${escapeHtml(outputs.normalCase.exampleInput)}</div></div>` : ''}
+                ${outputs.normalCase.exampleOutput ? `<div class="example-io-item"><div class="example-io-label">Output</div><div class="example-io-value">${escapeHtml(outputs.normalCase.exampleOutput)}</div></div>` : ''}
+              `;
+              bothCasesContainer.appendChild(normalIoDiv);
+            }
+            // 3. Table THIRD
+            if (outputs.normalCase.dryRunTable && Array.isArray(outputs.normalCase.dryRunTable)) {
+              const tableEl = renderTable(outputs.normalCase.dryRunTable);
+              if (tableEl) bothCasesContainer.appendChild(tableEl);
+            }
             
             // Edge Case
             bothCasesContainer.innerHTML += `
               <h3 style="color: #f59e0b; margin-top: 24px; margin-bottom: 12px;">⚠️ Edge Case</h3>
             `;
-            if (outputs.edgeCase.exampleInput || outputs.edgeCase.exampleOutput) {
-              const edgeIoDiv = document.createElement("div");
-              edgeIoDiv.className = "example-io";
-              edgeIoDiv.innerHTML = `
-                ${outputs.edgeCase.exampleInput ? `<div class="example-io-item"><div class="example-io-label">Input</div><div class="example-io-value">${escapeHtml(outputs.edgeCase.exampleInput)}</div></div>` : ''}
-                ${outputs.edgeCase.exampleOutput ? `<div class="example-io-item"><div class="example-io-label">Output</div><div class="example-io-value">${escapeHtml(outputs.edgeCase.exampleOutput)}</div></div>` : ''}
-              `;
-              bothCasesContainer.appendChild(edgeIoDiv);
-            }
-            if (outputs.edgeCase.dryRunTable && Array.isArray(outputs.edgeCase.dryRunTable)) {
-              const tableEl = renderTable(outputs.edgeCase.dryRunTable);
-              if (tableEl) bothCasesContainer.appendChild(tableEl);
-            }
+            // 1. Walkthrough FIRST
             if (outputs.edgeCase.exampleWalkthrough) {
               const walkthroughEl = document.createElement("div");
               walkthroughEl.className = "output-block";
               walkthroughEl.innerHTML = `<h3>Walkthrough</h3><div class="text-block">${escapeHtml(outputs.edgeCase.exampleWalkthrough).replace(/\\n/g, '<br>')}</div>`;
               bothCasesContainer.appendChild(walkthroughEl);
             }
+            // 2. Input/Output SECOND
+            if (outputs.edgeCase.exampleInput || outputs.edgeCase.exampleOutput) {
+              const edgeIoDiv = document.createElement("div");
+              edgeIoDiv.className = "example-io";
+              edgeIoDiv.style.marginTop = "12px";
+              edgeIoDiv.innerHTML = `
+                ${outputs.edgeCase.exampleInput ? `<div class="example-io-item"><div class="example-io-label">Input (used in trace below)</div><div class="example-io-value">${escapeHtml(outputs.edgeCase.exampleInput)}</div></div>` : ''}
+                ${outputs.edgeCase.exampleOutput ? `<div class="example-io-item"><div class="example-io-label">Output</div><div class="example-io-value">${escapeHtml(outputs.edgeCase.exampleOutput)}</div></div>` : ''}
+              `;
+              bothCasesContainer.appendChild(edgeIoDiv);
+            }
+            // 3. Table THIRD
+            if (outputs.edgeCase.dryRunTable && Array.isArray(outputs.edgeCase.dryRunTable)) {
+              const tableEl = renderTable(outputs.edgeCase.dryRunTable);
+              if (tableEl) bothCasesContainer.appendChild(tableEl);
+            }
+            // 4. Why Important
             if (outputs.edgeCase.whyImportant) {
               const whyEl = document.createElement("div");
               whyEl.className = "warning-box";
@@ -2359,14 +2368,27 @@
             
             outputContainer.appendChild(bothCasesContainer);
           } else {
-            // Level 1 or 2: Single case
+            // Level 1 or 2: Single case - Order: Walkthrough → Input/Output → Table
+            const singleCaseContainer = document.createElement("div");
+            singleCaseContainer.className = "trace-walkthrough-container";
+            
+            // 1. Walkthrough FIRST
+            if (outputs.exampleWalkthrough) {
+              const walkthroughEl = document.createElement("div");
+              walkthroughEl.className = "output-block";
+              walkthroughEl.innerHTML = `<h3>Example Walkthrough</h3><div class="text-block">${escapeHtml(outputs.exampleWalkthrough).replace(/\\n/g, '<br>')}</div>`;
+              singleCaseContainer.appendChild(walkthroughEl);
+            }
+            
+            // 2. Input/Output SECOND
             if (outputs.exampleInput || outputs.exampleOutput) {
               const ioDiv = document.createElement("div");
               ioDiv.className = "example-io";
+              ioDiv.style.marginTop = "16px";
               if (outputs.exampleInput) {
                 ioDiv.innerHTML += `
                   <div class="example-io-item">
-                    <div class="example-io-label">Example Input</div>
+                    <div class="example-io-label">Example Input (used in trace below)</div>
                     <div class="example-io-value">${escapeHtml(outputs.exampleInput)}</div>
                   </div>
                 `;
@@ -2379,8 +2401,22 @@
                   </div>
                 `;
               }
-              outputContainer.appendChild(ioDiv);
+              singleCaseContainer.appendChild(ioDiv);
             }
+            
+            // 3. Trace Table THIRD
+            if (outputs.dryRunTable && Array.isArray(outputs.dryRunTable)) {
+              const tableTitle = document.createElement("h3");
+              tableTitle.textContent = "Trace Table";
+              tableTitle.style.marginTop = "16px";
+              tableTitle.style.marginBottom = "8px";
+              singleCaseContainer.appendChild(tableTitle);
+              
+              const tableEl = renderTable(outputs.dryRunTable);
+              if (tableEl) singleCaseContainer.appendChild(tableEl);
+            }
+            
+            outputContainer.appendChild(singleCaseContainer);
           }
         }
         
@@ -2534,7 +2570,7 @@
             "Show dry-run table and example walkthrough more clearly and slow down with each step"
           ];
           const explainButtonTexts = [
-            "Explain in simpler terms",
+            "Explain code in simpler terms",
             "Explain more clearly and slow down with each step",
             "Explain like I am 5"
           ];
@@ -2559,60 +2595,56 @@
         }
         
         // === BUILD MODE TRACE/WALKTHROUGH FOLLOW-UP RESPONSE ===
-        // Update buttons after receiving a trace/walkthrough response
+        // Show next trace button after receiving a trace/walkthrough response
         if (outputs.isBuildTraceWalkthrough) {
           buildTraceClickCount++;
-          // Update or hide the trace button based on click count
-          const traceBtn = document.getElementById('build-trace-btn');
-          const explainBtn = document.getElementById('build-explain-btn');
-          const container = document.getElementById('build-followup-container');
           
-          if (traceBtn) {
-            if (buildTraceClickCount >= 3) {
-              traceBtn.style.display = 'none';
-            } else {
-              const traceButtonTexts = [
-                "See a dry-run table and example walkthrough",
-                "Show dry-run table and example walkthrough with an edge case",
-                "Show dry-run table and example walkthrough more clearly and slow down with each step"
-              ];
-              traceBtn.querySelector('.followup-btn-text').textContent = traceButtonTexts[buildTraceClickCount];
-              traceBtn.dataset.level = String(buildTraceClickCount + 1);
-            }
-          }
-          
-          // Hide entire container if both buttons are at max
-          if (container && buildTraceClickCount >= 3 && buildExplainClickCount >= 3) {
-            container.style.display = 'none';
+          // Show next trace button if we haven't hit the limit
+          if (buildTraceClickCount < 3) {
+            const traceButtonTexts = [
+              "See a dry-run table and example walkthrough",
+              "Show dry-run table and example walkthrough with an edge case",
+              "Show dry-run table and example walkthrough more clearly and slow down with each step"
+            ];
+            
+            const traceFollowupContainer = document.createElement("div");
+            traceFollowupContainer.className = "followup-buttons-container";
+            traceFollowupContainer.innerHTML = `
+              <div class="followup-buttons-title">Want to see more?</div>
+              <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough" data-level="${buildTraceClickCount + 1}">
+                <span class="followup-btn-icon">📊</span>
+                <span class="followup-btn-text">${traceButtonTexts[buildTraceClickCount]}</span>
+                <span class="followup-btn-arrow">→</span>
+              </button>
+            `;
+            outputContainer.appendChild(traceFollowupContainer);
           }
         }
         
         // === BUILD MODE EXPLAIN SIMPLE FOLLOW-UP RESPONSE ===
-        // Update buttons after receiving an explain simple response
+        // Show next explain button after receiving an explain simple response
         if (outputs.isBuildExplainSimple) {
           buildExplainClickCount++;
-          // Update or hide the explain button based on click count
-          const traceBtn = document.getElementById('build-trace-btn');
-          const explainBtn = document.getElementById('build-explain-btn');
-          const container = document.getElementById('build-followup-container');
           
-          if (explainBtn) {
-            if (buildExplainClickCount >= 3) {
-              explainBtn.style.display = 'none';
-            } else {
-              const explainButtonTexts = [
-                "Explain in simpler terms",
-                "Explain more clearly and slow down with each step",
-                "Explain like I am 5"
-              ];
-              explainBtn.querySelector('.followup-btn-text').textContent = explainButtonTexts[buildExplainClickCount];
-              explainBtn.dataset.level = String(buildExplainClickCount + 1);
-            }
-          }
-          
-          // Hide entire container if both buttons are at max
-          if (container && buildTraceClickCount >= 3 && buildExplainClickCount >= 3) {
-            container.style.display = 'none';
+          // Show next explain button if we haven't hit the limit
+          if (buildExplainClickCount < 3) {
+            const explainButtonTexts = [
+              "Explain code in simpler terms",
+              "Explain more clearly and slow down with each step",
+              "Explain like I am 5"
+            ];
+            
+            const explainFollowupContainer = document.createElement("div");
+            explainFollowupContainer.className = "followup-buttons-container";
+            explainFollowupContainer.innerHTML = `
+              <div class="followup-buttons-title">Need it even simpler?</div>
+              <button class="followup-btn build-followup-btn" data-action="build-explain-simple" data-level="${buildExplainClickCount + 1}">
+                <span class="followup-btn-icon">💡</span>
+                <span class="followup-btn-text">${explainButtonTexts[buildExplainClickCount]}</span>
+                <span class="followup-btn-arrow">→</span>
+              </button>
+            `;
+            outputContainer.appendChild(explainFollowupContainer);
           }
         }
         
@@ -2659,7 +2691,14 @@
           const tr = document.createElement("tr");
           Object.values(row).forEach((val) => {
             const td = document.createElement("td");
-            td.textContent = val;
+            // Handle objects by stringifying them
+            if (val === null || val === undefined) {
+              td.textContent = '';
+            } else if (typeof val === 'object') {
+              td.textContent = JSON.stringify(val);
+            } else {
+              td.textContent = val;
+            }
             tr.appendChild(td);
           });
           tbody.appendChild(tr);

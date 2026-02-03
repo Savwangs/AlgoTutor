@@ -803,27 +803,36 @@ ${levelInstruction}
 
 REQUIRED JSON SECTIONS:
 
+IMPORTANT FORMATTING RULES FOR TRACE TABLE:
+- The "variables" field MUST be a simple STRING showing current variable values, NOT an object
+- Format variables as: "i=0, sum=0, arr=[1,2,3]" - a readable string
+- The trace table should trace through the EXACT exampleInput until reaching exampleOutput
+- If the code uses RECURSION: Use a SMALL test case (2-3 elements max) so the trace fits, OR show the call stack as text in the walkthrough instead of a table
+
 ${level === 3 ? `
 - normalCase: REQUIRED - Object containing:
-  - exampleInput: The normal test case input
+  - exampleInput: The normal test case input (use small input for recursive code)
   - exampleOutput: The expected output
-  - dryRunTable: Array of 5-7 objects with keys {iteration, variables, state, action} - MORE DETAIL than usual
+  - dryRunTable: Array of 5-7 objects with keys {iteration, variables, state, action}. VARIABLES MUST BE A STRING like "i=0, sum=5", NOT an object!
   - exampleWalkthrough: STRING with step-by-step trace, each step on NEW LINE using \\n, explain WHY each step happens
 
 - edgeCase: REQUIRED - Object containing:
   - exampleInput: The edge case input (empty, single element, boundary)
   - exampleOutput: The expected output
-  - dryRunTable: Array of 3-5 objects with keys {iteration, variables, state, action}
+  - dryRunTable: Array of 3-5 objects with keys {iteration, variables, state, action}. VARIABLES MUST BE A STRING!
   - exampleWalkthrough: STRING with step-by-step trace explaining WHY this edge case matters
   - whyImportant: Why professors test this edge case
 ` : `
-- exampleInput: REQUIRED - The specific input for the test case
+- exampleInput: REQUIRED - The specific input for the test case. For recursive code, use a SMALL input (2-3 elements).
 
 - exampleOutput: REQUIRED - The expected output for the test case
 
-- dryRunTable: REQUIRED - Array of 4-6 objects tracing the algorithm with the EXACT input from exampleInput. Use these exact keys: {iteration, variables, state, action}
+- dryRunTable: REQUIRED - Array of 4-6 objects tracing the algorithm with the EXACT input from exampleInput until reaching exampleOutput. Use these exact keys: {iteration, variables, state, action}
+  CRITICAL: The "variables" field MUST be a STRING like "i=0, left=0, right=4" - NOT an object!
+  Each row should show the state at that iteration using the exampleInput values.
 
-- exampleWalkthrough: REQUIRED - Step-by-step trace using the EXACT SAME input from exampleInput. Format as a STRING with each step on a NEW LINE using \\n.
+- exampleWalkthrough: REQUIRED - Step-by-step trace using the EXACT SAME input from exampleInput. Format as a STRING with each step on a NEW LINE using \\n. For recursive code, show the call stack like:
+  "Step 1: Call func([1,2,3])\\nStep 2: Recurse with func([2,3])\\nStep 3: Base case reached..."
 `}
 
 - isBuildTraceWalkthrough: REQUIRED - Set to true
@@ -875,7 +884,7 @@ export async function generateBuildExplainSimple(args) {
     levelInstruction = `LEVEL 1 - SIMPLER TERMS:
 - Explain the code step-by-step in simpler technical terms
 - Break down the pattern and approach
-- Include a skeleton with TODO comments
+- Include a skeleton with # comments (NOT TODO)
 - Use clear language but standard CS terminology is OK`;
     vocabularyInstruction = 'Use simpler technical terms. Avoid complex jargon.';
   } else if (level === 2) {
@@ -912,11 +921,20 @@ ${levelInstruction}
 
 REQUIRED JSON SECTIONS:
 
-- detailedExplanation: REQUIRED - Step-by-step explanation of the code (use \\n for line breaks). ${level === 3 ? 'Use VERY simple language and everyday analogies.' : 'Break down each part clearly.'}
+- detailedExplanation: REQUIRED - Step-by-step explanation of the code. CRITICAL FORMATTING: Each numbered step MUST be on its own line. Use \\n between EVERY step. Format like:
+  "1. First step explanation\\n2. Second step explanation\\n3. Third step explanation"
+  NOT like: "1. First 2. Second 3. Third" (wrong - all on one line)
+  ${level === 3 ? 'Use VERY simple language and everyday analogies.' : 'Break down each part clearly.'}
 
 - patternExplanation: REQUIRED - How to recognize and approach this type of problem. ${level === 3 ? 'Explain like teaching a child how to solve a puzzle.' : 'Include pattern recognition tips.'}
 
-- skeleton: REQUIRED - The code skeleton with TODO comments explaining what each part should do. This helps students understand the structure before the implementation.
+- skeleton: REQUIRED - The code skeleton with # comments (NOT TODO) explaining what each part should do. This helps students understand the structure before the implementation. Use "# Description of what goes here" format. Example:
+  def function_name(params):
+      # Initialize the result variable
+      # Loop through the input
+      # Check the condition and update result
+      # Return the final result
+  Do NOT use "TODO" anywhere in the skeleton.
 
 - keyInsights: REQUIRED - Array of 3-5 key insights or "aha moments" for understanding this solution. ${level === 3 ? 'Make them simple and memorable.' : ''}
 
