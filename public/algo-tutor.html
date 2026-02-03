@@ -1997,8 +1997,8 @@
           });
         }
 
-        // Example Walkthrough (Learn mode)
-        if (outputs.exampleWalkthrough) {
+        // Example Walkthrough (Learn mode only - skip for Build Mode trace responses)
+        if (outputs.exampleWalkthrough && !outputs.isBuildTraceWalkthrough) {
           blocks.push({
             title: "Example Walkthrough",
             content: outputs.exampleWalkthrough,
@@ -2015,14 +2015,14 @@
           });
         }
 
-        // Trace Table / Dry-run table (exam format)
-        if (outputs.traceTable && Array.isArray(outputs.traceTable)) {
+        // Trace Table / Dry-run table (exam format) - skip for Build Mode trace responses
+        if (outputs.traceTable && Array.isArray(outputs.traceTable) && !outputs.isBuildTraceWalkthrough) {
           blocks.push({
             title: "Trace Table (Exam Format)",
             content: outputs.traceTable,
             type: "table",
           });
-        } else if (outputs.dryRunTable && Array.isArray(outputs.dryRunTable)) {
+        } else if (outputs.dryRunTable && Array.isArray(outputs.dryRunTable) && !outputs.isBuildTraceWalkthrough) {
           blocks.push({
             title: "Trace Table (Exam Format)",
             content: outputs.dryRunTable,
@@ -2311,7 +2311,7 @@
             if (outputs.normalCase.exampleWalkthrough) {
               const walkthroughEl = document.createElement("div");
               walkthroughEl.className = "output-block";
-              walkthroughEl.innerHTML = `<h3>Walkthrough</h3><div class="text-block">${escapeHtml(outputs.normalCase.exampleWalkthrough).replace(/\\n/g, '<br>')}</div>`;
+              walkthroughEl.innerHTML = `<h3>Walkthrough</h3><div class="text-block">${escapeHtml(outputs.normalCase.exampleWalkthrough).replace(/\n/g, '<br>')}</div>`;
               bothCasesContainer.appendChild(walkthroughEl);
             }
             // 2. Input/Output SECOND
@@ -2339,7 +2339,7 @@
             if (outputs.edgeCase.exampleWalkthrough) {
               const walkthroughEl = document.createElement("div");
               walkthroughEl.className = "output-block";
-              walkthroughEl.innerHTML = `<h3>Walkthrough</h3><div class="text-block">${escapeHtml(outputs.edgeCase.exampleWalkthrough).replace(/\\n/g, '<br>')}</div>`;
+              walkthroughEl.innerHTML = `<h3>Walkthrough</h3><div class="text-block">${escapeHtml(outputs.edgeCase.exampleWalkthrough).replace(/\n/g, '<br>')}</div>`;
               bothCasesContainer.appendChild(walkthroughEl);
             }
             // 2. Input/Output SECOND
@@ -2376,7 +2376,7 @@
             if (outputs.exampleWalkthrough) {
               const walkthroughEl = document.createElement("div");
               walkthroughEl.className = "output-block";
-              walkthroughEl.innerHTML = `<h3>Example Walkthrough</h3><div class="text-block">${escapeHtml(outputs.exampleWalkthrough).replace(/\\n/g, '<br>')}</div>`;
+              walkthroughEl.innerHTML = `<h3>Example Walkthrough</h3><div class="text-block">${escapeHtml(outputs.exampleWalkthrough).replace(/\n/g, '<br>')}</div>`;
               singleCaseContainer.appendChild(walkthroughEl);
             }
             
@@ -2442,7 +2442,7 @@
             detailEl.className = "output-block";
             detailEl.innerHTML = `
               <h3>Step-by-Step Explanation</h3>
-              <div class="text-block">${escapeHtml(outputs.detailedExplanation).replace(/\\n/g, '<br>')}</div>
+              <div class="text-block">${escapeHtml(outputs.detailedExplanation).replace(/\n/g, '<br>')}</div>
             `;
             explainContainer.appendChild(detailEl);
           }
@@ -2453,7 +2453,7 @@
             patternEl.className = "output-block";
             patternEl.innerHTML = `
               <h3>How to Approach This Pattern</h3>
-              <div class="text-block">${escapeHtml(outputs.patternExplanation).replace(/\\n/g, '<br>')}</div>
+              <div class="text-block">${escapeHtml(outputs.patternExplanation).replace(/\n/g, '<br>')}</div>
             `;
             explainContainer.appendChild(patternEl);
           }
@@ -2566,7 +2566,7 @@
           // Define button text for each level
           const traceButtonTexts = [
             "See a dry-run table and example walkthrough",
-            "Show dry-run table and example walkthrough with an edge case",
+            "Walkthrough with an edge case",
             "Show dry-run table and example walkthrough more clearly and slow down with each step"
           ];
           const explainButtonTexts = [
@@ -2603,7 +2603,7 @@
           if (buildTraceClickCount < 3) {
             const traceButtonTexts = [
               "See a dry-run table and example walkthrough",
-              "Show dry-run table and example walkthrough with an edge case",
+              "Walkthrough with an edge case",
               "Show dry-run table and example walkthrough more clearly and slow down with each step"
             ];
             
@@ -3884,6 +3884,8 @@
         const level = parseInt(followupBtn.dataset.level) || 1;
         
         console.log('[Widget] Follow-up button clicked:', action, 'topic:', topic, 'level:', level);
+        console.log('[Widget] currentBuildCode:', currentBuildCode ? 'SET' : 'EMPTY');
+        console.log('[Widget] currentBuildProblem:', currentBuildProblem ? 'SET' : 'EMPTY');
         
         // Disable button to prevent double-clicks
         followupBtn.disabled = true;
@@ -3891,34 +3893,21 @@
         const originalText = followupBtn.querySelector('.followup-btn-text').textContent;
         followupBtn.querySelector('.followup-btn-text').textContent = 'Loading...';
         
+        // Helper to restore button state
+        const restoreButton = () => {
+          followupBtn.disabled = false;
+          followupBtn.style.opacity = '1';
+          followupBtn.querySelector('.followup-btn-text').textContent = originalText;
+        };
+        
         try {
           let prompt;
           
-          // === LEARN MODE ACTIONS ===
-          if (action === 'trace-walkthrough') {
-            if (!topic) {
-              console.warn('[Widget] No topic available for follow-up');
-              return;
-            }
-            prompt = `Use AlgoTutor learn_trace_walkthrough tool to show me a trace table and example walkthrough for ${topic}.`;
-            if (code) {
-              prompt += ` Use this code as reference: \`\`\`python\n${code}\n\`\`\``;
-            }
-          } else if (action === 'real-world') {
-            if (!topic) {
-              console.warn('[Widget] No topic available for follow-up');
-              return;
-            }
-            prompt = `Use AlgoTutor learn_real_world_example tool to generate a fill-in-the-blank practice problem for ${topic}.`;
-          }
-          
-          // === BUILD MODE ACTIONS ===
-          else if (action === 'build-trace-walkthrough') {
+          // === BUILD MODE ACTIONS (check first - don't depend on topic) ===
+          if (action === 'build-trace-walkthrough') {
             if (!currentBuildCode) {
               console.warn('[Widget] No build code available for trace/walkthrough');
-              followupBtn.disabled = false;
-              followupBtn.style.opacity = '1';
-              followupBtn.querySelector('.followup-btn-text').textContent = originalText;
+              restoreButton();
               return;
             }
             prompt = `Use AlgoTutor build_trace_walkthrough tool to show a dry-run table and example walkthrough for the solution.`;
@@ -3936,9 +3925,7 @@
           } else if (action === 'build-explain-simple') {
             if (!currentBuildCode) {
               console.warn('[Widget] No build code available for explanation');
-              followupBtn.disabled = false;
-              followupBtn.style.opacity = '1';
-              followupBtn.querySelector('.followup-btn-text').textContent = originalText;
+              restoreButton();
               return;
             }
             prompt = `Use AlgoTutor build_explain_simple tool to explain the solution in simpler terms.`;
@@ -3948,17 +3935,37 @@
               prompt += ` Problem: ${currentBuildProblem}`;
             }
           }
+          // === LEARN MODE ACTIONS ===
+          else if (action === 'trace-walkthrough') {
+            if (!topic) {
+              console.warn('[Widget] No topic available for follow-up');
+              restoreButton();
+              return;
+            }
+            prompt = `Use AlgoTutor learn_trace_walkthrough tool to show me a trace table and example walkthrough for ${topic}.`;
+            if (code) {
+              prompt += ` Use this code as reference: \`\`\`python\n${code}\n\`\`\``;
+            }
+          } else if (action === 'real-world') {
+            if (!topic) {
+              console.warn('[Widget] No topic available for follow-up');
+              restoreButton();
+              return;
+            }
+            prompt = `Use AlgoTutor learn_real_world_example tool to generate a fill-in-the-blank practice problem for ${topic}.`;
+          }
           
           if (prompt) {
+            console.log('[Widget] Sending follow-up prompt:', prompt.substring(0, 100) + '...');
             await sendFollowUp(prompt);
             console.log('[Widget] Follow-up request sent successfully');
+          } else {
+            console.warn('[Widget] No prompt generated for action:', action);
+            restoreButton();
           }
         } catch (err) {
           console.error('[Widget] Follow-up request failed:', err);
-          // Re-enable button on error
-          followupBtn.disabled = false;
-          followupBtn.style.opacity = '1';
-          followupBtn.querySelector('.followup-btn-text').textContent = originalText;
+          restoreButton();
         }
       });
     </script>
