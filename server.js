@@ -99,20 +99,20 @@ const buildModeInputSchema = z.object({
   minimalCode: z.boolean().default(true).describe("Whether to use minimal code style"),
 });
 
-// Build Mode Trace/Walkthrough Schema - for progressive follow-up requests
+// Build Mode Trace/Walkthrough Schema - for follow-up requests
 const buildTraceWalkthroughSchema = z.object({
   problem: z.string().min(1).describe("The original problem description"),
   code: z.string().min(1).describe("The code from the build mode response"),
   testCases: z.string().optional().describe("Optional test cases extracted from problem description"),
   constraints: z.string().optional().describe("Optional constraints extracted from problem description"),
-  level: z.number().min(1).max(3).default(1).describe("Iteration level: 1=normal case, 2=edge case, 3=both cases with detailed steps"),
+  isEdgeCase: z.boolean().default(false).describe("Whether to use an edge case (true) or normal case (false)"),
 });
 
-// Build Mode Explain Simple Schema - for progressive follow-up requests
+// Build Mode Explain Simple Schema - for follow-up requests
 const buildExplainSimpleSchema = z.object({
   problem: z.string().min(1).describe("The original problem description"),
   code: z.string().min(1).describe("The code from the build mode response"),
-  level: z.number().min(1).max(3).default(1).describe("Explanation level: 1=simpler terms, 2=more clear/slow, 3=explain like I'm 5"),
+  previousContext: z.string().optional().describe("Previous response content for context-aware explanations"),
 });
 
 // Debug Mode Schema - ONLY INPUT FIELDS
@@ -745,7 +745,7 @@ function createAlgoTutorServer() {
     {
       title: "AlgoTutor Build Mode Trace & Walkthrough",
       description:
-        "Generates a dry-run table and example walkthrough for a Build Mode solution. Use this when the user clicks the trace/walkthrough follow-up button. Supports 3 progressive levels: 1=normal case, 2=edge case, 3=both cases with detailed steps.",
+        "Generates a dry-run table and example walkthrough for a Build Mode solution. Use this when the user clicks the trace/walkthrough follow-up button. Set isEdgeCase to true for edge case examples, false for normal cases.",
       inputSchema: buildTraceWalkthroughSchema,
       _meta: {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
@@ -814,7 +814,7 @@ function createAlgoTutorServer() {
     {
       title: "AlgoTutor Build Mode Explain Simple",
       description:
-        "Explains a Build Mode solution in simpler terms. Use this when the user clicks the explain follow-up button. Supports 3 progressive levels: 1=simpler terms, 2=more clear/slow, 3=explain like I'm 5.",
+        "Explains a Build Mode solution in simpler terms. Use this when the user clicks the explain follow-up button. Provide previousContext for context-aware explanations of specific content.",
       inputSchema: buildExplainSimpleSchema,
       _meta: {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",

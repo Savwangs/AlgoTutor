@@ -349,6 +349,20 @@
         overflow-x: auto;
       }
 
+      /* Text block for walkthroughs and explanations - improved readability */
+      .text-block {
+        font-size: 0.88rem;
+        line-height: 1.9;
+        color: var(--text-main);
+        padding: 8px 0;
+      }
+
+      .text-block br {
+        display: block;
+        content: "";
+        margin-top: 6px;
+      }
+
       .table-wrapper {
         overflow-x: auto;
         margin-top: 8px;
@@ -1786,8 +1800,9 @@
       let currentBuildCode = ''; // Code from Build Mode response
       let currentBuildTestCases = ''; // Detected test cases from problem
       let currentBuildConstraints = ''; // Detected constraints from problem
-      let buildTraceClickCount = 0; // Track trace/walkthrough button clicks (max 3)
-      let buildExplainClickCount = 0; // Track explain button clicks (max 3)
+      let buildTraceHasBeenUsed = false; // Track if trace/walkthrough has been used
+      let buildExplainHasBeenUsed = false; // Track if explain has been used
+      let lastBuildResponse = null; // Store last response for context-aware follow-ups
 
       // DOM Elements
       const modeBtns = document.querySelectorAll(".mode-btn");
@@ -2559,93 +2574,64 @@
           if (outputs.constraintsDetected) {
             currentBuildConstraints = outputs.constraintsDetected;
           }
-          // Reset click counts for new Build Mode response
-          buildTraceClickCount = 0;
-          buildExplainClickCount = 0;
+          // Reset flags for new Build Mode response
+          buildTraceHasBeenUsed = false;
+          buildExplainHasBeenUsed = false;
+          lastBuildResponse = outputs;
           
-          // Define button text for each level
-          const traceButtonTexts = [
-            "See a dry-run table and example walkthrough",
-            "Walkthrough with an edge case",
-            "Show dry-run table and example walkthrough more clearly and slow down with each step"
-          ];
-          const explainButtonTexts = [
-            "Explain code in simpler terms",
-            "Explain more clearly and slow down with each step",
-            "Explain like I am 5"
-          ];
+          // First-time button text
+          const traceText = "See example walkthrough and trace table";
+          const explainText = "Explain in simpler terms";
           
           const buildFollowupContainer = document.createElement("div");
           buildFollowupContainer.className = "followup-buttons-container";
           buildFollowupContainer.id = "build-followup-container";
           buildFollowupContainer.innerHTML = `
             <div class="followup-buttons-title">Want to understand better?</div>
-            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough" data-level="1" id="build-trace-btn">
+            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough">
               <span class="followup-btn-icon">📊</span>
-              <span class="followup-btn-text">${traceButtonTexts[0]}</span>
+              <span class="followup-btn-text">${traceText}</span>
               <span class="followup-btn-arrow">→</span>
             </button>
-            <button class="followup-btn build-followup-btn" data-action="build-explain-simple" data-level="1" id="build-explain-btn">
+            <button class="followup-btn build-followup-btn" data-action="build-explain-simple">
               <span class="followup-btn-icon">💡</span>
-              <span class="followup-btn-text">${explainButtonTexts[0]}</span>
+              <span class="followup-btn-text">${explainText}</span>
               <span class="followup-btn-arrow">→</span>
             </button>
           `;
           outputContainer.appendChild(buildFollowupContainer);
         }
         
-        // === BUILD MODE TRACE/WALKTHROUGH FOLLOW-UP RESPONSE ===
-        // Show next trace button after receiving a trace/walkthrough response
-        if (outputs.isBuildTraceWalkthrough) {
-          buildTraceClickCount++;
+        // === BUILD MODE FOLLOW-UP RESPONSE (TRACE OR EXPLAIN) ===
+        // Always show BOTH follow-up buttons after any Build Mode follow-up response
+        if (outputs.isBuildTraceWalkthrough || outputs.isBuildExplainSimple) {
+          // Store the response for context-aware follow-ups
+          lastBuildResponse = outputs;
           
-          // Show next trace button if we haven't hit the limit
-          if (buildTraceClickCount < 3) {
-            const traceButtonTexts = [
-              "See a dry-run table and example walkthrough",
-              "Walkthrough with an edge case",
-              "Show dry-run table and example walkthrough more clearly and slow down with each step"
-            ];
-            
-            const traceFollowupContainer = document.createElement("div");
-            traceFollowupContainer.className = "followup-buttons-container";
-            traceFollowupContainer.innerHTML = `
-              <div class="followup-buttons-title">Want to see more?</div>
-              <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough" data-level="${buildTraceClickCount + 1}">
-                <span class="followup-btn-icon">📊</span>
-                <span class="followup-btn-text">${traceButtonTexts[buildTraceClickCount]}</span>
-                <span class="followup-btn-arrow">→</span>
-              </button>
-            `;
-            outputContainer.appendChild(traceFollowupContainer);
-          }
-        }
-        
-        // === BUILD MODE EXPLAIN SIMPLE FOLLOW-UP RESPONSE ===
-        // Show next explain button after receiving an explain simple response
-        if (outputs.isBuildExplainSimple) {
-          buildExplainClickCount++;
+          // Determine button text based on whether each type has been used
+          const traceText = buildTraceHasBeenUsed 
+            ? "Show example walkthrough with edge case" 
+            : "See example walkthrough and trace table";
+          const explainText = buildExplainHasBeenUsed 
+            ? "Explain more clearly" 
+            : "Explain in simpler terms";
           
-          // Show next explain button if we haven't hit the limit
-          if (buildExplainClickCount < 3) {
-            const explainButtonTexts = [
-              "Explain code in simpler terms",
-              "Explain more clearly and slow down with each step",
-              "Explain like I am 5"
-            ];
-            
-            const explainFollowupContainer = document.createElement("div");
-            explainFollowupContainer.className = "followup-buttons-container";
-            explainFollowupContainer.innerHTML = `
-              <div class="followup-buttons-title">Need it even simpler?</div>
-              <button class="followup-btn build-followup-btn" data-action="build-explain-simple" data-level="${buildExplainClickCount + 1}">
-                <span class="followup-btn-icon">💡</span>
-                <span class="followup-btn-text">${explainButtonTexts[buildExplainClickCount]}</span>
-                <span class="followup-btn-arrow">→</span>
-              </button>
-            `;
-            outputContainer.appendChild(explainFollowupContainer);
-          }
+          const followupContainer = document.createElement("div");
+          followupContainer.className = "followup-buttons-container";
+          followupContainer.innerHTML = `
+            <div class="followup-buttons-title">Want to continue?</div>
+            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough">
+              <span class="followup-btn-icon">📊</span>
+              <span class="followup-btn-text">${traceText}</span>
+              <span class="followup-btn-arrow">→</span>
+            </button>
+            <button class="followup-btn build-followup-btn" data-action="build-explain-simple">
+              <span class="followup-btn-icon">💡</span>
+              <span class="followup-btn-text">${explainText}</span>
+              <span class="followup-btn-arrow">→</span>
+            </button>
+          `;
+          outputContainer.appendChild(followupContainer);
         }
         
         // Add feedback buttons for premium users
@@ -2970,8 +2956,9 @@
         currentBuildCode = '';
         currentBuildTestCases = '';
         currentBuildConstraints = '';
-        buildTraceClickCount = 0;
-        buildExplainClickCount = 0;
+        buildTraceHasBeenUsed = false;
+        buildExplainHasBeenUsed = false;
+        lastBuildResponse = null;
 
         statusEl.textContent = "Building solution...";
         
@@ -3881,11 +3868,10 @@
         const action = followupBtn.dataset.action;
         const topic = followupBtn.dataset.topic || currentLearnTopic;
         const code = followupBtn.dataset.code || currentLearnCode;
-        const level = parseInt(followupBtn.dataset.level) || 1;
         
-        console.log('[Widget] Follow-up button clicked:', action, 'topic:', topic, 'level:', level);
+        console.log('[Widget] Follow-up button clicked:', action, 'topic:', topic);
         console.log('[Widget] currentBuildCode:', currentBuildCode ? 'SET' : 'EMPTY');
-        console.log('[Widget] currentBuildProblem:', currentBuildProblem ? 'SET' : 'EMPTY');
+        console.log('[Widget] buildTraceHasBeenUsed:', buildTraceHasBeenUsed, 'buildExplainHasBeenUsed:', buildExplainHasBeenUsed);
         
         // Disable button to prevent double-clicks
         followupBtn.disabled = true;
@@ -3910,8 +3896,13 @@
               restoreButton();
               return;
             }
-            prompt = `Use AlgoTutor build_trace_walkthrough tool to show a dry-run table and example walkthrough for the solution.`;
-            prompt += ` Level: ${level}.`;
+            
+            // Use edge case if trace has been used before
+            const isEdgeCase = buildTraceHasBeenUsed;
+            buildTraceHasBeenUsed = true; // Mark as used for next time
+            
+            prompt = `Use AlgoTutor build_trace_walkthrough tool to show a dry-run table and example walkthrough.`;
+            prompt += ` isEdgeCase: ${isEdgeCase}.`;
             prompt += ` Code: \`\`\`\n${currentBuildCode}\n\`\`\``;
             if (currentBuildProblem) {
               prompt += ` Problem: ${currentBuildProblem}`;
@@ -3922,17 +3913,31 @@
             if (currentBuildConstraints) {
               prompt += ` Constraints: ${currentBuildConstraints}`;
             }
+            // Include last response context if available
+            if (lastBuildResponse && lastBuildResponse.exampleWalkthrough) {
+              prompt += ` Previous walkthrough context: ${lastBuildResponse.exampleWalkthrough.substring(0, 500)}`;
+            }
           } else if (action === 'build-explain-simple') {
             if (!currentBuildCode) {
               console.warn('[Widget] No build code available for explanation');
               restoreButton();
               return;
             }
-            prompt = `Use AlgoTutor build_explain_simple tool to explain the solution in simpler terms.`;
-            prompt += ` Level: ${level}.`;
+            
+            buildExplainHasBeenUsed = true; // Mark as used for next time
+            
+            prompt = `Use AlgoTutor build_explain_simple tool to explain the solution more clearly.`;
             prompt += ` Code: \`\`\`\n${currentBuildCode}\n\`\`\``;
             if (currentBuildProblem) {
               prompt += ` Problem: ${currentBuildProblem}`;
+            }
+            // Include last response context for context-aware explanations
+            if (lastBuildResponse) {
+              if (lastBuildResponse.exampleWalkthrough) {
+                prompt += ` Explain this walkthrough more clearly: ${lastBuildResponse.exampleWalkthrough.substring(0, 500)}`;
+              } else if (lastBuildResponse.detailedExplanation) {
+                prompt += ` Build on this explanation: ${lastBuildResponse.detailedExplanation.substring(0, 500)}`;
+              }
             }
           }
           // === LEARN MODE ACTIONS ===

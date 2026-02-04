@@ -758,32 +758,21 @@ Return ONLY valid JSON with the required fields. Do NOT include a separate testC
 
 // Generate Build Mode Trace Table & Walkthrough (on-demand follow-up)
 export async function generateBuildTraceWalkthrough(args) {
-  console.log('[generateBuildTraceWalkthrough] Starting for level:', args.level);
+  const isEdgeCase = args.isEdgeCase || false;
+  console.log('[generateBuildTraceWalkthrough] Starting, isEdgeCase:', isEdgeCase);
   console.log('[generateBuildTraceWalkthrough] Args:', JSON.stringify(args, null, 2));
   
-  const level = args.level || 1;
-  
-  let levelInstruction = '';
-  if (level === 1) {
-    levelInstruction = `LEVEL 1 - NORMAL CASE:
-- Use a TYPICAL/NORMAL test case (not an edge case)
-- If test cases were detected in the problem, pick one that is NOT an edge case (avoid empty, single element, etc.)
-- If no test cases detected, generate a normal-sized test case that demonstrates the main algorithm flow
-- Show 4-6 step trace with the algorithm working as expected`;
-  } else if (level === 2) {
-    levelInstruction = `LEVEL 2 - EDGE CASE:
+  const caseInstruction = isEdgeCase 
+    ? `USE AN EDGE CASE:
 - Use an EDGE CASE (empty input, single element, maximum values, boundary conditions)
 - If constraints were detected, use them to generate appropriate edge cases
 - Show how the algorithm handles the edge case correctly
-- Explain WHY this edge case is important and what could go wrong`;
-  } else if (level === 3) {
-    levelInstruction = `LEVEL 3 - BOTH CASES WITH DETAILED STEPS:
-- Show BOTH a normal case AND an edge case
-- For EACH case, provide MORE DETAILED step-by-step walkthrough
-- Slow down - explain what happens at EACH iteration in more detail
-- Explain WHY each step is happening, not just what
-- Return two separate trace tables and walkthroughs: normalCase and edgeCase`;
-  }
+- Explain WHY this edge case is important and what could go wrong`
+    : `USE A NORMAL CASE:
+- Use a TYPICAL/NORMAL test case (not an edge case)
+- If test cases were detected in the problem, pick one that is NOT an edge case
+- If no test cases detected, generate a normal-sized test case that demonstrates the main algorithm flow
+- Show 4-6 step trace with the algorithm working as expected`;
   
   const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a detailed trace table and example walkthrough for the given code solution. This is for EXAM PREP - format everything like professors expect on written exams. Respond with valid JSON only.`;
   
@@ -799,30 +788,16 @@ ${args.code}
 ${args.testCases ? `DETECTED TEST CASES FROM PROBLEM:\n${args.testCases}\n` : ''}
 ${args.constraints ? `DETECTED CONSTRAINTS:\n${args.constraints}\n` : ''}
 
-${levelInstruction}
+${caseInstruction}
 
 REQUIRED JSON SECTIONS:
 
-IMPORTANT FORMATTING RULES FOR TRACE TABLE:
+IMPORTANT FORMATTING RULES:
 - The "variables" field MUST be a simple STRING showing current variable values, NOT an object
 - Format variables as: "i=0, sum=0, arr=[1,2,3]" - a readable string
 - The trace table should trace through the EXACT exampleInput until reaching exampleOutput
 - If the code uses RECURSION: Use a SMALL test case (2-3 elements max) so the trace fits, OR show the call stack as text in the walkthrough instead of a table
 
-${level === 3 ? `
-- normalCase: REQUIRED - Object containing:
-  - exampleInput: The normal test case input (use small input for recursive code)
-  - exampleOutput: The expected output
-  - dryRunTable: Array of 5-7 objects with keys {iteration, variables, state, action}. VARIABLES MUST BE A STRING like "i=0, sum=5", NOT an object!
-  - exampleWalkthrough: STRING with step-by-step trace, each step on NEW LINE using \\n, explain WHY each step happens
-
-- edgeCase: REQUIRED - Object containing:
-  - exampleInput: The edge case input (empty, single element, boundary)
-  - exampleOutput: The expected output
-  - dryRunTable: Array of 3-5 objects with keys {iteration, variables, state, action}. VARIABLES MUST BE A STRING!
-  - exampleWalkthrough: STRING with step-by-step trace explaining WHY this edge case matters
-  - whyImportant: Why professors test this edge case
-` : `
 - exampleInput: REQUIRED - The specific input for the test case. For recursive code, use a SMALL input (2-3 elements).
 
 - exampleOutput: REQUIRED - The expected output for the test case
@@ -833,15 +808,13 @@ ${level === 3 ? `
 
 - exampleWalkthrough: REQUIRED - Step-by-step trace using the EXACT SAME input from exampleInput. Format as a STRING with each step on a NEW LINE using \\n. For recursive code, show the call stack like:
   "Step 1: Call func([1,2,3])\\nStep 2: Recurse with func([2,3])\\nStep 3: Base case reached..."
-`}
 
 - isBuildTraceWalkthrough: REQUIRED - Set to true
 
 Return ONLY valid JSON with the required fields.`;
 
   try {
-    const maxTokens = level === 3 ? 3000 : 2000;
-    const response = await callOpenAI(systemPrompt, userPrompt, maxTokens);
+    const response = await callOpenAI(systemPrompt, userPrompt, 2000);
     console.log('[generateBuildTraceWalkthrough] Raw response received, length:', response.length);
     
     const parsed = JSON.parse(response);
@@ -872,43 +845,28 @@ Return ONLY valid JSON with the required fields.`;
 
 // Generate Build Mode Explain Simple (on-demand follow-up)
 export async function generateBuildExplainSimple(args) {
-  console.log('[generateBuildExplainSimple] Starting for level:', args.level);
+  console.log('[generateBuildExplainSimple] Starting');
   console.log('[generateBuildExplainSimple] Args:', JSON.stringify(args, null, 2));
   
-  const level = args.level || 1;
+  // Check if there's previous context to explain more clearly
+  const hasContext = args.previousContext && args.previousContext.length > 0;
   
-  let levelInstruction = '';
-  let vocabularyInstruction = '';
-  
-  if (level === 1) {
-    levelInstruction = `LEVEL 1 - SIMPLER TERMS:
-- Explain the code step-by-step in simpler technical terms
-- Break down the pattern and approach
-- Include a skeleton with # comments (NOT TODO)
-- Use clear language but standard CS terminology is OK`;
-    vocabularyInstruction = 'Use simpler technical terms. Avoid complex jargon.';
-  } else if (level === 2) {
-    levelInstruction = `LEVEL 2 - MORE CLEAR AND SLOW:
+  const contextInstruction = hasContext 
+    ? `The user has already seen some explanation. Now explain MORE CLEARLY with:
 - Even MORE detailed step-by-step breakdown
 - Explain WHY each step is needed, not just what
 - Use analogies and examples where helpful
 - Slower pace with more context
-- Include common mistakes students make`;
-    vocabularyInstruction = 'Use very clear language. Explain every technical term. Use analogies.';
-  } else if (level === 3) {
-    levelInstruction = `LEVEL 3 - EXPLAIN LIKE I'M 5:
-- Use VERY SIMPLE language, almost no jargon
-- Heavy use of analogies and real-world examples
-- Explain every single concept from basics
-- Assume ZERO prior programming knowledge
-- Make it fun and relatable
-- Include a real-world analogy that captures the essence of the algorithm`;
-    vocabularyInstruction = 'Use extremely simple language. Pretend you are explaining to a child. Use everyday analogies like toys, games, or simple activities.';
-  }
+- Include common mistakes students make`
+    : `EXPLAIN IN SIMPLER TERMS:
+- Explain the code step-by-step in simpler technical terms
+- Break down the pattern and approach
+- Include a skeleton with # comments (NOT TODO)
+- Use clear language but standard CS terminology is OK`;
   
-  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator known for making complex concepts simple. Your job is to explain code solutions in progressively simpler terms. ${vocabularyInstruction} Respond with valid JSON only.`;
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator known for making complex concepts simple. Your job is to explain code solutions clearly with step-by-step breakdowns. Use clear language and avoid jargon. Respond with valid JSON only.`;
   
-  const userPrompt = `Explain this code solution in simpler terms.
+  const userPrompt = `Explain this code solution clearly and simply.
 
 PROBLEM: ${args.problem || 'Analyze the code to determine the problem'}
 
@@ -917,18 +875,19 @@ CODE:
 ${args.code}
 \`\`\`
 
-${levelInstruction}
+${hasContext ? `PREVIOUS CONTEXT (explain this more clearly):\n${args.previousContext}\n` : ''}
+
+${contextInstruction}
 
 REQUIRED JSON SECTIONS:
 
 - detailedExplanation: REQUIRED - Step-by-step explanation of the code. CRITICAL FORMATTING: Each numbered step MUST be on its own line. Use \\n between EVERY step. Format like:
-  "1. First step explanation\\n2. Second step explanation\\n3. Third step explanation"
-  NOT like: "1. First 2. Second 3. Third" (wrong - all on one line)
-  ${level === 3 ? 'Use VERY simple language and everyday analogies.' : 'Break down each part clearly.'}
+  "1. First step explanation\\n\\n2. Second step explanation\\n\\n3. Third step explanation"
+  Add extra spacing between steps for readability. Break down each part clearly with WHY it's needed.
 
-- patternExplanation: REQUIRED - How to recognize and approach this type of problem. ${level === 3 ? 'Explain like teaching a child how to solve a puzzle.' : 'Include pattern recognition tips.'}
+- patternExplanation: REQUIRED - How to recognize and approach this type of problem. Include pattern recognition tips.
 
-- skeleton: REQUIRED - The code skeleton with # comments (NOT TODO) explaining what each part should do. This helps students understand the structure before the implementation. Use "# Description of what goes here" format. Example:
+- skeleton: REQUIRED - The code skeleton with # comments (NOT TODO) explaining what each part should do. Use "# Description of what goes here" format. Example:
   def function_name(params):
       # Initialize the result variable
       # Loop through the input
@@ -936,19 +895,16 @@ REQUIRED JSON SECTIONS:
       # Return the final result
   Do NOT use "TODO" anywhere in the skeleton.
 
-- keyInsights: REQUIRED - Array of 3-5 key insights or "aha moments" for understanding this solution. ${level === 3 ? 'Make them simple and memorable.' : ''}
+- keyInsights: REQUIRED - Array of 3-5 key insights or "aha moments" for understanding this solution.
 
-${level >= 2 ? '- commonMistakes: REQUIRED - Array of 2-3 common mistakes students make with this pattern and how to avoid them.' : ''}
-
-${level === 3 ? '- realWorldAnalogy: REQUIRED - A fun, relatable real-world analogy that explains how this algorithm works. Example: "Binary search is like finding a word in a dictionary - you open to the middle, see if your word comes before or after, and repeat!"' : ''}
+- commonMistakes: REQUIRED - Array of 2-3 common mistakes students make with this pattern and how to avoid them.
 
 - isBuildExplainSimple: REQUIRED - Set to true
 
 Return ONLY valid JSON with the required fields.`;
 
   try {
-    const maxTokens = level === 3 ? 3000 : 2500;
-    const response = await callOpenAI(systemPrompt, userPrompt, maxTokens);
+    const response = await callOpenAI(systemPrompt, userPrompt, 2500);
     console.log('[generateBuildExplainSimple] Raw response received, length:', response.length);
     
     const parsed = JSON.parse(response);
