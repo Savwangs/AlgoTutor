@@ -494,6 +494,15 @@ Return ONLY valid JSON with the required fields.`;
     // Ensure the flag is set
     parsed.isDebugTraceWalkthrough = true;
     
+    // Echo back input context so new widget instances can populate follow-up buttons
+    parsed._debugContext = {
+      code: args.code,
+      language: args.language,
+      problem: args.problem || '',
+      topic: args.topic || '',
+      bugInfo: args.bugInfo || ''
+    };
+    
     return parsed;
   } catch (error) {
     console.error('[generateDebugTraceWalkthrough] ❌ Failed:', error);
@@ -504,6 +513,13 @@ Return ONLY valid JSON with the required fields.`;
       exampleWalkthrough: "Error generating walkthrough. Please try again.",
       testCases: [],
       isDebugTraceWalkthrough: true,
+      _debugContext: {
+        code: args.code,
+        language: args.language,
+        problem: args.problem || '',
+        topic: args.topic || '',
+        bugInfo: args.bugInfo || ''
+      },
     };
   }
 }
@@ -586,7 +602,14 @@ REQUIRED JSON SECTIONS:
 4. Blanks should test CRITICAL algorithm logic (e.g., don't blank out variable names or simple syntax)
 5. When ALL blanks are filled with correct answers, the code MUST produce correct output
 6. The code must be in ${args.language || 'Python'} with valid syntax
-7. For TEXT INPUT blanks (where user types): The blank MUST be SUBSTANTIAL - blank out the ENTIRE LINE or a significant portion of code. Do NOT make tiny blanks where user only types a single argument, variable name, or small expression. MCQ blanks can be smaller since user selects from options.
+7. For TEXT INPUT blanks (where user types): The blank placeholder MUST replace the ENTIRE LINE of code, not just part of it. The user types the full line as the answer.
+   CRITICAL - DO NOT leave part of the line visible and only blank part of it:
+   BAD: "current = ___BLANK_1___" (partial line - user only fills "current.next", too easy)
+   BAD: "current.next = ___BLANK_2___" (partial line - gives away the left side)
+   GOOD: "    ___BLANK_1___" (full line blanked - user must type "current = current.next")
+   GOOD: "        ___BLANK_2___" (full line blanked - user must type "current.next = ListNode(arr[index])")
+   The blank should be indented to match the code's indentation level, but the ENTIRE line of code must be replaced by the blank.
+   MCQ blanks can be smaller pieces of code since user selects from options.
 8. For COMPOUND EXPRESSIONS with "and" or "or" between two function calls/operations: SPLIT into SEPARATE blanks!
    BAD: "___BLANK_2___" = "helper(left) and helper(right)" (too complex for one blank)
    GOOD: "___BLANK_2___ and ___BLANK_3___" where BLANK_2 = "helper(left)" and BLANK_3 = "helper(right)"
@@ -596,6 +619,9 @@ REQUIRED JSON SECTIONS:
     - MAXIMUM: 40 characters (anything longer MUST be split into multiple blanks)
     GOOD examples (10-40 chars): "helper(node.left)" (17), "left, right = 0, len(nums)-1" (29), "return helper(n-1) + helper(n-2)" (32)
     BAD examples: "node.left" (9 chars - TOO SHORT), "helper(a, b, c) and helper(d, e, f)" (70+ chars - TOO LONG, must split)
+10. LONG LINE SPLITTING: If a single line of code is longer than 40 characters OR contains logical operators like "and"/"or"/"&&"/"||" joining two distinct operations, split that line into 2 blanks instead of 1.
+    Example: \`return helper(left) and helper(right)\` becomes \`return ___BLANK_2___ and ___BLANK_3___\` where BLANK_2 = "helper(left)" and BLANK_3 = "helper(right)"
+    Example: \`if left_valid and right_valid and root.val > min_val:\` becomes \`if ___BLANK_2___ and ___BLANK_3___:\` 
 
 VERIFICATION STEP: Before outputting, COUNT the ___BLANK_X___ placeholders in your codeWithBlanks and VERIFY it equals ${requiredBlankCount}. If they don't match, FIX IT.
 
@@ -685,6 +711,15 @@ Return ONLY valid JSON with the required fields.`;
     // Ensure the flag is set
     parsed.isDebugSimilarProblem = true;
     
+    // Echo back input context so new widget instances can populate follow-up buttons
+    parsed._debugContext = {
+      code: args.code,
+      language: args.language || 'python',
+      problem: args.problem || '',
+      topic: args.topic || '',
+      bugInfo: args.bugInfo || ''
+    };
+    
     return parsed;
   } catch (error) {
     console.error('[generateDebugSimilarProblem] ❌ Failed:', error);
@@ -696,6 +731,13 @@ Return ONLY valid JSON with the required fields.`;
       fullSolution: "# Error occurred",
       whyThisTests: "Error occurred",
       isDebugSimilarProblem: true,
+      _debugContext: {
+        code: args.code,
+        language: args.language || 'python',
+        problem: args.problem || '',
+        topic: args.topic || '',
+        bugInfo: args.bugInfo || ''
+      },
     };
   }
 }
@@ -858,7 +900,14 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
 5. Blanks should test CRITICAL algorithm logic (e.g., don't blank out variable names or simple syntax)
 6. When ALL blanks are filled with correct answers, the code MUST produce correct output
 7. The code must be in ${args.language} with valid ${args.language} syntax
-8. For TEXT INPUT blanks (where user types): The blank MUST be SUBSTANTIAL - blank out the ENTIRE LINE or a significant portion of code. Do NOT make tiny blanks where user only types a single argument, variable name, or small expression. MCQ blanks can be smaller since user selects from options.
+8. For TEXT INPUT blanks (where user types): The blank placeholder MUST replace the ENTIRE LINE of code, not just part of it. The user types the full line as the answer.
+   CRITICAL - DO NOT leave part of the line visible and only blank part of it:
+   BAD: "current = ___BLANK_1___" (partial line - user only fills "current.next", too easy)
+   BAD: "current.next = ___BLANK_2___" (partial line - gives away the left side)
+   GOOD: "    ___BLANK_1___" (full line blanked - user must type "current = current.next")
+   GOOD: "        ___BLANK_2___" (full line blanked - user must type "current.next = ListNode(arr[index])")
+   The blank should be indented to match the code's indentation level, but the ENTIRE line of code must be replaced by the blank.
+   MCQ blanks can be smaller pieces of code since user selects from options.
 9. For COMPOUND EXPRESSIONS with "and" or "or" between two function calls/operations: SPLIT into SEPARATE blanks!
    BAD: "___BLANK_2___" = "helper(left) and helper(right)" (too complex for one blank)
    GOOD: "___BLANK_2___ and ___BLANK_3___" where BLANK_2 = "helper(left)" and BLANK_3 = "helper(right)"
@@ -868,6 +917,9 @@ REQUIRED JSON SECTIONS (include ONLY these fields):
     - MAXIMUM: 40 characters (anything longer MUST be split into multiple blanks)
     GOOD examples (10-40 chars): "helper(node.left)" (17), "left, right = 0, len(nums)-1" (29), "return helper(n-1) + helper(n-2)" (32)
     BAD examples: "node.left" (9 chars - TOO SHORT), "helper(a, b, c) and helper(d, e, f)" (70+ chars - TOO LONG, must split)
+11. LONG LINE SPLITTING: If a single line of code is longer than 40 characters OR contains logical operators like "and"/"or"/"&&"/"||" joining two distinct operations, split that line into 2 blanks instead of 1.
+    Example: \`return helper(left) and helper(right)\` becomes \`return ___BLANK_2___ and ___BLANK_3___\` where BLANK_2 = "helper(left)" and BLANK_3 = "helper(right)"
+    Example: \`if left_valid and right_valid and root.val > min_val:\` becomes \`if ___BLANK_2___ and ___BLANK_3___:\`
 
 VERIFICATION STEP: Before outputting, COUNT the ___BLANK_X___ placeholders in your codeWithBlanks and VERIFY it matches blanks.length. If they don't match, FIX IT.
 

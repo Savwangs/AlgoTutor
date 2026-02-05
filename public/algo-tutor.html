@@ -2681,25 +2681,36 @@
         const showDebugFollowupButtons = isDebugMode || outputs.isDebugTraceWalkthrough || outputs.isDebugSimilarProblem;
         
         if (showDebugFollowupButtons) {
+          // Read echoed _debugContext from response first (survives new widget instances),
+          // then fall back to response fields, then global state (empty in new widgets)
+          const ctx = outputs._debugContext || {};
+          
           // Update debug context from the response
           if (outputs.afterCode && !outputs.isDebugTraceWalkthrough && !outputs.isDebugSimilarProblem) {
             // Initial debug response - use the fixed/alternative code
             currentDebugCode = outputs.afterCode;
-          }
-          // For similar problem responses, use the fullSolution as the code context
-          if (outputs.isDebugSimilarProblem && outputs.fullSolution) {
+          } else if (outputs.isDebugSimilarProblem && outputs.fullSolution) {
+            // For similar problem responses, use the fullSolution as the code context
             currentDebugCode = outputs.fullSolution;
+          } else if (ctx.code) {
+            // From echoed context (new widget instance)
+            currentDebugCode = ctx.code;
           }
+          
           if (outputs.whatCodeDoes) {
             currentDebugProblem = outputs.whatCodeDoes;
-          }
-          // For similar problem, use problemDescription
-          if (outputs.isDebugSimilarProblem && outputs.problemDescription) {
+          } else if (outputs.isDebugSimilarProblem && outputs.problemDescription) {
             currentDebugProblem = outputs.problemDescription;
+          } else if (ctx.problem) {
+            currentDebugProblem = ctx.problem;
           }
+          
           if (outputs.relatedPatterns && outputs.relatedPatterns.length > 0) {
             currentDebugTopic = outputs.relatedPatterns[0]; // Use first related pattern as topic
+          } else if (ctx.topic) {
+            currentDebugTopic = ctx.topic;
           }
+          
           // Extract bug info from initial debug response for focused blanks
           if (outputs.bugDiagnosis && !outputs.isDebugTraceWalkthrough && !outputs.isDebugSimilarProblem) {
             let bugInfo = outputs.bugDiagnosis;
@@ -2711,7 +2722,15 @@
               }
             }
             currentDebugBugInfo = bugInfo;
+          } else if (ctx.bugInfo) {
+            currentDebugBugInfo = ctx.bugInfo;
           }
+          
+          // Update language from context if available
+          if (ctx.language) {
+            currentDebugLanguage = ctx.language;
+          }
+          
           lastDebugResponse = outputs;
           
           // Embed context in data-attributes for self-contained follow-up buttons (like Learn mode)
