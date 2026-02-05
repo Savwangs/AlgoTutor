@@ -2500,7 +2500,7 @@
             explainContainer.appendChild(insightsEl);
           }
           
-          // Common Mistakes (Level 2+)
+          // Common Mistakes
           if (outputs.commonMistakes && Array.isArray(outputs.commonMistakes)) {
             const mistakesEl = document.createElement("div");
             mistakesEl.className = "warning-box";
@@ -2508,10 +2508,12 @@
             const ul = document.createElement("ul");
             ul.style.marginTop = "8px";
             ul.style.paddingLeft = "20px";
+            ul.style.color = "#1f2937";
             outputs.commonMistakes.forEach(mistake => {
               const li = document.createElement("li");
               li.textContent = mistake;
               li.style.marginBottom = "4px";
+              li.style.color = "#1f2937";
               ul.appendChild(li);
             });
             mistakesEl.appendChild(ul);
@@ -2603,35 +2605,9 @@
         }
         
         // === BUILD MODE FOLLOW-UP RESPONSE (TRACE OR EXPLAIN) ===
-        // Always show BOTH follow-up buttons after any Build Mode follow-up response
+        // No further follow-up buttons after a follow-up response — one-shot only
         if (outputs.isBuildTraceWalkthrough || outputs.isBuildExplainSimple) {
-          // Store the response for context-aware follow-ups
           lastBuildResponse = outputs;
-          
-          // Determine button text based on whether each type has been used
-          const traceText = buildTraceHasBeenUsed 
-            ? "Show example walkthrough with edge case" 
-            : "See example walkthrough and trace table";
-          const explainText = buildExplainHasBeenUsed 
-            ? "Explain more clearly" 
-            : "Explain in simpler terms";
-          
-          const followupContainer = document.createElement("div");
-          followupContainer.className = "followup-buttons-container";
-          followupContainer.innerHTML = `
-            <div class="followup-buttons-title">Want to continue?</div>
-            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough">
-              <span class="followup-btn-icon">📊</span>
-              <span class="followup-btn-text">${traceText}</span>
-              <span class="followup-btn-arrow">→</span>
-            </button>
-            <button class="followup-btn build-followup-btn" data-action="build-explain-simple">
-              <span class="followup-btn-icon">💡</span>
-              <span class="followup-btn-text">${explainText}</span>
-              <span class="followup-btn-arrow">→</span>
-            </button>
-          `;
-          outputContainer.appendChild(followupContainer);
         }
         
         // Add feedback buttons for premium users
