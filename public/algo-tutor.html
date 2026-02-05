@@ -1743,6 +1743,7 @@
       let currentDebugLanguage = 'python'; // Language of the code
       let currentDebugProblem = ''; // What the code does (from whatCodeDoes)
       let currentDebugTopic = ''; // Algorithm/pattern inferred from the code
+      let currentDebugBugInfo = ''; // Bug diagnosis info to focus blanks on the issue
       let lastDebugResponse = null; // Store last response for context-aware follow-ups
 
       // DOM Elements
@@ -2685,25 +2686,53 @@
             // Initial debug response - use the fixed/alternative code
             currentDebugCode = outputs.afterCode;
           }
+          // For similar problem responses, use the fullSolution as the code context
+          if (outputs.isDebugSimilarProblem && outputs.fullSolution) {
+            currentDebugCode = outputs.fullSolution;
+          }
           if (outputs.whatCodeDoes) {
             currentDebugProblem = outputs.whatCodeDoes;
+          }
+          // For similar problem, use problemDescription
+          if (outputs.isDebugSimilarProblem && outputs.problemDescription) {
+            currentDebugProblem = outputs.problemDescription;
           }
           if (outputs.relatedPatterns && outputs.relatedPatterns.length > 0) {
             currentDebugTopic = outputs.relatedPatterns[0]; // Use first related pattern as topic
           }
+          // Extract bug info from initial debug response for focused blanks
+          if (outputs.bugDiagnosis && !outputs.isDebugTraceWalkthrough && !outputs.isDebugSimilarProblem) {
+            let bugInfo = outputs.bugDiagnosis;
+            if (outputs.exactBugLine) {
+              const bugLines = Array.isArray(outputs.exactBugLine) ? outputs.exactBugLine : [outputs.exactBugLine];
+              const issuesSummary = bugLines.map(b => b.issue).filter(Boolean).join('; ');
+              if (issuesSummary) {
+                bugInfo += ' Issues: ' + issuesSummary;
+              }
+            }
+            currentDebugBugInfo = bugInfo;
+          }
           lastDebugResponse = outputs;
+          
+          // Embed context in data-attributes for self-contained follow-up buttons (like Learn mode)
+          // This ensures follow-ups work even in new widget instances
+          const debugCodeForBtn = escapeHtml(currentDebugCode || '');
+          const debugLangForBtn = escapeHtml(currentDebugLanguage || 'python');
+          const debugProblemForBtn = escapeHtml(currentDebugProblem || '');
+          const debugTopicForBtn = escapeHtml(currentDebugTopic || '');
+          const debugBugInfoForBtn = escapeHtml(currentDebugBugInfo || '');
           
           const debugFollowupContainer = document.createElement("div");
           debugFollowupContainer.className = "followup-buttons-container";
           debugFollowupContainer.id = "debug-followup-container";
           debugFollowupContainer.innerHTML = `
             <div class="followup-buttons-title">Want to practice more?</div>
-            <button class="followup-btn debug-followup-btn" data-action="debug-trace-walkthrough">
+            <button class="followup-btn debug-followup-btn" data-action="debug-trace-walkthrough" data-code="${debugCodeForBtn}" data-language="${debugLangForBtn}" data-problem="${debugProblemForBtn}" data-topic="${debugTopicForBtn}">
               <span class="followup-btn-icon">📊</span>
               <span class="followup-btn-text">See example walkthrough and trace table</span>
               <span class="followup-btn-arrow">→</span>
             </button>
-            <button class="followup-btn debug-followup-btn" data-action="debug-similar-problem">
+            <button class="followup-btn debug-followup-btn" data-action="debug-similar-problem" data-code="${debugCodeForBtn}" data-language="${debugLangForBtn}" data-problem="${debugProblemForBtn}" data-topic="${debugTopicForBtn}" data-bug-info="${debugBugInfoForBtn}">
               <span class="followup-btn-icon">🧩</span>
               <span class="followup-btn-text">Try a similar practice problem</span>
               <span class="followup-btn-arrow">→</span>
@@ -3989,37 +4018,53 @@
             }
           }
           // === DEBUG MODE ACTIONS ===
+          // Read context from data-attributes (embedded on buttons) to work across widget instances
           else if (action === 'debug-trace-walkthrough') {
-            if (!currentDebugCode) {
+            // Read from data-attributes first (for new widget instances), fall back to global state
+            const debugCode = followupBtn.dataset.code || currentDebugCode;
+            const debugLanguage = followupBtn.dataset.language || currentDebugLanguage || 'python';
+            const debugProblem = followupBtn.dataset.problem || currentDebugProblem;
+            
+            if (!debugCode) {
               console.warn('[Widget] No debug code available for trace/walkthrough');
               restoreButton();
               return;
             }
             
             prompt = `Use AlgoTutor debug_trace_walkthrough tool to show a trace table and example walkthrough.`;
-            prompt += ` Code: \`\`\`${currentDebugLanguage}\n${currentDebugCode}\n\`\`\``;
-            prompt += ` Language: ${currentDebugLanguage}`;
-            if (currentDebugProblem) {
-              prompt += ` Problem context: ${currentDebugProblem}`;
+            prompt += ` Code: \`\`\`${debugLanguage}\n${debugCode}\n\`\`\``;
+            prompt += ` Language: ${debugLanguage}`;
+            if (debugProblem) {
+              prompt += ` Problem context: ${debugProblem}`;
             }
-            console.log('[Widget] Debug trace walkthrough - code length:', currentDebugCode.length);
+            console.log('[Widget] Debug trace walkthrough - code length:', debugCode.length);
           } else if (action === 'debug-similar-problem') {
-            if (!currentDebugCode) {
+            // Read from data-attributes first (for new widget instances), fall back to global state
+            const debugCode = followupBtn.dataset.code || currentDebugCode;
+            const debugLanguage = followupBtn.dataset.language || currentDebugLanguage || 'python';
+            const debugProblem = followupBtn.dataset.problem || currentDebugProblem;
+            const debugTopic = followupBtn.dataset.topic || currentDebugTopic;
+            const debugBugInfo = followupBtn.dataset.bugInfo || currentDebugBugInfo;
+            
+            if (!debugCode) {
               console.warn('[Widget] No debug code available for similar problem');
               restoreButton();
               return;
             }
             
             prompt = `Use AlgoTutor debug_similar_problem tool to generate a fill-in-the-blank practice problem.`;
-            prompt += ` Code: \`\`\`${currentDebugLanguage}\n${currentDebugCode}\n\`\`\``;
-            prompt += ` Language: ${currentDebugLanguage}`;
-            if (currentDebugProblem) {
-              prompt += ` Problem context: ${currentDebugProblem}`;
+            prompt += ` Code: \`\`\`${debugLanguage}\n${debugCode}\n\`\`\``;
+            prompt += ` Language: ${debugLanguage}`;
+            if (debugProblem) {
+              prompt += ` Problem context: ${debugProblem}`;
             }
-            if (currentDebugTopic) {
-              prompt += ` Topic/pattern: ${currentDebugTopic}`;
+            if (debugTopic) {
+              prompt += ` Topic/pattern: ${debugTopic}`;
             }
-            console.log('[Widget] Debug similar problem - code length:', currentDebugCode.length, 'topic:', currentDebugTopic);
+            if (debugBugInfo) {
+              prompt += ` Bug info (focus blanks on this issue type): ${debugBugInfo}`;
+            }
+            console.log('[Widget] Debug similar problem - code length:', debugCode.length, 'topic:', debugTopic);
           }
           // === LEARN MODE ACTIONS ===
           else if (action === 'trace-walkthrough') {

@@ -521,6 +521,28 @@ export async function generateDebugSimilarProblem(args) {
     .map(([name, _]) => name)
     .join(', ');
   
+  // Dynamic blank count based on code length
+  const codeLines = (args.code || '').split('\n').length;
+  const requiredBlankCount = codeLines > 10 ? 3 : 2;
+  console.log('[generateDebugSimilarProblem] Code lines:', codeLines, '→ Required blanks:', requiredBlankCount);
+  
+  // Build bug-focused instruction if bug info is provided
+  let bugFocusInstruction = '';
+  if (args.bugInfo) {
+    bugFocusInstruction = `
+**CRITICAL - BUG-FOCUSED BLANKS:**
+The user previously debugged code with this issue: "${args.bugInfo}"
+
+Your blanks MUST test the SAME TYPE of mistake/concept. For example:
+- If the bug was an off-by-one error → blank out loop bounds or array indices
+- If the bug was a wrong comparison operator → blank out a comparison (< vs <= vs > vs >=)
+- If the bug was missing base case → blank out the base case condition or return
+- If the bug was wrong data structure usage → blank out the data structure operation
+
+The blanks should help the user practice and reinforce understanding of exactly what they got wrong.
+`;
+  }
+  
   const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a LeetCode-style fill-in-the-blank coding problem that is RELATED to but DIFFERENT from the given code. The problem should test the same algorithm/data structure pattern but with a different scenario or twist. Respond with valid JSON only.`;
   
   const userPrompt = `Generate a SIMILAR but DIFFERENT fill-in-the-blank problem based on this code:
@@ -532,11 +554,13 @@ ${args.code}
 
 ${args.problem ? `ORIGINAL PROBLEM CONTEXT: ${args.problem}` : ''}
 ${args.topic ? `ALGORITHM/PATTERN: ${args.topic}` : 'Analyze the code to determine the pattern.'}
+${bugFocusInstruction}
 
 REQUIREMENTS:
 1. The new problem should use the SAME algorithm/data structure pattern
 2. But have a DIFFERENT scenario, twist, or variation
 3. Should be a fresh, creative problem - not a copy of the original
+4. Blanks should NOT be straightforward or trivial - they should test CRITICAL understanding
 
 CRITICAL CONSTRAINT: The problem must ONLY use data structures and algorithms at or BELOW this ranking level: ${topicRanking}
 ALLOWED concepts: ${allowedConcepts}
@@ -553,19 +577,29 @@ REQUIRED JSON SECTIONS:
   - 2-3 example test cases showing input → output (include these IN the description text)
   - Any constraints
 
-- codeWithBlanks: REQUIRED - ${args.language || 'Python'} code with EXACTLY 2 or 3 blanks marked as ___BLANK_1___, ___BLANK_2___, ___BLANK_3___. 
+- codeWithBlanks: REQUIRED - ${args.language || 'Python'} code with EXACTLY ${requiredBlankCount} blanks marked as ___BLANK_1___, ___BLANK_2___${requiredBlankCount === 3 ? ', ___BLANK_3___' : ''}. 
 
 **CRITICAL BLANK RULES:**
-1. The number of ___BLANK_X___ placeholders in codeWithBlanks MUST EXACTLY match the number of objects in the blanks array
-2. If you have 2 blanks in the array, codeWithBlanks must have ___BLANK_1___ and ___BLANK_2___
-3. If you have 3 blanks in the array, codeWithBlanks must have ___BLANK_1___, ___BLANK_2___, and ___BLANK_3___
-4. Each blank tests a DIFFERENT part of the algorithm - NO DUPLICATES
-5. Blanks should test CRITICAL algorithm logic
-6. When ALL blanks are filled with correct answers, the code MUST produce correct output
-7. For TEXT INPUT blanks: The blank MUST be SUBSTANTIAL - blank out the ENTIRE LINE or a significant portion of code (10-40 characters)
-8. For COMPOUND EXPRESSIONS with "and" or "or": SPLIT into SEPARATE blanks
+1. You MUST include EXACTLY ${requiredBlankCount} blanks - no more, no less
+2. The number of ___BLANK_X___ placeholders in codeWithBlanks MUST EXACTLY match the number of objects in the blanks array
+3. Each blank tests a DIFFERENT part of the algorithm - NO DUPLICATES
+4. Blanks should test CRITICAL algorithm logic (e.g., don't blank out variable names or simple syntax)
+5. When ALL blanks are filled with correct answers, the code MUST produce correct output
+6. The code must be in ${args.language || 'Python'} with valid syntax
+7. For TEXT INPUT blanks (where user types): The blank MUST be SUBSTANTIAL - blank out the ENTIRE LINE or a significant portion of code. Do NOT make tiny blanks where user only types a single argument, variable name, or small expression. MCQ blanks can be smaller since user selects from options.
+8. For COMPOUND EXPRESSIONS with "and" or "or" between two function calls/operations: SPLIT into SEPARATE blanks!
+   BAD: "___BLANK_2___" = "helper(left) and helper(right)" (too complex for one blank)
+   GOOD: "___BLANK_2___ and ___BLANK_3___" where BLANK_2 = "helper(left)" and BLANK_3 = "helper(right)"
+   Each recursive call or distinct operation should be its own blank.
+9. TEXT INPUT BLANK CHARACTER LIMITS:
+    - MINIMUM: 10 characters (no trivial blanks like "n-1", "left", "append")
+    - MAXIMUM: 40 characters (anything longer MUST be split into multiple blanks)
+    GOOD examples (10-40 chars): "helper(node.left)" (17), "left, right = 0, len(nums)-1" (29), "return helper(n-1) + helper(n-2)" (32)
+    BAD examples: "node.left" (9 chars - TOO SHORT), "helper(a, b, c) and helper(d, e, f)" (70+ chars - TOO LONG, must split)
 
-- blanks: REQUIRED - Array of EXACTLY 2 or 3 blank objects. Format:
+VERIFICATION STEP: Before outputting, COUNT the ___BLANK_X___ placeholders in your codeWithBlanks and VERIFY it equals ${requiredBlankCount}. If they don't match, FIX IT.
+
+- blanks: REQUIRED - Array of EXACTLY ${requiredBlankCount} blank objects (must match codeWithBlanks). Format:
   [
     {
       "id": 1,
@@ -573,10 +607,10 @@ REQUIRED JSON SECTIONS:
       "placeholder": "___BLANK_1___",
       "lineContext": "the EXACT line of code containing ___BLANK_1___",
       "options": ["option1", "option2", "option3", "option4"],
-      "correctAnswer": "the correct option",
+      "correctAnswer": "the correct option (must be one of the 4 options)",
       "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
-      "explanation": "Why this is correct",
-      "reviewTip": "Brief tip on what pattern/concept to review"
+      "explanation": "Why this is correct - explain the algorithm logic",
+      "reviewTip": "Brief tip on what pattern/concept to review (e.g., 'Review: BST property - left < root < right')"
     },
     {
       "id": 2,
@@ -584,13 +618,31 @@ REQUIRED JSON SECTIONS:
       "placeholder": "___BLANK_2___",
       "lineContext": "the EXACT line of code containing ___BLANK_2___",
       "correctAnswer": "exact code that goes in this blank (10-40 chars)",
+      "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
+      "explanation": "Why this is correct - explain the algorithm logic",
+      "reviewTip": "Brief tip on what pattern/concept to review"
+    }${requiredBlankCount === 3 ? `,
+    {
+      "id": 3,
+      "type": "text_input",
+      "placeholder": "___BLANK_3___",
+      "lineContext": "the EXACT line of code containing ___BLANK_3___",
+      "correctAnswer": "exact code that goes in this blank (10-40 chars)",
       "hint": "A helpful hint",
       "explanation": "Why this is correct",
       "reviewTip": "Brief tip on what to review"
-    }
+    }` : ''}
   ]
+  
+  **BLANK REQUIREMENTS:**
+  - Blank 1: MUST be multiple_choice - test a CRITICAL decision point (e.g., comparison operator, data structure choice). Can be smaller pieces of code.
+  - Blank 2${requiredBlankCount === 3 ? '-3' : ''}: MUST be text_input - MUST be SUBSTANTIAL (entire line or significant code chunk, 15+ characters). Examples of GOOD text_input blanks: "return helper(n-1) + helper(n-2)", "left, right = 0, len(nums)-1", "result.append(current[:])". Examples of BAD text_input blanks: "n-1", "left", "append" (too small!)
+  - Each blank MUST test a DIFFERENT concept - DO NOT ask the same question twice
+  - Each blank MUST have a hint that helps WITHOUT giving away the answer
+  - Each blank MUST have a reviewTip: a brief 1-line tip (10-20 words max) pointing out what pattern/concept to review. Format: "Review: [concept] - [key insight]". Examples: "Review: Two pointers - move inward when sum too large", "Review: Recursion base case - always handle empty/null first"
+  - All 4 options in multiple choice should be plausible
 
-- fullSolution: REQUIRED - The complete code with all blanks filled in correctly.
+- fullSolution: REQUIRED - The complete code with all blanks filled in correctly. This code MUST work and produce correct output.
 
 - whyThisTests: REQUIRED - One sentence explaining what understanding this problem tests and how it relates to the original code.
 

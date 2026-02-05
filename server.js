@@ -134,6 +134,7 @@ const debugSimilarProblemSchema = z.object({
   problem: z.string().optional().describe("Description of what the code does"),
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
   topic: z.string().optional().describe("The algorithm/data structure topic inferred from the code"),
+  bugInfo: z.string().optional().describe("Bug diagnosis info from debug mode - used to focus blanks on the issue type the user encountered"),
 });
 
 //
