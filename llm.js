@@ -323,111 +323,75 @@ Return ONLY valid JSON with the required fields.`;
 
 // Generate Debug Mode analysis
 export async function generateDebugAnalysis(args) {
-  // Detect if this is fill-in-the-blank mode
-  const hasBlanks = args.code && (
-    args.code.includes('___') || 
-    args.code.includes('// TODO') || 
-    args.code.includes('# TODO') ||
-    args.code.includes('# ???') ||
-    args.code.includes('// ???') ||
-    args.code.includes('/* TODO */') ||
-    args.code.includes('BLANK')
-  );
-  const isFillInBlank = args.debugMode === 'fill-in-blank' || hasBlanks;
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert code debugger focused on EXAM SUCCESS. Your job is to analyze code and determine if it has bugs or is correct.
+
+CRITICAL: First, CAREFULLY analyze if the code is CORRECT or has BUGS.
+- If the code is CORRECT: Set codeIsCorrect to true and provide an alternative approach
+- If the code has BUGS: Set codeIsCorrect to false and identify all bugs
+
+Be ABSOLUTELY CERTAIN about correctness. Check:
+1. Logic errors (wrong conditions, operators, etc.)
+2. Off-by-one errors (array bounds, loop conditions)
+3. Edge cases (empty input, single element, null/undefined)
+4. Algorithm correctness (does it solve the problem correctly?)
+5. Time/space complexity (is it efficient?)
+
+Keep explanations direct and actionable. Avoid unnecessary filler words. Respond with valid JSON only.`;
   
-  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert code debugger focused on EXAM SUCCESS. Your job is to help students understand what's wrong with code and trace through it step-by-step like they would on a written exam. ${isFillInBlank ? 'This is a FILL-IN-THE-BLANK exercise - identify what goes in each blank and explain WHY based on the algorithm pattern.' : 'Identify bugs and provide fixes with clear explanations.'} Keep explanations direct and actionable. Avoid unnecessary filler words. Respond with valid JSON only.`;
-  
-  let userPrompt;
-  
-  if (isFillInBlank) {
-    userPrompt = `This is a FILL-IN-THE-BLANK code exercise in ${args.language}:
+  const userPrompt = `Analyze this ${args.language} code for EXAM PREP:
 \`\`\`${args.language}
 ${args.code}
 \`\`\`
 
-${args.problemDescription ? `PROBLEM DESCRIPTION: ${args.problemDescription}` : 'Analyze the code structure to determine what should fill each blank.'}
+STEP 1: Carefully determine if this code is CORRECT or has BUGS.
+- Execute the code mentally with various inputs
+- Check all edge cases (empty, single element, boundaries)
+- Verify the algorithm logic is sound
 
-REQUIRED JSON SECTIONS (include ONLY these fields):
+STEP 2: Respond based on your analysis.
 
-- theTrick: REQUIRED - One-line explanation of the algorithm pattern being used. Format: "This is [PATTERN] - [key insight]". Example: "This is BFS - we process nodes level-by-level using a queue."
+REQUIRED JSON SECTIONS:
 
-- whatCodeDoes: REQUIRED - Plain English explanation of what this code is trying to accomplish. 1-2 sentences.
+- codeIsCorrect: REQUIRED - Boolean. Set to true ONLY if the code is completely correct with no bugs. Set to false if ANY bugs exist.
 
-- fillInBlankAnswers: REQUIRED - Array of objects for each blank. Format: [{blank: "Blank 1 (line X)", answer: "the code that goes here", reason: "why this is correct based on the pattern"}]. Be specific about WHY based on the algorithm logic.
+- theTrick: REQUIRED
+  - If code has bugs: Provide a memorable principle to avoid this mistake. Format: "Remember: [principle that prevents this bug]". Example: "Remember: Always handle the empty case FIRST - check 'if not arr: return' before accessing arr[0]."
+  - If code is correct: Provide the key insight that makes this solution work. Format: "Your code is correct! Key insight: [what makes this approach work]". Example: "Your code is correct! Key insight: Using two pointers from both ends efficiently finds the pair in O(n) time."
 
-${args.showTraceTable !== false ? '- traceTable: REQUIRED - Array of 3-4 objects showing step-by-step execution with blanks filled in. Use keys: {step, variables, state, action}. Match exam format.' : '- traceTable: DO NOT INCLUDE THIS FIELD'}
+- whatCodeDoes: REQUIRED - Plain English explanation of what algorithm/pattern this code implements. 1-2 sentences.
 
-- afterCode: REQUIRED - The complete code with all blanks filled in correctly. Add "${args.language === 'python' ? '# FILLED' : '// FILLED'}" comments on filled lines.
+- complexity: REQUIRED - Time and space complexity analysis. Format: "O(n) time, O(1) space - [brief explanation]"
 
-${args.generateTests ? '- testCases: REQUIRED - Array of exactly 3 test case strings that verify the completed code works' : '- testCases: DO NOT INCLUDE THIS FIELD'}
+IF CODE HAS BUGS (codeIsCorrect = false), also include:
 
-- ifOnExam: REQUIRED - What variation of this problem a professor might test. Example: "Professor might ask you to modify this to return the path instead of just true/false."
+- exactBugLine: REQUIRED - If ONE bug: Object with {lineNumber: number, code: "the buggy line", issue: "specific explanation"}. If MULTIPLE bugs: Array of objects, each with {lineNumber, code, issue}.
 
-Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
-  } else {
-    // Build test case instruction for debug mode
-    let debugTestCaseInstruction = '';
-    if (args.testCases) {
-      debugTestCaseInstruction = `TEST CASES PROVIDED:
-${args.testCases}
-
-Use these test cases to demonstrate the bug in the trace table.`;
-    } else {
-      debugTestCaseInstruction = `NO TEST CASES PROVIDED - Generate up to 3 test cases yourself (at least 1 edge case) to demonstrate the bug.`;
-    }
-
-    // Build constraints instruction for debug mode
-    let debugConstraintsInstruction = '';
-    if (args.constraints) {
-      debugConstraintsInstruction = `CONSTRAINTS: ${args.constraints}
-Consider these constraints when suggesting the fix.`;
-    }
-
-    userPrompt = `Debug this ${args.language} code for EXAM PREP:
-\`\`\`${args.language}
-${args.code}
-\`\`\`
-
-${args.problemDescription ? `PROBLEM DESCRIPTION: ${args.problemDescription}` : 'No problem description provided. Analyze the code for common bugs.'}
-
-${debugTestCaseInstruction}
-
-${debugConstraintsInstruction}
-
-IMPORTANT: Check for ALL bugs in the code. If there are multiple bugs, list ALL of them.
-
-REQUIRED JSON SECTIONS (include ONLY these fields):
-
-- theTrick: REQUIRED - DO NOT just repeat the bug description. Instead, provide a memorable principle to avoid this mistake in the future. Format: "Remember: [principle that prevents this bug]". Example: "Remember: Always handle the empty case FIRST - check 'if not arr: return' before accessing arr[0]."
-
-- whatCodeDoes: REQUIRED - Plain English explanation of what algorithm/pattern this code is trying to implement. 1-2 sentences.
-
-- exactBugLine: REQUIRED - If there's ONE bug: Object with {lineNumber: number, code: "the buggy line", issue: "specific explanation"}. If there are MULTIPLE bugs: Array of objects, each with {lineNumber, code, issue}. Number them in order found.
-
-${args.showPatternExplanation !== false ? '- bugDiagnosis: REQUIRED - Detailed analysis explaining the bug(s) in context of the algorithm pattern. Why does this specific bug break the algorithm? (use \\n for line breaks)' : '- bugDiagnosis: DO NOT INCLUDE THIS FIELD'}
-
-${args.showTraceTable !== false ? `- traceTable: REQUIRED - Array of objects showing step-by-step execution. Use keys: {section, step, variables, state, action}.
-  - Include a "section" field with value "BEFORE" for traces showing the bug, and "AFTER" for traces with the fixed code.
-  - BEFORE section: Show 3-5 steps where the bug causes incorrect behavior or failure.
-  - AFTER section: Show 3-5 steps with the fixed code working correctly.
-  ${args.testCases ? '- Trace through the provided test cases.' : '- Use your generated test cases.'}` : '- traceTable: DO NOT INCLUDE THIS FIELD'}
+- bugDiagnosis: REQUIRED - Detailed analysis explaining the bug(s) in context of the algorithm pattern. Why does this specific bug break the algorithm? (use \\n for line breaks)
 
 - beforeCode: REQUIRED - The original code with "${args.language === 'python' ? '# BUG HERE' : '// BUG HERE'}" comment on the problematic line(s). If multiple bugs, number them like "${args.language === 'python' ? '# BUG 1' : '// BUG 1'}", "${args.language === 'python' ? '# BUG 2' : '// BUG 2'}", etc.
 
 - afterCode: REQUIRED - The fixed code with "${args.language === 'python' ? '# FIXED' : '// FIXED'}" comment on the corrected line(s). Show ONLY the minimal changes needed.
 
-- testCases: REQUIRED - Array of exactly 3 test case strings that verify the fix works. Include at least 1 edge case.
+IF CODE IS CORRECT (codeIsCorrect = true), also include:
 
-- ifOnExam: REQUIRED - What variation of this bug a professor might test. Include a 1-2 sentence prep tip on how students can practice spotting this type of bug. Example: "Professor might give working code and ask what happens if you change '<' to '<='. Prep tip: Practice tracing loops with boundary values (0, 1, n-1, n) to catch off-by-one errors."
+- beforeCode: REQUIRED - The original code (unchanged, as it's already correct)
 
-${args.showEdgeWarnings ? '- edgeCases: REQUIRED - Array of exactly 3 objects with {case: "edge case name", hint: "1-2 sentence tip on how to handle this in code"}. Example: [{case: "Empty array", hint: "Add if not arr: return early at the start before accessing any elements."}]' : '- edgeCases: DO NOT INCLUDE THIS FIELD'}
+- afterCode: REQUIRED - An ALTERNATIVE approach to solve the same problem. This should be a DIFFERENT algorithm or technique. Add "${args.language === 'python' ? '# ALTERNATIVE APPROACH' : '// ALTERNATIVE APPROACH'}" comment at the top.
 
-- difficultyScore: REQUIRED - Difficulty rating as exactly one of: "easy", "medium", or "hard" based on how tricky this bug is to spot.
+- alternativeApproach: REQUIRED - Object with:
+  - explanation: Why this alternative approach is worth knowing
+  - complexityComparison: Compare time/space complexity of both approaches. Format: "Original: O(n) time, O(1) space. Alternative: O(n log n) time, O(1) space. [Which is better and why, or if original is already optimal, explain what edge cases the alternative handles better]"
+  - edgeCaseImprovements: If the original code is already optimal, suggest any edge cases it could handle better or defensive coding improvements (can be null if truly perfect)
 
-- relatedPatterns: REQUIRED - Array of 3-5 related bug patterns or DSA concepts. Example: ["Off-by-one errors", "Loop boundary conditions", "Array indexing"]
+ALWAYS INCLUDE (for both correct and buggy code):
 
-Return ONLY valid JSON with the required fields. Do not include fields marked as "DO NOT INCLUDE".`;
-  }
+- ifOnExam: REQUIRED - What variation a professor might test. Include a 1-2 sentence prep tip.
+
+- difficultyScore: REQUIRED - Difficulty rating as exactly one of: "easy", "medium", or "hard"
+
+- relatedPatterns: REQUIRED - Array of 3-5 related DSA patterns or concepts.
+
+Return ONLY valid JSON with the required fields.`;
 
   try {
     const response = await callOpenAI(systemPrompt, userPrompt, 3000);
@@ -439,9 +403,12 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
       console.log('[generateDebugAnalysis] Invalid input detected by LLM:', parsed.message);
       return {
         error: 'INVALID_INPUT',
-        message: parsed.message || 'Please enter valid code to debug or analyze.'
+        message: parsed.message || 'Please enter valid code to debug.'
       };
     }
+    
+    // Add flag for debug mode identification
+    parsed.isDebugMode = true;
     
     return parsed;
   } catch (error) {
@@ -450,31 +417,233 @@ Return ONLY valid JSON with the required fields. Do not include fields marked as
       console.error('[generateDebugAnalysis] Invalid JSON returned by API');
     }
     
-    if (isFillInBlank) {
-      return {
-        theTrick: "Error analyzing code. Please try again.",
-        whatCodeDoes: "Error occurred",
-        fillInBlankAnswers: [],
-        traceTable: args.showTraceTable !== false ? [] : null,
-        afterCode: "# Error occurred",
-        testCases: args.generateTests ? [] : null,
-        ifOnExam: "Error occurred",
-      };
-    }
-    
     return {
+      codeIsCorrect: false,
       theTrick: "Error analyzing code. Please try again.",
       whatCodeDoes: "Error occurred",
       exactBugLine: { lineNumber: 0, code: "Error", issue: "Error occurred" },
-      bugDiagnosis: args.showPatternExplanation !== false ? "Error analyzing code. Please try again." : null,
-      traceTable: args.showTraceTable !== false ? [] : null,
+      bugDiagnosis: "Error analyzing code. Please try again.",
       beforeCode: args.code,
       afterCode: "# Error occurred during debugging",
-      testCases: [],
       ifOnExam: "Error occurred",
-      edgeCases: args.showEdgeWarnings ? [] : null,
+      complexity: "N/A",
       difficultyScore: null,
       relatedPatterns: [],
+      isDebugMode: true,
+    };
+  }
+}
+
+// Generate Debug Mode Trace Table & Walkthrough (on-demand follow-up)
+export async function generateDebugTraceWalkthrough(args) {
+  console.log('[generateDebugTraceWalkthrough] Starting');
+  console.log('[generateDebugTraceWalkthrough] Args:', JSON.stringify(args, null, 2));
+  
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a detailed trace table and example walkthrough for the given code. This is for EXAM PREP - format everything like professors expect on written exams. Respond with valid JSON only.`;
+  
+  const userPrompt = `Generate a TRACE TABLE and EXAMPLE WALKTHROUGH for this ${args.language || 'python'} code.
+
+CODE:
+\`\`\`${args.language || 'python'}
+${args.code}
+\`\`\`
+
+${args.problem ? `CONTEXT: ${args.problem}` : 'Analyze the code to understand what it does.'}
+
+CRITICAL: Pick ONE specific test case first. ALL sections below MUST use this EXACT SAME test case.
+
+REQUIRED JSON SECTIONS:
+
+IMPORTANT FORMATTING RULES:
+- The "variables" field MUST be a simple STRING showing current variable values, NOT an object
+- Format variables as: "i=0, sum=0, arr=[1,2,3]" - a readable string
+- The trace table should trace through the EXACT exampleInput until reaching exampleOutput
+- If the code uses RECURSION: Use a SMALL test case (2-3 elements max) so the trace fits, OR show the call stack as text in the walkthrough instead of a table
+
+- exampleInput: REQUIRED - The specific input for the test case. For recursive code, use a SMALL input (2-3 elements).
+
+- exampleOutput: REQUIRED - The expected output for the test case
+
+- dryRunTable: REQUIRED - Array of 4-6 objects tracing the algorithm with the EXACT input from exampleInput until reaching exampleOutput. Use these exact keys: {iteration, variables, state, action}
+  CRITICAL: The "variables" field MUST be a STRING like "i=0, left=0, right=4" - NOT an object!
+  Each row should show the state at that iteration using the exampleInput values.
+
+- exampleWalkthrough: REQUIRED - Step-by-step trace using the EXACT SAME input from exampleInput. Format as a STRING with each step on a NEW LINE using \\n. For recursive code, show the call stack like:
+  "Step 1: Call func([1,2,3])\\nStep 2: Recurse with func([2,3])\\nStep 3: Base case reached..."
+
+- testCases: REQUIRED - Array of exactly 3 test case strings that verify the code works. Include at least 1 edge case. Format: ["input → expected output", ...]
+
+- isDebugTraceWalkthrough: REQUIRED - Set to true
+
+Return ONLY valid JSON with the required fields.`;
+
+  try {
+    const response = await callOpenAI(systemPrompt, userPrompt, 2000);
+    console.log('[generateDebugTraceWalkthrough] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateDebugTraceWalkthrough] ✓ Successfully parsed JSON response');
+    
+    if (parsed.error === 'INVALID_INPUT') {
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Unable to generate trace table.'
+      };
+    }
+    
+    // Ensure the flag is set
+    parsed.isDebugTraceWalkthrough = true;
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateDebugTraceWalkthrough] ❌ Failed:', error);
+    return {
+      exampleInput: "N/A",
+      exampleOutput: "N/A",
+      dryRunTable: [],
+      exampleWalkthrough: "Error generating walkthrough. Please try again.",
+      testCases: [],
+      isDebugTraceWalkthrough: true,
+    };
+  }
+}
+
+// Generate Debug Mode Similar Problem (on-demand follow-up)
+export async function generateDebugSimilarProblem(args) {
+  console.log('[generateDebugSimilarProblem] Starting');
+  console.log('[generateDebugSimilarProblem] Args:', JSON.stringify(args, null, 2));
+  
+  const topicRanking = args.topic ? getTopicRanking(args.topic) : 15; // Default to mid-level
+  
+  // Build list of allowed data structures/algorithms based on ranking
+  const allowedConcepts = Object.entries(DSA_RANKINGS)
+    .filter(([_, rank]) => rank <= topicRanking)
+    .map(([name, _]) => name)
+    .join(', ');
+  
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a LeetCode-style fill-in-the-blank coding problem that is RELATED to but DIFFERENT from the given code. The problem should test the same algorithm/data structure pattern but with a different scenario or twist. Respond with valid JSON only.`;
+  
+  const userPrompt = `Generate a SIMILAR but DIFFERENT fill-in-the-blank problem based on this code:
+
+ORIGINAL CODE:
+\`\`\`${args.language || 'python'}
+${args.code}
+\`\`\`
+
+${args.problem ? `ORIGINAL PROBLEM CONTEXT: ${args.problem}` : ''}
+${args.topic ? `ALGORITHM/PATTERN: ${args.topic}` : 'Analyze the code to determine the pattern.'}
+
+REQUIREMENTS:
+1. The new problem should use the SAME algorithm/data structure pattern
+2. But have a DIFFERENT scenario, twist, or variation
+3. Should be a fresh, creative problem - not a copy of the original
+
+CRITICAL CONSTRAINT: The problem must ONLY use data structures and algorithms at or BELOW this ranking level: ${topicRanking}
+ALLOWED concepts: ${allowedConcepts}
+DO NOT use any advanced concepts not in the allowed list.
+
+REQUIRED JSON SECTIONS:
+
+- problemTitle: REQUIRED - A concise title for the problem. Example: "Two Sum" or "Valid Parentheses"
+
+- problemDescription: REQUIRED - A clear problem description in LeetCode style. Include:
+  - What the function should do
+  - Input format
+  - Output format
+  - 2-3 example test cases showing input → output (include these IN the description text)
+  - Any constraints
+
+- codeWithBlanks: REQUIRED - ${args.language || 'Python'} code with EXACTLY 2 or 3 blanks marked as ___BLANK_1___, ___BLANK_2___, ___BLANK_3___. 
+
+**CRITICAL BLANK RULES:**
+1. The number of ___BLANK_X___ placeholders in codeWithBlanks MUST EXACTLY match the number of objects in the blanks array
+2. If you have 2 blanks in the array, codeWithBlanks must have ___BLANK_1___ and ___BLANK_2___
+3. If you have 3 blanks in the array, codeWithBlanks must have ___BLANK_1___, ___BLANK_2___, and ___BLANK_3___
+4. Each blank tests a DIFFERENT part of the algorithm - NO DUPLICATES
+5. Blanks should test CRITICAL algorithm logic
+6. When ALL blanks are filled with correct answers, the code MUST produce correct output
+7. For TEXT INPUT blanks: The blank MUST be SUBSTANTIAL - blank out the ENTIRE LINE or a significant portion of code (10-40 characters)
+8. For COMPOUND EXPRESSIONS with "and" or "or": SPLIT into SEPARATE blanks
+
+- blanks: REQUIRED - Array of EXACTLY 2 or 3 blank objects. Format:
+  [
+    {
+      "id": 1,
+      "type": "multiple_choice",
+      "placeholder": "___BLANK_1___",
+      "lineContext": "the EXACT line of code containing ___BLANK_1___",
+      "options": ["option1", "option2", "option3", "option4"],
+      "correctAnswer": "the correct option",
+      "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
+      "explanation": "Why this is correct",
+      "reviewTip": "Brief tip on what pattern/concept to review"
+    },
+    {
+      "id": 2,
+      "type": "text_input",
+      "placeholder": "___BLANK_2___",
+      "lineContext": "the EXACT line of code containing ___BLANK_2___",
+      "correctAnswer": "exact code that goes in this blank (10-40 chars)",
+      "hint": "A helpful hint",
+      "explanation": "Why this is correct",
+      "reviewTip": "Brief tip on what to review"
+    }
+  ]
+
+- fullSolution: REQUIRED - The complete code with all blanks filled in correctly.
+
+- whyThisTests: REQUIRED - One sentence explaining what understanding this problem tests and how it relates to the original code.
+
+- isDebugSimilarProblem: REQUIRED - Set to true
+
+Return ONLY valid JSON with the required fields.`;
+
+  try {
+    // Use higher temperature for variety
+    const response = await callOpenAI(systemPrompt, userPrompt, 3000, 0.95);
+    console.log('[generateDebugSimilarProblem] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateDebugSimilarProblem] ✓ Successfully parsed JSON response');
+    
+    if (parsed.error === 'INVALID_INPUT') {
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Unable to generate similar problem.'
+      };
+    }
+    
+    // POST-VALIDATION: Verify blank count matches
+    if (parsed.codeWithBlanks && parsed.blanks) {
+      const blankMatches = parsed.codeWithBlanks.match(/___BLANK_\d+___/g) || [];
+      const codeBlankCount = blankMatches.length;
+      const arrayBlankCount = parsed.blanks.length;
+      
+      console.log('[generateDebugSimilarProblem] Blank validation:', {
+        blanksInCode: codeBlankCount,
+        blanksInArray: arrayBlankCount,
+        matches: blankMatches
+      });
+      
+      if (codeBlankCount !== arrayBlankCount) {
+        console.warn('[generateDebugSimilarProblem] ⚠️ BLANK COUNT MISMATCH! Code has', codeBlankCount, 'blanks, array has', arrayBlankCount);
+      }
+    }
+    
+    // Ensure the flag is set
+    parsed.isDebugSimilarProblem = true;
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateDebugSimilarProblem] ❌ Failed:', error);
+    return {
+      problemTitle: "Error",
+      problemDescription: "Error generating problem. Please try again.",
+      codeWithBlanks: "# Error occurred",
+      blanks: [],
+      fullSolution: "# Error occurred",
+      whyThisTests: "Error occurred",
+      isDebugSimilarProblem: true,
     };
   }
 }

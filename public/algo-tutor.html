@@ -1608,58 +1608,11 @@
             <h2 class="section-title">Debug Mode</h2>
 
             <div class="field-block">
-              <label for="debug-mode-select">Mode</label>
-              <select id="debug-mode-select">
-                <option value="debug" selected>Debug existing code</option>
-                <option value="fill-in-blank">Fill-in-the-blank exercise</option>
-              </select>
-              <p class="hint" id="debug-mode-hint">
-                Debug: Find and fix bugs in your code.
-              </p>
-            </div>
-
-            <div class="field-block">
               <label for="debug-code">Code Snippet</label>
               <textarea
                 id="debug-code"
-                placeholder="Paste your code here... For fill-in-blank, use ___ or # TODO for blanks"
+                placeholder="Paste your code here to debug..."
               ></textarea>
-            </div>
-
-            <div class="field-block">
-              <label for="debug-problem">Problem Description (optional)</label>
-              <textarea
-                id="debug-problem"
-                placeholder="Describe what this code should do..."
-                style="min-height: 80px;"
-              ></textarea>
-              <p class="hint">
-                Helps AlgoTutor understand the algorithm context.
-              </p>
-            </div>
-
-            <div class="field-block">
-              <label for="debug-testcases">Test Cases (optional)</label>
-              <textarea
-                id="debug-testcases"
-                placeholder="Enter test cases to verify the fix..."
-                style="min-height: 60px;"
-              ></textarea>
-              <p class="hint">
-                Test cases to trace through and verify the fix works.
-              </p>
-            </div>
-
-            <div class="field-block">
-              <label for="debug-constraints">Constraints (optional)</label>
-              <textarea
-                id="debug-constraints"
-                placeholder="e.g., O(n) time, O(1) space..."
-                style="min-height: 60px;"
-              ></textarea>
-              <p class="hint">
-                Specify constraints to consider when suggesting the fix.
-              </p>
             </div>
 
             <div class="row">
@@ -1670,25 +1623,6 @@
                   <option value="java">Java</option>
                   <option value="cpp">C++</option>
                 </select>
-              </div>
-            </div>
-
-            <div class="toggles-section">
-              <div class="toggle-item">
-                <input type="checkbox" id="debug-show-tests" checked />
-                <label for="debug-show-tests">Generate test cases</label>
-              </div>
-              <div class="toggle-item">
-                <input type="checkbox" id="debug-edge-warnings" checked />
-                <label for="debug-edge-warnings">Show edge case warnings</label>
-              </div>
-              <div class="toggle-item">
-                <input type="checkbox" id="debug-trace-table" checked />
-                <label for="debug-trace-table">Show trace table (exam format)</label>
-              </div>
-              <div class="toggle-item">
-                <input type="checkbox" id="debug-pattern-explanation" checked />
-                <label for="debug-pattern-explanation">Explain algorithm pattern</label>
               </div>
             </div>
 
@@ -1803,6 +1737,13 @@
       let buildTraceHasBeenUsed = false; // Track if trace/walkthrough has been used
       let buildExplainHasBeenUsed = false; // Track if explain has been used
       let lastBuildResponse = null; // Store last response for context-aware follow-ups
+
+      // Debug Mode follow-up state
+      let currentDebugCode = ''; // The code being debugged (or from similar problem)
+      let currentDebugLanguage = 'python'; // Language of the code
+      let currentDebugProblem = ''; // What the code does (from whatCodeDoes)
+      let currentDebugTopic = ''; // Algorithm/pattern inferred from the code
+      let lastDebugResponse = null; // Store last response for context-aware follow-ups
 
       // DOM Elements
       const modeBtns = document.querySelectorAll(".mode-btn");
@@ -2239,8 +2180,9 @@
           outputContainer.appendChild(blockEl);
         }
 
-        // Test Cases (skip for real-world examples - they have test cases in the problem description)
-        if (outputs.testCases && Array.isArray(outputs.testCases) && !outputs.isRealWorldExample) {
+        // Test Cases (skip for real-world examples, similar problems, and initial debug mode - test cases only shown in follow-ups)
+        const isInitialDebugResponse = isDebugMode && !outputs.isDebugTraceWalkthrough && !outputs.isDebugSimilarProblem;
+        if (outputs.testCases && Array.isArray(outputs.testCases) && !outputs.isRealWorldExample && !outputs.isDebugSimilarProblem && !isInitialDebugResponse) {
           const blockEl = document.createElement("div");
           blockEl.className = "output-block";
           blockEl.innerHTML = `<h3>Test Cases</h3>`;
@@ -2610,6 +2552,166 @@
           lastBuildResponse = outputs;
         }
         
+        // === DEBUG MODE: CORRECT CODE - ALTERNATIVE APPROACH ===
+        if (outputs.codeIsCorrect && outputs.alternativeApproach) {
+          const altContainer = document.createElement("div");
+          altContainer.className = "output-block alternative-approach-block";
+          altContainer.innerHTML = `
+            <h3>✅ Your Code is Correct!</h3>
+            <p style="margin-bottom: 12px; color: var(--text-muted);">Here's an alternative approach you should know:</p>
+          `;
+          
+          if (outputs.alternativeApproach.explanation) {
+            const explainEl = document.createElement("div");
+            explainEl.className = "text-block";
+            explainEl.innerHTML = escapeHtml(outputs.alternativeApproach.explanation).replace(/\n/g, '<br>');
+            explainEl.style.marginBottom = "12px";
+            altContainer.appendChild(explainEl);
+          }
+          
+          if (outputs.alternativeApproach.complexityComparison) {
+            const compEl = document.createElement("div");
+            compEl.className = "complexity-comparison";
+            compEl.style.cssText = "background: rgba(59, 130, 246, 0.1); padding: 12px; border-radius: 8px; margin-bottom: 12px; border-left: 3px solid var(--accent);";
+            compEl.innerHTML = `<strong>Complexity Comparison:</strong><br>${escapeHtml(outputs.alternativeApproach.complexityComparison).replace(/\n/g, '<br>')}`;
+            altContainer.appendChild(compEl);
+          }
+          
+          if (outputs.alternativeApproach.edgeCaseImprovements) {
+            const edgeEl = document.createElement("div");
+            edgeEl.className = "edge-improvements";
+            edgeEl.style.cssText = "background: rgba(245, 158, 11, 0.1); padding: 12px; border-radius: 8px; border-left: 3px solid #f59e0b;";
+            edgeEl.innerHTML = `<strong>Edge Case Improvements:</strong><br>${escapeHtml(outputs.alternativeApproach.edgeCaseImprovements).replace(/\n/g, '<br>')}`;
+            altContainer.appendChild(edgeEl);
+          }
+          
+          outputContainer.appendChild(altContainer);
+        }
+        
+        // === DEBUG MODE TRACE TABLE & WALKTHROUGH RESPONSE ===
+        if (outputs.isDebugTraceWalkthrough) {
+          const traceContainer = document.createElement("div");
+          traceContainer.className = "trace-walkthrough-container";
+          
+          // 1. Walkthrough FIRST
+          if (outputs.exampleWalkthrough) {
+            const walkthroughEl = document.createElement("div");
+            walkthroughEl.className = "output-block";
+            walkthroughEl.innerHTML = `<h3>Example Walkthrough</h3><div class="text-block">${escapeHtml(outputs.exampleWalkthrough).replace(/\\n/g, '<br>').replace(/\n/g, '<br>')}</div>`;
+            traceContainer.appendChild(walkthroughEl);
+          }
+          
+          // 2. Input/Output SECOND
+          if (outputs.exampleInput || outputs.exampleOutput) {
+            const ioDiv = document.createElement("div");
+            ioDiv.className = "example-io";
+            ioDiv.style.marginTop = "16px";
+            if (outputs.exampleInput) {
+              ioDiv.innerHTML += `
+                <div class="example-io-item">
+                  <div class="example-io-label">Example Input (used in trace below)</div>
+                  <div class="example-io-value">${escapeHtml(outputs.exampleInput)}</div>
+                </div>
+              `;
+            }
+            if (outputs.exampleOutput) {
+              ioDiv.innerHTML += `
+                <div class="example-io-item">
+                  <div class="example-io-label">Expected Output</div>
+                  <div class="example-io-value">${escapeHtml(outputs.exampleOutput)}</div>
+                </div>
+              `;
+            }
+            traceContainer.appendChild(ioDiv);
+          }
+          
+          // 3. Trace Table THIRD
+          if (outputs.dryRunTable && Array.isArray(outputs.dryRunTable)) {
+            const tableTitle = document.createElement("h3");
+            tableTitle.textContent = "Trace Table";
+            tableTitle.style.marginTop = "16px";
+            tableTitle.style.marginBottom = "8px";
+            traceContainer.appendChild(tableTitle);
+            
+            const tableEl = renderTable(outputs.dryRunTable);
+            if (tableEl) traceContainer.appendChild(tableEl);
+          }
+          
+          // 4. Test Cases (shown in trace follow-up)
+          if (outputs.testCases && Array.isArray(outputs.testCases)) {
+            const testCasesEl = document.createElement("div");
+            testCasesEl.className = "output-block";
+            testCasesEl.style.marginTop = "16px";
+            testCasesEl.innerHTML = `<h3>Test Cases</h3>`;
+            const ul = document.createElement("ul");
+            ul.className = "list-block";
+            outputs.testCases.forEach((item) => {
+              const li = document.createElement("li");
+              li.textContent = item;
+              ul.appendChild(li);
+            });
+            testCasesEl.appendChild(ul);
+            traceContainer.appendChild(testCasesEl);
+          }
+          
+          outputContainer.appendChild(traceContainer);
+          
+          // Update debug context from trace response
+          lastDebugResponse = outputs;
+        }
+        
+        // === DEBUG MODE SIMILAR PROBLEM RESPONSE ===
+        if (outputs.isDebugSimilarProblem) {
+          // Render using the same fill-in-blank function
+          renderFillInBlankProblem(outputs);
+          
+          // Update debug context for chained follow-ups
+          if (outputs.fullSolution) {
+            currentDebugCode = outputs.fullSolution;
+          }
+          if (outputs.problemDescription) {
+            currentDebugProblem = outputs.problemDescription;
+          }
+          lastDebugResponse = outputs;
+        }
+        
+        // === DEBUG MODE FOLLOW-UP BUTTONS ===
+        // Show follow-up buttons after Debug Mode responses (initial, trace, or similar problem)
+        const showDebugFollowupButtons = isDebugMode || outputs.isDebugTraceWalkthrough || outputs.isDebugSimilarProblem;
+        
+        if (showDebugFollowupButtons) {
+          // Update debug context from the response
+          if (outputs.afterCode && !outputs.isDebugTraceWalkthrough && !outputs.isDebugSimilarProblem) {
+            // Initial debug response - use the fixed/alternative code
+            currentDebugCode = outputs.afterCode;
+          }
+          if (outputs.whatCodeDoes) {
+            currentDebugProblem = outputs.whatCodeDoes;
+          }
+          if (outputs.relatedPatterns && outputs.relatedPatterns.length > 0) {
+            currentDebugTopic = outputs.relatedPatterns[0]; // Use first related pattern as topic
+          }
+          lastDebugResponse = outputs;
+          
+          const debugFollowupContainer = document.createElement("div");
+          debugFollowupContainer.className = "followup-buttons-container";
+          debugFollowupContainer.id = "debug-followup-container";
+          debugFollowupContainer.innerHTML = `
+            <div class="followup-buttons-title">Want to practice more?</div>
+            <button class="followup-btn debug-followup-btn" data-action="debug-trace-walkthrough">
+              <span class="followup-btn-icon">📊</span>
+              <span class="followup-btn-text">See example walkthrough and trace table</span>
+              <span class="followup-btn-arrow">→</span>
+            </button>
+            <button class="followup-btn debug-followup-btn" data-action="debug-similar-problem">
+              <span class="followup-btn-icon">🧩</span>
+              <span class="followup-btn-text">Try a similar practice problem</span>
+              <span class="followup-btn-arrow">→</span>
+            </button>
+          `;
+          outputContainer.appendChild(debugFollowupContainer);
+        }
+        
         // Add feedback buttons for premium users
         const isPremium = !!localStorage.getItem('algotutor_premium_code');
         if (isPremium && currentLogId) {
@@ -2958,41 +3060,24 @@
         const statusEl = document.querySelector("#debug-status");
 
         const code = document.querySelector("#debug-code").value.trim();
-        const problemDescription = document.querySelector("#debug-problem").value.trim();
-        const testCases = document.querySelector("#debug-testcases").value.trim();
-        const constraints = document.querySelector("#debug-constraints").value.trim();
         const language = document.querySelector("#debug-language").value;
-        const debugMode = document.querySelector("#debug-mode-select").value;
-        const generateTests = document.querySelector("#debug-show-tests").checked;
-        const showEdgeWarnings = document.querySelector("#debug-edge-warnings").checked;
-        const showTraceTable = document.querySelector("#debug-trace-table").checked;
-        const showPatternExplanation = document.querySelector("#debug-pattern-explanation").checked;
 
         if (!code) {
           statusEl.textContent = "Please paste your code.";
           return;
         }
 
-        const isFillInBlank = debugMode === 'fill-in-blank';
-        statusEl.textContent = isFillInBlank ? "Filling in blanks..." : "Debugging code...";
+        // Store the code and language for follow-up questions
+        currentDebugCode = code;
+        currentDebugLanguage = language;
+        currentDebugProblem = ''; // Will be populated from response
+        currentDebugTopic = ''; // Will be populated from response
+        lastDebugResponse = null;
+
+        statusEl.textContent = "Debugging code...";
         
         // Build natural language prompt for ChatGPT - Debug Mode
-        let prompt;
-        if (isFillInBlank) {
-          prompt = `Use AlgoTutor Debug Mode in fill-in-the-blank mode for this ${language} code`;
-        } else {
-          prompt = `Use AlgoTutor Debug Mode to debug this ${language} code`;
-        }
-        if (problemDescription) {
-          prompt += ` for the following problem: ${problemDescription}`;
-        }
-        prompt += `.\n\nCode:\n\`\`\`${language}\n${code}\n\`\`\``;
-        if (testCases) prompt += `\nUse these test cases: ${testCases}`;
-        if (constraints) prompt += `\nWith constraints: ${constraints}`;
-        prompt += generateTests ? `\nGenerate test cases.` : `\nDo NOT generate test cases.`;
-        prompt += showEdgeWarnings ? ` Show edge case warnings.` : ` Do NOT show edge warnings.`;
-        prompt += showTraceTable ? ` Show exam-format trace table.` : ` Do NOT show trace table.`;
-        prompt += showPatternExplanation ? ` Explain the algorithm pattern.` : ` Do NOT explain the pattern.`;
+        const prompt = `Use AlgoTutor Debug Mode to debug this ${language} code.\n\nCode:\n\`\`\`${language}\n${code}\n\`\`\``;
 
         try {
           await sendFollowUp(prompt);
@@ -3002,19 +3087,6 @@
           statusEl.textContent = "Error: " + err.message;
         }
       });
-
-      // Debug mode selector hint update
-      const debugModeSelect = document.querySelector("#debug-mode-select");
-      const debugModeHint = document.querySelector("#debug-mode-hint");
-      if (debugModeSelect && debugModeHint) {
-        debugModeSelect.addEventListener("change", (e) => {
-          if (e.target.value === "fill-in-blank") {
-            debugModeHint.textContent = "Fill-in-blank: Use ___ or # TODO for blanks in your code.";
-          } else {
-            debugModeHint.textContent = "Debug: Find and fix bugs in your code.";
-          }
-        });
-      }
 
       // Helper: Try to extract outputs from various formats
       function extractOutputs(data) {
@@ -3915,6 +3987,39 @@
                 prompt += ` Build on this explanation: ${lastBuildResponse.detailedExplanation.substring(0, 500)}`;
               }
             }
+          }
+          // === DEBUG MODE ACTIONS ===
+          else if (action === 'debug-trace-walkthrough') {
+            if (!currentDebugCode) {
+              console.warn('[Widget] No debug code available for trace/walkthrough');
+              restoreButton();
+              return;
+            }
+            
+            prompt = `Use AlgoTutor debug_trace_walkthrough tool to show a trace table and example walkthrough.`;
+            prompt += ` Code: \`\`\`${currentDebugLanguage}\n${currentDebugCode}\n\`\`\``;
+            prompt += ` Language: ${currentDebugLanguage}`;
+            if (currentDebugProblem) {
+              prompt += ` Problem context: ${currentDebugProblem}`;
+            }
+            console.log('[Widget] Debug trace walkthrough - code length:', currentDebugCode.length);
+          } else if (action === 'debug-similar-problem') {
+            if (!currentDebugCode) {
+              console.warn('[Widget] No debug code available for similar problem');
+              restoreButton();
+              return;
+            }
+            
+            prompt = `Use AlgoTutor debug_similar_problem tool to generate a fill-in-the-blank practice problem.`;
+            prompt += ` Code: \`\`\`${currentDebugLanguage}\n${currentDebugCode}\n\`\`\``;
+            prompt += ` Language: ${currentDebugLanguage}`;
+            if (currentDebugProblem) {
+              prompt += ` Problem context: ${currentDebugProblem}`;
+            }
+            if (currentDebugTopic) {
+              prompt += ` Topic/pattern: ${currentDebugTopic}`;
+            }
+            console.log('[Widget] Debug similar problem - code length:', currentDebugCode.length, 'topic:', currentDebugTopic);
           }
           // === LEARN MODE ACTIONS ===
           else if (action === 'trace-walkthrough') {

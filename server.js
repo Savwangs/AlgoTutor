@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildExplainSimple } from './llm.js';
+import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildExplainSimple, generateDebugTraceWalkthrough, generateDebugSimilarProblem } from './llm.js';
 import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -115,18 +115,25 @@ const buildExplainSimpleSchema = z.object({
   previousContext: z.string().optional().describe("Previous response content for context-aware explanations"),
 });
 
-// Debug Mode Schema - ONLY INPUT FIELDS
+// Debug Mode Schema - simplified (only code and language)
 const debugModeInputSchema = z.object({
-  code: z.string().min(1).describe("The code snippet to debug or fill-in-the-blank code"),
-  problemDescription: z.string().optional().describe("Optional description of what the code should do"),
-  testCases: z.string().optional().describe("Optional test cases to verify the fix works"),
-  constraints: z.string().optional().describe("Optional time/space complexity constraints"),
+  code: z.string().min(1).describe("The code snippet to debug"),
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
-  debugMode: z.enum(["debug", "fill-in-blank"]).default("debug").describe("Mode: debug existing code or fill-in-the-blank exercise"),
-  generateTests: z.boolean().default(true).describe("Whether to generate test cases"),
-  showEdgeWarnings: z.boolean().default(true).describe("Whether to show edge case warnings"),
-  showTraceTable: z.boolean().default(true).describe("Whether to show step-by-step trace table in exam format"),
-  showPatternExplanation: z.boolean().default(true).describe("Whether to explain the algorithm pattern being used"),
+});
+
+// Debug Mode Trace/Walkthrough Schema - for follow-up requests
+const debugTraceWalkthroughSchema = z.object({
+  code: z.string().min(1).describe("The code to trace through"),
+  problem: z.string().optional().describe("Optional description of what the code does"),
+  language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
+});
+
+// Debug Mode Similar Problem Schema - for follow-up requests
+const debugSimilarProblemSchema = z.object({
+  code: z.string().min(1).describe("The original code that was debugged"),
+  problem: z.string().optional().describe("Description of what the code does"),
+  language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
+  topic: z.string().optional().describe("The algorithm/data structure topic inferred from the code"),
 });
 
 //
@@ -883,7 +890,7 @@ function createAlgoTutorServer() {
     {
       title: "AlgoTutor Debug Mode",
       description:
-        "Diagnoses bugs in code and explains fixes. Shows 'The Trick' callout explaining the bug, exact bug line, step-by-step trace table in exam format, before/after code, 'If This Appears On Exam' variations, and test cases. Also supports fill-in-the-blank exercises where students need to complete code with blanks.",
+        "Diagnoses bugs in code and explains fixes. Shows 'The Trick' callout explaining the bug or confirming correctness, exact bug line (if bugs exist), before/after code comparison, 'If This Appears On Exam' variations, complexity analysis, and related patterns. If code is correct, provides an alternative approach with efficiency comparison.",
       inputSchema: debugModeInputSchema,
       _meta: {
         "openai/outputTemplate": "ui://widget/algo-tutor.html",
@@ -953,7 +960,7 @@ function createAlgoTutorServer() {
           logInfo('Invalid input detected', outputs.message);
           return makeToolOutput("debug", {
             invalidInput: true,
-            message: outputs.message || 'Please enter valid code to debug or a fill-in-the-blank exercise.'
+            message: outputs.message || 'Please enter valid code to debug.'
           });
         }
         
@@ -1016,7 +1023,7 @@ function createAlgoTutorServer() {
         // Log usage with V2 personalization metadata
         const debugMetadata = {
           patternDetected: outputs.whatCodeDoes || null,
-          mistakeType: extractMistakeType(outputs),
+          mistakeType: outputs.codeIsCorrect ? 'code-correct' : extractMistakeType(outputs),
           trickShown: outputs.theTrick || null,
           dataStructures: detectDataStructures(args.code), // Detect from user's code
           whatProfessorsTest: outputs.ifOnExam || null, // Maps to If On Exam field
@@ -1025,22 +1032,16 @@ function createAlgoTutorServer() {
           difficultyScore: outputs.difficultyScore || null,
           relatedPatterns: outputs.relatedPatterns || null,
           requestData: {
-            debugMode: args.debugMode,
             hasCode: !!args.code,
             codeLength: args.code ? args.code.length : 0,
-            language: args.language,
-            hasProblemDescription: !!args.problemDescription,
-            hasTestCases: !!args.testCases,
-            hasConstraints: !!args.constraints,
-            generateTests: args.generateTests,
-            showEdgeWarnings: args.showEdgeWarnings
+            language: args.language
           },
           responseSummary: {
-            isFillinBlank: !!outputs.fillInBlankAnswers,
+            codeIsCorrect: !!outputs.codeIsCorrect,
+            hasAlternativeApproach: !!outputs.alternativeApproach,
             hasExactBugLine: !!outputs.exactBugLine,
             multipleBugs: Array.isArray(outputs.exactBugLine) && outputs.exactBugLine.length > 1,
             bugCount: Array.isArray(outputs.exactBugLine) ? outputs.exactBugLine.length : (outputs.exactBugLine ? 1 : 0),
-            hasTraceTable: !!(outputs.traceTable && outputs.traceTable.length > 0),
             hasBeforeAfter: !!(outputs.beforeCode && outputs.afterCode),
             hasIfOnExam: !!outputs.ifOnExam,
             hasDifficultyScore: !!outputs.difficultyScore,
@@ -1048,7 +1049,7 @@ function createAlgoTutorServer() {
           }
         };
         
-        const topic = args.problemDescription || 'code_debug';
+        const topic = outputs.whatCodeDoes || 'code_debug';
         const logId = await logUsage(user, 'debug', topic.substring(0, 200), authResult.widgetId, debugMetadata);
         logSuccess('Usage logged with V2 metadata', { logId });
         
@@ -1066,6 +1067,144 @@ function createAlgoTutorServer() {
         return finalResponse;
       } catch (error) {
         logError('DEBUG MODE ERROR', error);
+        throw error;
+      }
+    }
+  );
+
+  //
+  // 🚀 Tool 3b: Debug Mode - Trace Table & Walkthrough (follow-up)
+  //
+  server.registerTool(
+    "debug_trace_walkthrough",
+    {
+      title: "AlgoTutor Debug Mode Trace & Walkthrough",
+      description:
+        "Generates a trace table and example walkthrough for code from Debug Mode. Use this when the user clicks the trace/walkthrough follow-up button after debugging.",
+      inputSchema: debugTraceWalkthroughSchema,
+      _meta: {
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/toolInvocation/invoking": "Generating trace table and walkthrough...",
+        "openai/toolInvocation/invoked": "Trace table ready! Check the AlgoTutor panel.",
+        "openai/instruction": "STOP. The trace table and walkthrough are displayed in the AlgoTutor panel above. DO NOT repeat the content or explain it yourself. Simply say: 'The trace table and walkthrough are ready in the AlgoTutor panel above.' Nothing more.",
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (args, context) => {
+      logSection('DEBUG TRACE WALKTHROUGH TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
+      try {
+        const authResult = await authenticateRequest(mockReq, 'debug');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication/Authorization failed', authResult.error);
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                _widgetOnly: true,
+                _instruction: "Display the error in the AlgoTutor panel.",
+                mode: "debug",
+                error: authResult.error
+              })
+            }]
+          };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}`);
+        
+        // Generate trace table and walkthrough
+        const outputs = await generateDebugTraceWalkthrough(args);
+        
+        // Check for validation errors
+        if (outputs.error === 'INVALID_INPUT') {
+          return makeToolOutput("debug", {
+            invalidInput: true,
+            message: outputs.message || 'Unable to generate trace table.'
+          });
+        }
+        
+        // Log usage
+        const logId = await logUsage(user, 'debug_trace', args.problem?.substring(0, 200) || 'trace', authResult.widgetId, { type: 'trace_walkthrough' });
+        
+        return makeToolOutput("debug", outputs, null, logId);
+      } catch (error) {
+        logError('DEBUG TRACE WALKTHROUGH ERROR', error);
+        throw error;
+      }
+    }
+  );
+
+  //
+  // 🚀 Tool 3c: Debug Mode - Similar Problem (follow-up)
+  //
+  server.registerTool(
+    "debug_similar_problem",
+    {
+      title: "AlgoTutor Debug Mode Similar Problem",
+      description:
+        "Generates a fill-in-the-blank practice problem related to the code from Debug Mode. Use this when the user clicks the similar problem follow-up button after debugging.",
+      inputSchema: debugSimilarProblemSchema,
+      _meta: {
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/toolInvocation/invoking": "Generating similar problem...",
+        "openai/toolInvocation/invoked": "Practice problem ready! Check the AlgoTutor panel.",
+        "openai/instruction": "STOP. The practice problem is displayed in the AlgoTutor panel above. DO NOT repeat the problem or give hints. Simply say: 'A similar practice problem is ready in the AlgoTutor panel above. Try to fill in the blanks!' Nothing more.",
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (args, context) => {
+      logSection('DEBUG SIMILAR PROBLEM TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
+      try {
+        const authResult = await authenticateRequest(mockReq, 'debug');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication/Authorization failed', authResult.error);
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                _widgetOnly: true,
+                _instruction: "Display the error in the AlgoTutor panel.",
+                mode: "debug",
+                error: authResult.error
+              })
+            }]
+          };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}`);
+        
+        // Generate similar problem
+        const outputs = await generateDebugSimilarProblem(args);
+        
+        // Check for validation errors
+        if (outputs.error === 'INVALID_INPUT') {
+          return makeToolOutput("debug", {
+            invalidInput: true,
+            message: outputs.message || 'Unable to generate similar problem.'
+          });
+        }
+        
+        // Log usage
+        const logId = await logUsage(user, 'debug_similar', args.problem?.substring(0, 200) || 'similar', authResult.widgetId, { type: 'similar_problem' });
+        
+        return makeToolOutput("debug", outputs, null, logId);
+      } catch (error) {
+        logError('DEBUG SIMILAR PROBLEM ERROR', error);
         throw error;
       }
     }
