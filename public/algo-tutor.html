@@ -349,6 +349,41 @@
         overflow-x: auto;
       }
 
+      /* Code block wrapper for copy button */
+      .code-block-copy-wrapper {
+        position: relative;
+      }
+
+      .copy-code-btn {
+        position: absolute;
+        bottom: 8px;
+        right: 8px;
+        background: rgba(59, 130, 246, 0.15);
+        border: 1px solid rgba(59, 130, 246, 0.3);
+        border-radius: 6px;
+        color: var(--text-muted);
+        font-size: 0.7rem;
+        padding: 4px 10px;
+        cursor: pointer;
+        display: inline-flex;
+        align-items: center;
+        gap: 4px;
+        transition: all 0.2s;
+        z-index: 2;
+      }
+
+      .copy-code-btn:hover {
+        background: rgba(59, 130, 246, 0.3);
+        color: var(--text-strong);
+        border-color: var(--accent);
+      }
+
+      .copy-code-btn.copied {
+        background: rgba(16, 185, 129, 0.2);
+        border-color: rgba(16, 185, 129, 0.4);
+        color: var(--success);
+      }
+
       /* Text block for walkthroughs and explanations - improved readability */
       .text-block {
         font-size: 0.88rem;
@@ -1430,6 +1465,95 @@
         color: var(--text-main);
       }
 
+      /* AI Recommendation Button and Display */
+      .ai-recommendation-btn {
+        display: inline-flex;
+        align-items: center;
+        gap: 8px;
+        margin-top: 16px;
+        padding: 10px 20px;
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.2), rgba(59, 130, 246, 0.2));
+        border: 1px solid rgba(168, 85, 247, 0.4);
+        border-radius: 10px;
+        color: #c084fc;
+        font-size: 0.85rem;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.2s;
+      }
+
+      .ai-recommendation-btn:hover {
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.35), rgba(59, 130, 246, 0.35));
+        border-color: rgba(168, 85, 247, 0.6);
+        transform: translateY(-1px);
+        box-shadow: 0 4px 12px rgba(168, 85, 247, 0.3);
+      }
+
+      .ai-recommendation-btn:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+        transform: none;
+        box-shadow: none;
+      }
+
+      .ai-recommendation-btn .spinner {
+        display: inline-block;
+        width: 14px;
+        height: 14px;
+        border: 2px solid rgba(168, 85, 247, 0.3);
+        border-top-color: #c084fc;
+        border-radius: 50%;
+        animation: spin 0.8s linear infinite;
+      }
+
+      .ai-recommendation-container {
+        margin-top: 16px;
+        padding: 16px;
+        background: linear-gradient(135deg, rgba(168, 85, 247, 0.08), rgba(59, 130, 246, 0.08));
+        border: 1px solid rgba(168, 85, 247, 0.3);
+        border-radius: 12px;
+      }
+
+      .ai-recommendation-title {
+        font-size: 0.95rem;
+        font-weight: 700;
+        color: #c084fc;
+        margin-bottom: 12px;
+        display: flex;
+        align-items: center;
+        gap: 8px;
+      }
+
+      .ai-recommendation-section {
+        margin-bottom: 14px;
+      }
+
+      .ai-recommendation-section:last-child {
+        margin-bottom: 0;
+      }
+
+      .ai-recommendation-section-title {
+        font-size: 0.85rem;
+        font-weight: 600;
+        color: var(--text-strong);
+        margin-bottom: 6px;
+      }
+
+      .ai-recommendation-section-content {
+        font-size: 0.83rem;
+        line-height: 1.7;
+        color: var(--text-main);
+      }
+
+      .ai-recommendation-section-content ul {
+        margin: 4px 0;
+        padding-left: 18px;
+      }
+
+      .ai-recommendation-section-content li {
+        margin: 4px 0;
+      }
+
       /* Trace Table and Walkthrough Specific Styles */
       .trace-walkthrough-container {
         padding: 16px;
@@ -1877,8 +2001,51 @@
 
         console.log("[Widget] ✅ Outputs has content, proceeding to render blocks");
         
+        // === AI RECOMMENDATION RENDERING ===
+        if (outputs.isAIRecommendation) {
+          const recContainer = document.createElement('div');
+          recContainer.className = 'ai-recommendation-container';
+          recContainer.innerHTML = `<div class="ai-recommendation-title">🤖 AI Study Recommendation</div>`;
+          
+          // Helper to render a section with a list of points
+          const addRecSection = (title, items) => {
+            if (!items || (Array.isArray(items) && items.length === 0)) return;
+            const sectionEl = document.createElement('div');
+            sectionEl.className = 'ai-recommendation-section';
+            sectionEl.innerHTML = `
+              <div class="ai-recommendation-section-title">${escapeHtml(title)}</div>
+              <div class="ai-recommendation-section-content">${
+                Array.isArray(items)
+                  ? '<ul>' + items.map(p => `<li>${escapeHtml(p)}</li>`).join('') + '</ul>'
+                  : escapeHtml(String(items)).replace(/\n/g, '<br>')
+              }</div>
+            `;
+            recContainer.appendChild(sectionEl);
+          };
+          
+          addRecSection('📚 What to Study', outputs.whatToStudy);
+          addRecSection('🔍 Pattern Recognition Tips', outputs.patternTips);
+          addRecSection('🎯 Practice Strategy', outputs.practiceStrategy);
+          addRecSection('💡 Key Takeaways', outputs.keyTakeaways);
+          
+          // Encouragement (displayed differently - as a callout)
+          if (outputs.encouragement) {
+            const encEl = document.createElement('div');
+            encEl.className = 'ai-recommendation-section';
+            encEl.innerHTML = `
+              <div style="padding: 10px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: #10b981; font-size: 0.85rem; line-height: 1.6;">
+                💪 ${escapeHtml(outputs.encouragement)}
+              </div>
+            `;
+            recContainer.appendChild(encEl);
+          }
+          
+          outputContainer.appendChild(recContainer);
+          return;
+        }
+        
         // Determine mode based on outputs
-        const isDebugMode = outputs.exactBugLine || outputs.fillInBlankAnswers || outputs.beforeCode;
+        const isDebugMode = outputs.exactBugLine || outputs.fillInBlankAnswers || outputs.beforeCode || outputs.isDebugFillInBlank;
         const isBuildMode = outputs.theShortcut || outputs.dontForget || outputs.isBuildMode;
         const isLearnMode = outputs.patternSignature || outputs.whatProfessorsTest || outputs.isLearnMode;
 
@@ -1954,8 +2121,8 @@
           });
         }
 
-        // Example Walkthrough (Learn mode only - skip for Build Mode trace responses)
-        if (outputs.exampleWalkthrough && !outputs.isBuildTraceWalkthrough) {
+        // Example Walkthrough (Learn mode only - skip for Build Mode and Debug Mode trace responses)
+        if (outputs.exampleWalkthrough && !outputs.isBuildTraceWalkthrough && !outputs.isDebugTraceWalkthrough) {
           blocks.push({
             title: "Example Walkthrough",
             content: outputs.exampleWalkthrough,
@@ -1972,14 +2139,14 @@
           });
         }
 
-        // Trace Table / Dry-run table (exam format) - skip for Build Mode trace responses
-        if (outputs.traceTable && Array.isArray(outputs.traceTable) && !outputs.isBuildTraceWalkthrough) {
+        // Trace Table / Dry-run table (exam format) - skip for Build Mode and Debug Mode trace responses
+        if (outputs.traceTable && Array.isArray(outputs.traceTable) && !outputs.isBuildTraceWalkthrough && !outputs.isDebugTraceWalkthrough) {
           blocks.push({
             title: "Trace Table (Exam Format)",
             content: outputs.traceTable,
             type: "table",
           });
-        } else if (outputs.dryRunTable && Array.isArray(outputs.dryRunTable) && !outputs.isBuildTraceWalkthrough) {
+        } else if (outputs.dryRunTable && Array.isArray(outputs.dryRunTable) && !outputs.isBuildTraceWalkthrough && !outputs.isDebugTraceWalkthrough) {
           blocks.push({
             title: "Trace Table (Exam Format)",
             content: outputs.dryRunTable,
@@ -2181,9 +2348,9 @@
           outputContainer.appendChild(blockEl);
         }
 
-        // Test Cases (skip for real-world examples, similar problems, and initial debug mode - test cases only shown in follow-ups)
+        // Test Cases (skip for real-world examples, similar problems, debug trace walkthrough, and initial debug mode - test cases only shown in follow-ups)
         const isInitialDebugResponse = isDebugMode && !outputs.isDebugTraceWalkthrough && !outputs.isDebugSimilarProblem;
-        if (outputs.testCases && Array.isArray(outputs.testCases) && !outputs.isRealWorldExample && !outputs.isDebugSimilarProblem && !isInitialDebugResponse) {
+        if (outputs.testCases && Array.isArray(outputs.testCases) && !outputs.isRealWorldExample && !outputs.isDebugSimilarProblem && !isInitialDebugResponse && !outputs.isDebugTraceWalkthrough) {
           const blockEl = document.createElement("div");
           blockEl.className = "output-block";
           blockEl.innerHTML = `<h3>Test Cases</h3>`;
@@ -2661,6 +2828,105 @@
           lastDebugResponse = outputs;
         }
         
+        // === DEBUG MODE FILL-IN-THE-BLANK RESPONSE ===
+        if (outputs.isDebugFillInBlank) {
+          const fillBlankContainer = document.createElement("div");
+          fillBlankContainer.className = "debug-fillin-container";
+          
+          // What Code Does
+          if (outputs.whatCodeDoes) {
+            const whatEl = document.createElement("div");
+            whatEl.className = "output-block";
+            whatEl.innerHTML = `<h3>What This Code Does</h3><div class="text-block">${escapeHtml(outputs.whatCodeDoes)}</div>`;
+            fillBlankContainer.appendChild(whatEl);
+          }
+          
+          // Blank Analysis
+          if (outputs.blankAnalysis && Array.isArray(outputs.blankAnalysis) && outputs.blankAnalysis.length > 0) {
+            const blanksEl = document.createElement("div");
+            blanksEl.className = "output-block";
+            blanksEl.innerHTML = `<h3>Blank Analysis</h3>`;
+            
+            outputs.blankAnalysis.forEach((blank) => {
+              const blankDiv = document.createElement("div");
+              blankDiv.style.cssText = "padding: 12px; margin-bottom: 10px; border-radius: 8px; border-left: 4px solid;";
+              
+              let icon, statusText, borderColor;
+              if (blank.blankType === 'empty' || blank.isCorrect === null) {
+                icon = '📝';
+                statusText = 'Left blank — filled in for you';
+                borderColor = '#3b82f6';
+              } else if (blank.isCorrect) {
+                icon = '✅';
+                statusText = 'Correct!';
+                borderColor = '#10b981';
+              } else {
+                icon = '❌';
+                statusText = 'Incorrect — corrected';
+                borderColor = '#ef4444';
+              }
+              
+              blankDiv.style.borderLeftColor = borderColor;
+              blankDiv.style.background = `${borderColor}15`;
+              
+              blankDiv.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 4px; color: var(--text-strong);">
+                  ${icon} Line ${blank.lineNumber || '?'}: ${statusText}
+                </div>
+                ${blank.originalText ? `<div style="color: var(--text-muted); font-size: 0.85rem; margin-bottom: 4px;">Original: <code style="background: rgba(255,255,255,0.1); padding: 2px 6px; border-radius: 3px;">${escapeHtml(blank.originalText)}</code></div>` : ''}
+                <div style="color: var(--text-main); font-size: 0.85rem; margin-bottom: 4px;">Correct: <code style="background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 3px; color: #10b981;">${escapeHtml(blank.correctAnswer || '')}</code></div>
+                ${blank.explanation ? `<div style="color: var(--text-muted); font-size: 0.8rem; margin-top: 4px;">${escapeHtml(blank.explanation)}</div>` : ''}
+              `;
+              blanksEl.appendChild(blankDiv);
+            });
+            
+            fillBlankContainer.appendChild(blanksEl);
+          }
+          
+          // Additional Bugs in non-blank code
+          if (outputs.additionalBugs && Array.isArray(outputs.additionalBugs) && outputs.additionalBugs.length > 0) {
+            const bugsEl = document.createElement("div");
+            bugsEl.className = "output-block";
+            bugsEl.innerHTML = `<h3>⚠️ Other Issues Found</h3>`;
+            
+            outputs.additionalBugs.forEach((bug) => {
+              const bugBox = document.createElement("div");
+              bugBox.className = "bug-line-box";
+              bugBox.style.marginBottom = "10px";
+              bugBox.innerHTML = `
+                <div class="bug-line-number">Line ${bug.lineNumber || '?'}</div>
+                <div class="bug-line-code">${escapeHtml(bug.code || '')}</div>
+                <div class="bug-line-issue">${escapeHtml(bug.issue || '')}</div>
+                ${bug.fix ? `<div style="margin-top: 6px; color: #10b981; font-size: 0.85rem;">Fix: <code style="background: rgba(16, 185, 129, 0.15); padding: 2px 6px; border-radius: 3px;">${escapeHtml(bug.fix)}</code></div>` : ''}
+              `;
+              bugsEl.appendChild(bugBox);
+            });
+            
+            fillBlankContainer.appendChild(bugsEl);
+          }
+          
+          // Fully Corrected Code
+          if (outputs.fullyCorrectedCode) {
+            const codeEl = document.createElement("div");
+            codeEl.className = "output-block";
+            codeEl.innerHTML = `
+              <h3>✅ Fully Corrected Code</h3>
+              <div class="code-block-wrapper" style="position: relative;">
+                <pre class="code-block">${escapeHtml(outputs.fullyCorrectedCode)}</pre>
+              </div>
+            `;
+            fillBlankContainer.appendChild(codeEl);
+          }
+          
+          outputContainer.appendChild(fillBlankContainer);
+          
+          // Update debug context for follow-ups
+          if (outputs.fullyCorrectedCode) {
+            currentDebugCode = outputs.fullyCorrectedCode;
+          }
+          lastDebugResponse = outputs;
+        }
+        
         // === DEBUG MODE SIMILAR PROBLEM RESPONSE ===
         if (outputs.isDebugSimilarProblem) {
           // Render using the same fill-in-blank function
@@ -2677,8 +2943,8 @@
         }
         
         // === DEBUG MODE FOLLOW-UP BUTTONS ===
-        // Show follow-up buttons after Debug Mode responses (initial, trace, or similar problem)
-        const showDebugFollowupButtons = isDebugMode || outputs.isDebugTraceWalkthrough || outputs.isDebugSimilarProblem;
+        // Show follow-up buttons after Debug Mode responses (initial, trace, similar problem, or fill-in-blank)
+        const showDebugFollowupButtons = isDebugMode || outputs.isDebugTraceWalkthrough || outputs.isDebugSimilarProblem || outputs.isDebugFillInBlank;
         
         if (showDebugFollowupButtons) {
           // Read echoed _debugContext from response first (survives new widget instances),
@@ -2686,7 +2952,10 @@
           const ctx = outputs._debugContext || {};
           
           // Update debug context from the response
-          if (outputs.afterCode && !outputs.isDebugTraceWalkthrough && !outputs.isDebugSimilarProblem) {
+          if (outputs.isDebugFillInBlank && outputs.fullyCorrectedCode) {
+            // Fill-in-blank debug response - use the corrected code
+            currentDebugCode = outputs.fullyCorrectedCode;
+          } else if (outputs.afterCode && !outputs.isDebugTraceWalkthrough && !outputs.isDebugSimilarProblem) {
             // Initial debug response - use the fixed/alternative code
             currentDebugCode = outputs.afterCode;
           } else if (outputs.isDebugSimilarProblem && outputs.fullSolution) {
@@ -2775,6 +3044,9 @@
           console.log("[Widget] Feedback buttons added for premium user, logId:", currentLogId);
         }
         
+        // Add copy-to-clipboard buttons to all code blocks (except fill-in-blank quiz code)
+        addCopyButtons(outputContainer);
+        
         console.log("[Widget] ✅✅✅ RENDERING COMPLETE - All blocks added to DOM");
         console.log("[Widget] outputContainer has", outputContainer.children.length, "children");
       };
@@ -2830,6 +3102,59 @@
           .replace(/"/g, "&quot;");
 
       // Render Fill-in-the-Blank Problem (for Real World Example)
+      // Add copy-to-clipboard buttons to all code blocks (except fill-in-blank quiz code)
+      const addCopyButtons = (container) => {
+        const codeBlocks = container.querySelectorAll('pre.code-block');
+        codeBlocks.forEach(pre => {
+          // Skip if already has copy button or is inside a fill-in-blank quiz
+          if (pre.closest('.fillin-container') || pre.closest('.fillin-code-container')) return;
+          if (pre.parentElement.querySelector('.copy-code-btn')) return;
+          
+          // Wrap the pre in a relative container (reuse existing wrapper if present)
+          let wrapper = pre.parentElement;
+          if (!wrapper.classList.contains('code-block-copy-wrapper') && !wrapper.classList.contains('code-block-wrapper')) {
+            wrapper = document.createElement('div');
+            wrapper.className = 'code-block-copy-wrapper';
+            pre.parentNode.insertBefore(wrapper, pre);
+            wrapper.appendChild(pre);
+          }
+          wrapper.style.position = 'relative';
+          
+          // Create copy button
+          const copyBtn = document.createElement('button');
+          copyBtn.className = 'copy-code-btn';
+          copyBtn.innerHTML = '📋 Copy';
+          copyBtn.onclick = async () => {
+            try {
+              await navigator.clipboard.writeText(pre.textContent);
+              copyBtn.innerHTML = '✓ Copied to clipboard';
+              copyBtn.classList.add('copied');
+              setTimeout(() => {
+                copyBtn.innerHTML = '📋 Copy';
+                copyBtn.classList.remove('copied');
+              }, 2000);
+            } catch (err) {
+              // Fallback for environments without clipboard API
+              const textArea = document.createElement('textarea');
+              textArea.value = pre.textContent;
+              textArea.style.position = 'fixed';
+              textArea.style.opacity = '0';
+              document.body.appendChild(textArea);
+              textArea.select();
+              document.execCommand('copy');
+              document.body.removeChild(textArea);
+              copyBtn.innerHTML = '✓ Copied to clipboard';
+              copyBtn.classList.add('copied');
+              setTimeout(() => {
+                copyBtn.innerHTML = '📋 Copy';
+                copyBtn.classList.remove('copied');
+              }, 2000);
+            }
+          };
+          wrapper.appendChild(copyBtn);
+        });
+      };
+
       const renderFillInBlankProblem = (outputs) => {
         const container = document.createElement("div");
         container.className = "fillin-container";
@@ -2856,10 +3181,19 @@
           codeSection.className = "fillin-code-container";
           const codeEl = document.createElement("pre");
           codeEl.className = "fillin-code";
-          // Highlight blanks
+          // Highlight blanks - support ___BLANK_N___ markers
           let highlightedCode = escapeHtml(outputs.codeWithBlanks);
           highlightedCode = highlightedCode.replace(/___BLANK_(\d+)___/g, 
             '<span style="background: rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 4px; color: #fbbf24;">[ BLANK $1 ]</span>');
+          // Fallback: also highlight other blank patterns that LLM may produce
+          highlightedCode = highlightedCode.replace(/\[BLANK\s*(\d+)\]/gi,
+            '<span style="background: rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 4px; color: #fbbf24;">[ BLANK $1 ]</span>');
+          highlightedCode = highlightedCode.replace(/_{3,}/g,
+            '<span style="background: rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 4px; color: #fbbf24;">______</span>');
+          highlightedCode = highlightedCode.replace(/#\s*YOUR\s*CODE\s*HERE/gi,
+            '<span style="background: rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 4px; color: #fbbf24;"># YOUR CODE HERE</span>');
+          highlightedCode = highlightedCode.replace(/TODO/g,
+            '<span style="background: rgba(245, 158, 11, 0.3); padding: 2px 8px; border-radius: 4px; color: #fbbf24;">TODO</span>');
           codeEl.innerHTML = highlightedCode;
           codeSection.appendChild(codeEl);
           container.appendChild(codeSection);
@@ -3029,6 +3363,75 @@
               <div class="fillin-hint-feedback">💡 Hint: ${escapeHtml(hintText)}</div>
             `;
           }
+        }
+        
+        // Check if ALL blanks are resolved (correct or out of tries) to show AI Recommendation button
+        const fillinContainer = blankItem.closest('.fillin-container');
+        if (fillinContainer) {
+          const allBlanks = fillinContainer.querySelectorAll('.fillin-blank-item');
+          const allResolved = Array.from(allBlanks).every(item => {
+            const checkBtn = item.querySelector('.fillin-check-btn');
+            return checkBtn && checkBtn.disabled;
+          });
+          
+          if (allResolved && !fillinContainer.querySelector('.ai-recommendation-btn')) {
+            const recBtn = document.createElement('button');
+            recBtn.className = 'ai-recommendation-btn';
+            recBtn.innerHTML = '🤖 AI Recommendation';
+            recBtn.onclick = () => triggerAIRecommendation(fillinContainer, recBtn);
+            fillinContainer.appendChild(recBtn);
+          }
+        }
+      };
+
+      // Trigger AI Recommendation based on fill-in-the-blank performance
+      const triggerAIRecommendation = async (fillinContainer, btn) => {
+        // Disable button and show loading
+        btn.disabled = true;
+        btn.innerHTML = '<span class="spinner"></span> Generating recommendation...';
+        
+        // Gather performance data from all blanks
+        const allBlanks = fillinContainer.querySelectorAll('.fillin-blank-item');
+        const performanceData = Array.from(allBlanks).map((item, idx) => {
+          const blankId = item.dataset.blankId || (idx + 1);
+          const answer = item.dataset.answer || '';
+          const attempts = parseInt(item.dataset.attempts || '0');
+          const checkBtn = item.querySelector('.fillin-check-btn');
+          const feedbackEl = item.querySelector('.fillin-feedback');
+          const isCorrect = feedbackEl && feedbackEl.classList.contains('correct');
+          const hintEl = item.querySelector('.fillin-hint');
+          const usedHint = hintEl ? hintEl.classList.contains('visible') : false;
+          
+          return {
+            blankId: blankId,
+            correctAnswer: answer,
+            attempts: attempts,
+            gotCorrect: isCorrect,
+            usedHint: usedHint
+          };
+        });
+        
+        // Get problem context
+        const problemTitle = fillinContainer.querySelector('.fillin-problem-title');
+        const problemDesc = fillinContainer.querySelector('.fillin-problem-description');
+        const problemContext = (problemTitle ? problemTitle.textContent : '') + ' ' + (problemDesc ? problemDesc.textContent : '');
+        
+        // Build prompt for AI recommendation
+        const perfSummary = performanceData.map(p => 
+          `Blank ${p.blankId}: answer="${p.correctAnswer}", attempts=${p.attempts}, correct=${p.gotCorrect}, usedHint=${p.usedHint}`
+        ).join('; ');
+        
+        const prompt = `Use AlgoTutor ai_recommendation tool to give me a study recommendation. ` +
+          `Problem: ${problemContext.trim().substring(0, 500)}. ` +
+          `Performance: ${perfSummary}`;
+        
+        try {
+          await sendFollowUp(prompt);
+          btn.innerHTML = '✅ Recommendation sent!';
+        } catch (err) {
+          console.error('[Widget] AI recommendation failed:', err);
+          btn.innerHTML = '🤖 AI Recommendation';
+          btn.disabled = false;
         }
       };
 

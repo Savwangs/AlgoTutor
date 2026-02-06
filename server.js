@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildExplainSimple, generateDebugTraceWalkthrough, generateDebugSimilarProblem } from './llm.js';
+import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateDebugFillInBlank, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildExplainSimple, generateDebugTraceWalkthrough, generateDebugSimilarProblem, generateAIRecommendation } from './llm.js';
 import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -262,6 +262,40 @@ function detectDataStructures(code) {
   if (lowerCode.includes('window') || (lowerCode.includes('start') && lowerCode.includes('end') && lowerCode.includes('while'))) structures.push('sliding_window');
   
   return [...new Set(structures)];
+}
+
+//
+// Helper: Detect blank placeholders in code (for Fill-in-the-Blank debug mode)
+//
+function detectBlanks(code) {
+  if (!code) return false;
+  
+  const patterns = [
+    // Underscores of any length (2+ consecutive)
+    /_{2,}/,
+    // Comment-style "YOUR CODE HERE" markers (case-insensitive, minor typos)
+    /#\s*your\s*cod[e]?\s*here/i,
+    /\/\/\s*your\s*cod[e]?\s*here/i,
+    /\/\*\s*your\s*cod[e]?\s*here\s*\*\//i,
+    // TODO markers (standalone, not part of a word in functional code)
+    /^\s*#\s*todo\b/im,
+    /^\s*\/\/\s*todo\b/im,
+    /^\s*todo\s*:/im,
+    // Explicit blank markers
+    /___BLANK(?:_\d+)?___/,
+    /\[BLANK\]/i,
+    // Standalone BLANK on a line
+    /^\s*BLANK\s*$/m,
+  ];
+  
+  let blankCount = 0;
+  for (const pattern of patterns) {
+    const matches = code.match(new RegExp(pattern.source, pattern.flags + (pattern.flags.includes('g') ? '' : 'g')));
+    if (matches) blankCount += matches.length;
+  }
+  
+  // Only trigger fill-in-the-blank mode if at least 1 clear blank pattern found
+  return blankCount >= 1;
 }
 
 //
@@ -951,10 +985,16 @@ function createAlgoTutorServer() {
         
         console.log(`[debug_mode] Session created: ${id} for user: ${user.email}`);
         
-        // Generate debug analysis with Claude
+        // Check for blank placeholders in the code
+        const hasBlanks = detectBlanks(args.code);
+        logInfo('Blank detection', { hasBlanks });
+        
+        // Generate debug analysis (route to fill-in-blank if blanks detected)
         logSection('CALLING LLM TO DEBUG CODE');
-        const outputs = await generateDebugAnalysis(args);
-        logSuccess('Debug analysis generated');
+        const outputs = hasBlanks 
+          ? await generateDebugFillInBlank(args)
+          : await generateDebugAnalysis(args);
+        logSuccess(hasBlanks ? 'Fill-in-blank debug analysis generated' : 'Debug analysis generated');
         
         // Check for validation errors (invalid/irrelevant input)
         if (outputs.error === 'INVALID_INPUT') {
@@ -1206,6 +1246,75 @@ function createAlgoTutorServer() {
         return makeToolOutput("debug", outputs, null, logId);
       } catch (error) {
         logError('DEBUG SIMILAR PROBLEM ERROR', error);
+        throw error;
+      }
+    }
+  );
+
+  //
+  // 🚀 Tool 3d: AI Recommendation (follow-up after fill-in-the-blank)
+  //
+  const aiRecommendationSchema = z.object({
+    performanceData: z.string().min(1).describe("JSON string of per-blank performance stats"),
+    problemTitle: z.string().optional().describe("Title of the problem"),
+    topic: z.string().optional().describe("The DSA topic"),
+    problemDescription: z.string().optional().describe("Description of the problem"),
+    codeWithBlanks: z.string().optional().describe("The code with blanks"),
+  });
+
+  server.registerTool(
+    "ai_recommendation",
+    {
+      title: "AlgoTutor AI Recommendation",
+      description:
+        "Generates a personalized study recommendation based on the user's fill-in-the-blank quiz performance. Use when the user clicks the AI Recommendation button after completing a quiz.",
+      inputSchema: aiRecommendationSchema,
+      _meta: {
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/toolInvocation/invoking": "Generating personalized recommendation...",
+        "openai/toolInvocation/invoked": "Recommendation ready! Check the AlgoTutor panel.",
+        "openai/instruction": "STOP. The AI recommendation is displayed in the AlgoTutor panel above. DO NOT repeat the recommendation. Simply say: 'Your personalized study recommendation is ready in the AlgoTutor panel above.' Nothing more.",
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (args, context) => {
+      logSection('AI RECOMMENDATION TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
+      try {
+        const authResult = await authenticateRequest(mockReq, 'debug');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication/Authorization failed', authResult.error);
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                _widgetOnly: true,
+                _instruction: "Display the error in the AlgoTutor panel.",
+                mode: "debug",
+                error: authResult.error
+              })
+            }]
+          };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}`);
+        
+        // Generate AI recommendation
+        const outputs = await generateAIRecommendation(args);
+        
+        // Log usage
+        const logId = await logUsage(user, 'ai_recommendation', args.topic?.substring(0, 200) || 'recommendation', authResult.widgetId, { type: 'ai_recommendation' });
+        
+        return makeToolOutput("debug", outputs, null, logId);
+      } catch (error) {
+        logError('AI RECOMMENDATION ERROR', error);
         throw error;
       }
     }

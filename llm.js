@@ -434,6 +434,110 @@ Return ONLY valid JSON with the required fields.`;
   }
 }
 
+// Generate Debug Mode Fill-in-the-Blank analysis
+export async function generateDebugFillInBlank(args) {
+  console.log('[generateDebugFillInBlank] Starting fill-in-blank debug analysis');
+  console.log('[generateDebugFillInBlank] Args:', JSON.stringify(args, null, 2));
+  
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert code debugger focused on EXAM SUCCESS. Your job is to analyze code that contains blank placeholders (like ____, TODO, # YOUR CODE HERE, etc.), determine the correct code for each blank, and also check for bugs in the non-blank portions. 
+
+You must handle THREE cases:
+1. Blank lines the user left empty → provide the correct code
+2. Blanks the user attempted to fill in (possibly incorrectly) → check and correct/confirm
+3. Bugs in non-blank parts of the code → identify and explain separately
+
+Be thorough and helpful. Respond with valid JSON only.`;
+  
+  const userPrompt = `Analyze this ${args.language} code that contains blanks/placeholders:
+\`\`\`${args.language}
+${args.code}
+\`\`\`
+
+STEP 1: Identify ALL blank/placeholder lines. These may appear as:
+- Underscores: __, ____, ____________ (any length of 2+ consecutive underscores)
+- Comment markers: "# YOUR CODE HERE", "// YOUR CODE HERE", "# TODO", "// TODO"
+- Explicit blanks: ___BLANK___, [BLANK], BLANK
+- Pass statements that serve as placeholders
+- Lines where the user attempted to fill in code (may be correct or incorrect)
+
+STEP 2: For each blank/placeholder, determine what the correct code should be.
+
+STEP 3: Check the non-blank portions for any additional bugs.
+
+STEP 4: Produce the fully corrected version with all blanks filled AND all bugs fixed.
+
+REQUIRED JSON SECTIONS:
+
+- isDebugFillInBlank: REQUIRED - Set to true
+
+- whatCodeDoes: REQUIRED - Plain English explanation of what this code is trying to accomplish. 1-2 sentences.
+
+- blankAnalysis: REQUIRED - Array of objects, one for each blank/placeholder found. Each object:
+  {
+    "lineNumber": number (approximate line number in the code),
+    "blankType": "empty" | "user_provided" (whether user left it blank or filled something in),
+    "originalText": "the original text at that line (e.g., '____' or 'return left')",
+    "correctAnswer": "the correct code that should go there",
+    "isCorrect": boolean (true if user's answer matches correct answer, false otherwise, null if blank was empty),
+    "explanation": "Why this is the correct code - explain the logic"
+  }
+
+- additionalBugs: REQUIRED - Array of bug objects found in NON-BLANK portions of the code. Each object:
+  {
+    "lineNumber": number,
+    "code": "the buggy line",
+    "issue": "explanation of the bug",
+    "fix": "the corrected code"
+  }
+  If no additional bugs found, set to empty array [].
+
+- fullyCorrectedCode: REQUIRED - The complete code with ALL blanks filled in correctly AND all bugs fixed. This must be valid, working ${args.language} code.
+
+- complexity: REQUIRED - Time and space complexity of the corrected code.
+
+- theTrick: REQUIRED - A memorable tip about the key concept(s) tested by these blanks.
+
+- difficultyScore: REQUIRED - "easy", "medium", or "hard"
+
+- relatedPatterns: REQUIRED - Array of 3-5 related DSA patterns.
+
+Return ONLY valid JSON with the required fields.`;
+
+  try {
+    const response = await callOpenAI(systemPrompt, userPrompt, 3000);
+    console.log('[generateDebugFillInBlank] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateDebugFillInBlank] ✓ Successfully parsed JSON response');
+    
+    if (parsed.error === 'INVALID_INPUT') {
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Please enter valid code to debug.'
+      };
+    }
+    
+    parsed.isDebugFillInBlank = true;
+    parsed.isDebugMode = true;
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateDebugFillInBlank] ❌ Failed:', error);
+    return {
+      isDebugFillInBlank: true,
+      isDebugMode: true,
+      whatCodeDoes: "Error analyzing code.",
+      blankAnalysis: [],
+      additionalBugs: [],
+      fullyCorrectedCode: args.code,
+      complexity: "N/A",
+      theTrick: "Error occurred. Please try again.",
+      difficultyScore: null,
+      relatedPatterns: [],
+    };
+  }
+}
+
 // Generate Debug Mode Trace Table & Walkthrough (on-demand follow-up)
 export async function generateDebugTraceWalkthrough(args) {
   console.log('[generateDebugTraceWalkthrough] Starting');
@@ -529,13 +633,15 @@ export async function generateDebugSimilarProblem(args) {
   console.log('[generateDebugSimilarProblem] Starting');
   console.log('[generateDebugSimilarProblem] Args:', JSON.stringify(args, null, 2));
   
-  const topicRanking = args.topic ? getTopicRanking(args.topic) : 15; // Default to mid-level
+  // Detect DS/algorithms from the original code instead of using rankings
+  const detected = detectDSAFromCode(args.code || '');
+  console.log('[generateDebugSimilarProblem] Detected from code:', detected);
   
-  // Build list of allowed data structures/algorithms based on ranking
-  const allowedConcepts = Object.entries(DSA_RANKINGS)
-    .filter(([_, rank]) => rank <= topicRanking)
-    .map(([name, _]) => name)
-    .join(', ');
+  // Build allowed concepts: detected DS/algos + simpler ones (rank 1 basics)
+  const detectedDSNames = detected.dataStructures;
+  const detectedAlgoNames = detected.algorithms;
+  const basicExtras = ['array', 'string', 'set']; // Always allow these simple extras if they fit
+  const allowedConcepts = [...new Set([...detectedDSNames, ...detectedAlgoNames, ...basicExtras])].join(', ');
   
   // Dynamic blank count based on code length
   const codeLines = (args.code || '').split('\n').length;
@@ -578,9 +684,9 @@ REQUIREMENTS:
 3. Should be a fresh, creative problem - not a copy of the original
 4. Blanks should NOT be straightforward or trivial - they should test CRITICAL understanding
 
-CRITICAL CONSTRAINT: The problem must ONLY use data structures and algorithms at or BELOW this ranking level: ${topicRanking}
-ALLOWED concepts: ${allowedConcepts}
-DO NOT use any advanced concepts not in the allowed list.
+CRITICAL CONSTRAINT: The problem must use the SAME data structures/algorithms as the original code.
+DETECTED concepts from code: ${allowedConcepts}
+You may add simpler ones (arrays, strings, sets) only if they naturally fit the problem, but do NOT introduce more complex structures or algorithms not detected from the original code.
 
 REQUIRED JSON SECTIONS:
 
@@ -622,6 +728,8 @@ REQUIRED JSON SECTIONS:
 10. LONG LINE SPLITTING: If a single line of code is longer than 40 characters OR contains logical operators like "and"/"or"/"&&"/"||" joining two distinct operations, split that line into 2 blanks instead of 1.
     Example: \`return helper(left) and helper(right)\` becomes \`return ___BLANK_2___ and ___BLANK_3___\` where BLANK_2 = "helper(left)" and BLANK_3 = "helper(right)"
     Example: \`if left_valid and right_valid and root.val > min_val:\` becomes \`if ___BLANK_2___ and ___BLANK_3___:\` 
+
+CRITICAL EMBEDDING RULE: The blanks in codeWithBlanks MUST appear as ___BLANK_1___, ___BLANK_2___${requiredBlankCount === 3 ? ', ___BLANK_3___' : ''} EMBEDDED DIRECTLY in the code string. Each blank MUST correspond to exactly one question in the blanks array. Do NOT just mention blanks in questions — they MUST be visible in the code.
 
 VERIFICATION STEP: Before outputting, COUNT the ___BLANK_X___ placeholders in your codeWithBlanks and VERIFY it equals ${requiredBlankCount}. If they don't match, FIX IT.
 
@@ -806,9 +914,8 @@ Return ONLY valid JSON with the required fields.`;
   }
 }
 
-// Data structure and algorithm rankings for complexity-appropriate problem generation
-const DSA_RANKINGS = {
-  // Data Structures (1-15)
+// Separate Data Structure and Algorithm rankings for complexity-appropriate problem generation
+const DS_RANKINGS = {
   'arrays': 1, 'array': 1, 'strings': 1, 'string': 1,
   'linked lists': 2, 'linked list': 2, 'linkedlist': 2, 'singly linked list': 2, 'doubly linked list': 2,
   'stacks': 3, 'stack': 3, 'queues': 3, 'queue': 3,
@@ -823,27 +930,59 @@ const DSA_RANKINGS = {
   'union find': 12, 'union-find': 12, 'disjoint set': 12,
   'segment tree': 13, 'segment trees': 13,
   'fenwick tree': 14, 'fenwick trees': 14, 'binary indexed tree': 14,
-  
-  // Algorithms & Techniques (15-32)
-  'two pointers': 15, 'two pointer': 15,
-  'sliding window': 16,
-  'binary search': 17,
-  'sorting': 18, 'bubble sort': 18, 'selection sort': 18, 'insertion sort': 18, 'merge sort': 18, 'quick sort': 18, 'heap sort': 18,
-  'recursion': 19, 'recursive': 19,
-  'backtracking': 20, 'backtrack': 20,
-  'bfs': 21, 'breadth first search': 21, 'breadth-first search': 21,
-  'dfs': 22, 'depth first search': 22, 'depth-first search': 22,
-  'tree traversal': 23, 'tree traversals': 23, 'inorder': 23, 'preorder': 23, 'postorder': 23,
-  'greedy': 24, 'greedy algorithm': 24,
-  'dynamic programming': 25, 'dp': 25, 'memoization': 25,
-  'topological sort': 26, 'cycle detection': 26, 'bipartite': 26,
-  'dijkstra': 27, 'bellman-ford': 27, 'floyd-warshall': 27, 'shortest path': 27,
-  'kruskal': 28, 'prim': 28, 'minimum spanning tree': 28, 'mst': 28,
-  'bit manipulation': 29, 'bitwise': 29,
-  'kmp': 30, 'rabin-karp': 30, 'z-algorithm': 30, 'string matching': 30,
-  'bitmask dp': 31, 'digit dp': 31, 'dp on trees': 31,
-  'scc': 32, 'strongly connected components': 32, 'articulation points': 32, 'bridges': 32,
 };
+
+const ALGO_RANKINGS = {
+  'two pointers': 1, 'two pointer': 1,
+  'sliding window': 2,
+  'binary search': 3,
+  'sorting': 4, 'bubble sort': 4, 'selection sort': 4, 'insertion sort': 4, 'merge sort': 4, 'quick sort': 4, 'heap sort': 4,
+  'recursion': 5, 'recursive': 5,
+  'backtracking': 6, 'backtrack': 6,
+  'bfs': 7, 'breadth first search': 7, 'breadth-first search': 7,
+  'dfs': 8, 'depth first search': 8, 'depth-first search': 8,
+  'tree traversal': 9, 'tree traversals': 9, 'inorder': 9, 'preorder': 9, 'postorder': 9,
+  'greedy': 10, 'greedy algorithm': 10,
+  'dynamic programming': 11, 'dp': 11, 'memoization': 11,
+  'topological sort': 12, 'cycle detection': 12, 'bipartite': 12,
+  'dijkstra': 13, 'bellman-ford': 13, 'floyd-warshall': 13, 'shortest path': 13,
+  'kruskal': 14, 'prim': 14, 'minimum spanning tree': 14, 'mst': 14,
+  'bit manipulation': 15, 'bitwise': 15,
+  'kmp': 16, 'rabin-karp': 16, 'z-algorithm': 16, 'string matching': 16,
+  'bitmask dp': 17, 'digit dp': 17, 'dp on trees': 17,
+};
+
+// Natural pairings: data structures that inherently require certain algorithms to be useful.
+// These algorithms are always allowed regardless of their rank when the paired DS is the topic.
+const NATURAL_PAIRINGS = {
+  'array':        ['two pointers', 'sliding window', 'binary search', 'sorting'],
+  'string':       ['two pointers', 'sliding window'],
+  'linked list':  ['two pointers', 'recursion'],
+  'stack':        [],
+  'queue':        ['bfs'],
+  'hash map':     [],
+  'set':          [],
+  'binary tree':  ['recursion', 'dfs', 'bfs', 'tree traversal'],
+  'bst':          ['recursion', 'binary search', 'tree traversal'],
+  'heap':         ['sorting', 'greedy'],
+  'graph':        ['bfs', 'dfs', 'recursion'],
+  'trie':         ['recursion', 'dfs'],
+  'union find':   [],
+  'segment tree': [],
+  'fenwick tree': [],
+};
+
+// Reverse natural pairings: when the topic is an algorithm, which DS are naturally paired?
+const REVERSE_NATURAL_PAIRINGS = {};
+for (const [ds, algos] of Object.entries(NATURAL_PAIRINGS)) {
+  for (const algo of algos) {
+    if (!REVERSE_NATURAL_PAIRINGS[algo]) REVERSE_NATURAL_PAIRINGS[algo] = [];
+    if (!REVERSE_NATURAL_PAIRINGS[algo].includes(ds)) REVERSE_NATURAL_PAIRINGS[algo].push(ds);
+  }
+}
+
+// Legacy combined rankings (kept for backward compatibility with getTopicRanking)
+const DSA_RANKINGS = { ...DS_RANKINGS, ...Object.fromEntries(Object.entries(ALGO_RANKINGS).map(([k, v]) => [k, v + 14])) };
 
 function getTopicRanking(topic) {
   const lowerTopic = topic.toLowerCase();
@@ -855,19 +994,130 @@ function getTopicRanking(topic) {
   return 10; // Default to middle ranking if not found
 }
 
+// Get DS rank for a topic (returns null if topic is purely an algorithm)
+function getTopicDSRanking(topic) {
+  const lowerTopic = topic.toLowerCase();
+  for (const [key, rank] of Object.entries(DS_RANKINGS)) {
+    if (lowerTopic.includes(key)) return rank;
+  }
+  return null;
+}
+
+// Get Algo rank for a topic (returns null if topic is purely a data structure)
+function getTopicAlgoRanking(topic) {
+  const lowerTopic = topic.toLowerCase();
+  for (const [key, rank] of Object.entries(ALGO_RANKINGS)) {
+    if (lowerTopic.includes(key)) return rank;
+  }
+  return null;
+}
+
+// Get natural pairings for a topic (normalizes to canonical key)
+function getNaturalPairings(topic) {
+  const lowerTopic = topic.toLowerCase();
+  // Check DS pairings
+  for (const key of Object.keys(NATURAL_PAIRINGS)) {
+    if (lowerTopic.includes(key)) return NATURAL_PAIRINGS[key];
+  }
+  return [];
+}
+
+// Build the full allowed concepts string for a given topic (used by Learn Mode)
+function buildAllowedConcepts(topic) {
+  const dsRank = getTopicDSRanking(topic);
+  const algoRank = getTopicAlgoRanking(topic);
+  const lowerTopic = topic.toLowerCase();
+
+  // Determine allowed data structures
+  let allowedDS;
+  if (dsRank !== null) {
+    // Topic is a DS: allow all DS at or below this rank
+    allowedDS = Object.entries(DS_RANKINGS).filter(([_, rank]) => rank <= dsRank).map(([name]) => name);
+  } else {
+    // Topic is an algorithm: find which DS are naturally paired with it, allow those and simpler
+    const pairedDS = REVERSE_NATURAL_PAIRINGS[lowerTopic] || [];
+    let maxDSRank = 0;
+    for (const ds of pairedDS) {
+      const r = DS_RANKINGS[ds];
+      if (r && r > maxDSRank) maxDSRank = r;
+    }
+    if (maxDSRank === 0) maxDSRank = 5; // Default to sets level if no pairing found
+    allowedDS = Object.entries(DS_RANKINGS).filter(([_, rank]) => rank <= maxDSRank).map(([name]) => name);
+  }
+
+  // Determine allowed algorithms
+  let allowedAlgos;
+  if (algoRank !== null) {
+    // Topic is an algorithm: allow all algos at or below this rank
+    allowedAlgos = Object.entries(ALGO_RANKINGS).filter(([_, rank]) => rank <= algoRank).map(([name]) => name);
+  } else {
+    // Topic is a DS: allow algos up to a base rank cap, PLUS natural pairings
+    // Base cap: use a reasonable default (rank 5 = recursion)
+    const baseCap = 5;
+    const baseAlgos = Object.entries(ALGO_RANKINGS).filter(([_, rank]) => rank <= baseCap).map(([name]) => name);
+    const naturalAlgos = getNaturalPairings(topic);
+    allowedAlgos = [...new Set([...baseAlgos, ...naturalAlgos])];
+  }
+
+  // Deduplicate and join
+  const allAllowed = [...new Set([...allowedDS, ...allowedAlgos])];
+  return allAllowed.join(', ');
+}
+
+// Detect DS/algorithms from code (used by Debug Similar Problem instead of rankings)
+function detectDSAFromCode(code) {
+  if (!code) return { dataStructures: [], algorithms: [] };
+  const lowerCode = code.toLowerCase();
+  const dataStructures = [];
+  const algorithms = [];
+
+  // Data Structures detection
+  if (lowerCode.includes('list') || lowerCode.includes('array') || lowerCode.includes('[]') || lowerCode.includes('append(')) dataStructures.push('array');
+  if (/\bstr\b/.test(lowerCode) || lowerCode.includes('string') || lowerCode.includes('charAt') || lowerCode.includes('.join(') || lowerCode.includes('.split(')) dataStructures.push('string');
+  if (lowerCode.includes('listnode') || lowerCode.includes('linked') || (lowerCode.includes('.next') && !lowerCode.includes('__next__'))) dataStructures.push('linked list');
+  if ((lowerCode.includes('.pop()') && lowerCode.includes('.append(')) || lowerCode.includes('stack')) dataStructures.push('stack');
+  if (lowerCode.includes('queue') || lowerCode.includes('deque') || lowerCode.includes('collections.deque')) dataStructures.push('queue');
+  if (lowerCode.includes('dict') || lowerCode.includes('hashmap') || lowerCode.includes('map<') || lowerCode.includes('{}') || lowerCode.includes('defaultdict')) dataStructures.push('hash map');
+  if (lowerCode.includes('set(') || lowerCode.includes('hashset') || lowerCode.includes('set<')) dataStructures.push('set');
+  if (lowerCode.includes('treenode') || lowerCode.includes('root.left') || lowerCode.includes('root.right') || lowerCode.includes('binarytree')) dataStructures.push('binary tree');
+  if (lowerCode.includes('bst') || lowerCode.includes('binary search tree')) dataStructures.push('bst');
+  if (lowerCode.includes('heap') || lowerCode.includes('heapq') || lowerCode.includes('priorityqueue') || lowerCode.includes('priority_queue')) dataStructures.push('heap');
+  if (lowerCode.includes('graph') || lowerCode.includes('adjacency') || lowerCode.includes('neighbors') || lowerCode.includes('adj_list')) dataStructures.push('graph');
+  if (lowerCode.includes('trie') || lowerCode.includes('trienode') || lowerCode.includes('prefix tree')) dataStructures.push('trie');
+
+  // Algorithm detection
+  if ((lowerCode.includes('left') && lowerCode.includes('right') && (lowerCode.includes('while') || lowerCode.includes('for'))) || lowerCode.includes('two pointer')) algorithms.push('two pointers');
+  if (lowerCode.includes('window') || (lowerCode.includes('start') && lowerCode.includes('end') && lowerCode.includes('while'))) algorithms.push('sliding window');
+  if ((lowerCode.includes('left') && lowerCode.includes('right') && lowerCode.includes('mid')) || lowerCode.includes('bisect')) algorithms.push('binary search');
+  if (lowerCode.includes('.sort(') || lowerCode.includes('sorted(') || lowerCode.includes('mergesort') || lowerCode.includes('quicksort')) algorithms.push('sorting');
+  // Recursion: look for a function calling itself
+  const funcMatch = lowerCode.match(/def\s+(\w+)\s*\(/);
+  if (funcMatch && lowerCode.includes(funcMatch[1] + '(')) algorithms.push('recursion');
+  if (lowerCode.includes('backtrack')) algorithms.push('backtracking');
+  if (lowerCode.includes('bfs') || (lowerCode.includes('queue') && lowerCode.includes('while') && lowerCode.includes('pop'))) algorithms.push('bfs');
+  if (lowerCode.includes('dfs') || (lowerCode.includes('visited') && (lowerCode.includes('stack') || algorithms.includes('recursion')))) algorithms.push('dfs');
+  if (lowerCode.includes('inorder') || lowerCode.includes('preorder') || lowerCode.includes('postorder') || lowerCode.includes('tree traversal')) algorithms.push('tree traversal');
+  if (lowerCode.includes('greedy')) algorithms.push('greedy');
+  if (lowerCode.includes('memo') || lowerCode.includes('@cache') || lowerCode.includes('@lru_cache') || lowerCode.includes('dp[') || lowerCode.includes('dp =')) algorithms.push('dynamic programming');
+
+  return {
+    dataStructures: [...new Set(dataStructures)],
+    algorithms: [...new Set(algorithms)],
+  };
+}
+
 // Generate Real World Example with Fill-in-the-Blank (on-demand for Learn Mode)
 export async function generateRealWorldExample(args) {
   console.log('[generateRealWorldExample] Starting for topic:', args.topic);
   console.log('[generateRealWorldExample] Args:', JSON.stringify(args, null, 2));
   
-  const topicRanking = getTopicRanking(args.topic);
-  console.log('[generateRealWorldExample] Topic ranking:', topicRanking);
+  const dsRank = getTopicDSRanking(args.topic);
+  const algoRank = getTopicAlgoRanking(args.topic);
+  console.log('[generateRealWorldExample] DS rank:', dsRank, 'Algo rank:', algoRank);
   
-  // Build list of allowed data structures/algorithms based on ranking
-  const allowedConcepts = Object.entries(DSA_RANKINGS)
-    .filter(([_, rank]) => rank <= topicRanking)
-    .map(([name, _]) => name)
-    .join(', ');
+  // Build list of allowed data structures/algorithms using separate rankings + natural pairings
+  const allowedConcepts = buildAllowedConcepts(args.topic);
+  const topicRanking = dsRank || algoRank || 5; // For constraint message
   
   const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a LeetCode-style fill-in-the-blank coding problem that tests understanding of the given algorithm/data structure. The problem should test CRITICAL understanding, not trivial syntax. Respond with valid JSON only.`;
   
@@ -1112,6 +1362,73 @@ Return ONLY valid JSON with the required fields.`;
       dryRunTable: [],
       exampleWalkthrough: "Error generating walkthrough. Please try again.",
       isBuildTraceWalkthrough: true,
+    };
+  }
+}
+
+// Generate AI Recommendation based on fill-in-the-blank performance
+export async function generateAIRecommendation(args) {
+  console.log('[generateAIRecommendation] Starting');
+  console.log('[generateAIRecommendation] Args:', JSON.stringify(args, null, 2));
+  
+  const systemPrompt = `You are AlgoTutor, an expert CS study coach. Based on a student's performance on a fill-in-the-blank coding quiz, generate a personalized, structured study recommendation. Be encouraging but direct. Keep it concise (150-250 words total). Each section should have clear, distinct points — no disorganized paragraphs. Respond with valid JSON only.`;
+  
+  // Parse performance data
+  let perfData;
+  try {
+    perfData = typeof args.performanceData === 'string' ? JSON.parse(args.performanceData) : args.performanceData;
+  } catch (e) {
+    perfData = [];
+  }
+  
+  const perfSummary = perfData.map(p => 
+    `Blank ${p.blankId}: ${p.gotCorrect ? 'Correct' : 'Incorrect'}, ${p.attempts} attempts, hint used: ${p.usedHint ? 'yes' : 'no'}, answer revealed: ${p.sawAnswer ? 'yes' : 'no'}${p.userAnswer ? `, user typed: "${p.userAnswer}"` : ''}${p.correctAnswer ? `, correct: "${p.correctAnswer}"` : ''}${p.reviewTip ? `, tip: "${p.reviewTip}"` : ''}`
+  ).join('\n');
+  
+  const userPrompt = `Generate a personalized study recommendation for a student who just completed a fill-in-the-blank coding quiz.
+
+PROBLEM: ${args.problemTitle || 'Coding Problem'}
+${args.problemDescription ? `DESCRIPTION: ${args.problemDescription}` : ''}
+${args.topic ? `TOPIC: ${args.topic}` : ''}
+
+STUDENT PERFORMANCE:
+${perfSummary || 'No detailed performance data available.'}
+
+REQUIRED JSON SECTIONS:
+
+- isAIRecommendation: REQUIRED - Set to true
+
+- whatToStudy: REQUIRED - Array of 2-3 specific things to study. Each item should be a string that names a specific DS/algorithm concept AND what specific aspect to focus on. Example: "Linked list pointer manipulation — practice updating .next references in deletion and insertion operations"
+
+- patternTips: REQUIRED - Array of 2-3 tips for recognizing the pattern(s) tested. Each tip should describe a signal to look for in problems. Example: "When you see 'reverse' + 'linked list' → think about using prev/curr/next three-pointer technique"
+
+- practiceStrategy: REQUIRED - Array of 2-3 actionable practice steps. Example: "Start with simple single-pass linked list problems before attempting in-place modifications"
+
+- keyTakeaways: REQUIRED - Array of 2-3 bullet points summarizing the most important things to remember.
+
+- encouragement: REQUIRED - A brief 1-2 sentence encouraging message based on their performance.
+
+Return ONLY valid JSON.`;
+
+  try {
+    const response = await callOpenAI(systemPrompt, userPrompt, 1500, 0.7);
+    console.log('[generateAIRecommendation] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateAIRecommendation] ✓ Successfully parsed JSON response');
+    
+    parsed.isAIRecommendation = true;
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateAIRecommendation] ❌ Failed:', error);
+    return {
+      isAIRecommendation: true,
+      whatToStudy: ['Review the concepts from this problem.'],
+      patternTips: ['Practice recognizing the key patterns in similar problems.'],
+      practiceStrategy: ['Start with simpler variants and work up.'],
+      keyTakeaways: ['Keep practicing — consistency is key!'],
+      encouragement: 'Keep going! Every problem you work through builds your skills.',
     };
   }
 }
