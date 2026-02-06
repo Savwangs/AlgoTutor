@@ -4,7 +4,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MODEL = 'gpt-5.2'; 
+const MODEL = 'gpt-4.1'; 
 
 // Input validation prefix - added to all system prompts
 const VALIDATION_PREFIX = `
