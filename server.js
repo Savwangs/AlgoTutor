@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateDebugFillInBlank, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildExplainSimple, generateDebugTraceWalkthrough, generateDebugSimilarProblem, generateAIRecommendation } from './llm.js';
+import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateDebugFillInBlank, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildExplainSimple, generateBuildSimilarProblem, generateDebugTraceWalkthrough, generateDebugSimilarProblem, generateAIRecommendation } from './llm.js';
 import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -113,6 +113,15 @@ const buildExplainSimpleSchema = z.object({
   problem: z.string().min(1).describe("The original problem description"),
   code: z.string().min(1).describe("The code from the build mode response"),
   previousContext: z.string().optional().describe("Previous response content for context-aware explanations"),
+});
+
+// Build Mode Similar Problem Schema - for follow-up requests
+const buildSimilarProblemSchema = z.object({
+  code: z.string().min(1).describe("The code from the build mode solution"),
+  problem: z.string().optional().describe("The original problem description"),
+  language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
+  topic: z.string().optional().describe("The algorithm/data structure topic inferred from the code"),
+  weakSpots: z.string().optional().describe("Accumulated info about what the user got wrong in previous fill-in-blank quizzes - used to focus blanks on weak areas"),
 });
 
 // Debug Mode Schema - simplified (only code and language)
@@ -912,6 +921,75 @@ function createAlgoTutorServer() {
         return makeToolOutput("build", outputs, null, logId);
       } catch (error) {
         logError('BUILD EXPLAIN SIMPLE ERROR', error);
+        throw error;
+      }
+    }
+  );
+
+  //
+  // 🚀 Tool 2d: Build Mode - Similar Problem (follow-up)
+  //
+  server.registerTool(
+    "build_similar_problem",
+    {
+      title: "AlgoTutor Build Mode Similar Problem",
+      description:
+        "Generates a fill-in-the-blank practice problem related to the code from Build Mode. Use this when the user clicks the similar problem follow-up button after a build solution. Blanks focus on important algorithmic logic, not trivial syntax.",
+      inputSchema: buildSimilarProblemSchema,
+      _meta: {
+        "openai/outputTemplate": "ui://widget/algo-tutor.html",
+        "openai/toolInvocation/invoking": "Generating similar problem...",
+        "openai/toolInvocation/invoked": "Practice problem ready! Check the AlgoTutor panel.",
+        "openai/instruction": "STOP. The practice problem is displayed in the AlgoTutor panel above. DO NOT repeat the problem or give hints. Simply say: 'A similar practice problem is ready in the AlgoTutor panel above. Try to fill in the blanks!' Nothing more.",
+      },
+      annotations: { readOnlyHint: true },
+    },
+    async (args, context) => {
+      logSection('BUILD SIMILAR PROBLEM TOOL CALLED');
+      logInfo('Tool arguments received', args);
+      
+      const headers = context?.requestInfo?.headers || {};
+      const mockReq = { headers };
+      
+      try {
+        const authResult = await authenticateRequest(mockReq, 'build');
+        logInfo('Authentication result', { success: authResult.success });
+        
+        if (!authResult.success) {
+          logError('Authentication/Authorization failed', authResult.error);
+          return {
+            content: [{
+              type: "text",
+              text: JSON.stringify({
+                _widgetOnly: true,
+                _instruction: "Display the error in the AlgoTutor panel.",
+                mode: "build",
+                error: authResult.error
+              })
+            }]
+          };
+        }
+        
+        const user = authResult.user;
+        logSuccess(`User authenticated: ${user.email}`);
+        
+        // Generate similar problem
+        const outputs = await generateBuildSimilarProblem(args);
+        
+        // Check for validation errors
+        if (outputs.error === 'INVALID_INPUT') {
+          return makeToolOutput("build", {
+            invalidInput: true,
+            message: outputs.message || 'Unable to generate similar problem.'
+          });
+        }
+        
+        // Log usage
+        const logId = await logUsage(user, 'build_similar', args.problem?.substring(0, 200) || 'similar', authResult.widgetId, { type: 'similar_problem' });
+        
+        return makeToolOutput("build", outputs, null, logId);
+      } catch (error) {
+        logError('BUILD SIMILAR PROBLEM ERROR', error);
         throw error;
       }
     }

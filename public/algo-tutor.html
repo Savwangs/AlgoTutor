@@ -1010,23 +1010,28 @@
 
       /* Feedback UI Styles */
       .feedback-container {
-        margin-top: 24px;
-        padding: 16px;
-        border-top: 1px solid var(--border-subtle);
-        text-align: center;
+        margin-top: 20px;
+        margin-bottom: 8px;
+        padding: 14px 16px;
+        border-radius: 10px;
+        background: linear-gradient(135deg, rgba(59, 130, 246, 0.06), rgba(168, 85, 247, 0.06));
+        border: 1px solid rgba(59, 130, 246, 0.2);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 12px;
       }
 
       .feedback-prompt {
-        font-size: 0.9rem;
+        font-size: 0.85rem;
+        font-weight: 500;
         color: var(--text-muted);
-        margin-bottom: 12px;
       }
 
       .feedback-btn {
-        padding: 8px 16px;
-        margin: 0 8px;
-        font-size: 1.2rem;
-        background: transparent;
+        padding: 6px 14px;
+        font-size: 1.15rem;
+        background: rgba(255, 255, 255, 0.05);
         border: 1px solid var(--border-subtle);
         border-radius: 8px;
         cursor: pointer;
@@ -1034,19 +1039,21 @@
       }
 
       .feedback-btn:hover {
-        background: var(--bg-hover);
-        transform: scale(1.1);
+        background: rgba(59, 130, 246, 0.15);
+        border-color: var(--accent);
+        transform: scale(1.15);
       }
 
       .feedback-btn.selected {
-        background: var(--accent-green);
-        border-color: var(--accent-green);
+        background: rgba(16, 185, 129, 0.2);
+        border-color: rgba(16, 185, 129, 0.5);
       }
 
       .feedback-thanks {
-        color: var(--accent-green);
-        font-size: 0.9rem;
-        padding: 8px;
+        color: var(--success);
+        font-size: 0.85rem;
+        font-weight: 500;
+        padding: 4px 0;
       }
 
       /* Feedback Modal Styles */
@@ -1506,6 +1513,10 @@
         animation: spin 0.8s linear infinite;
       }
 
+      @keyframes spin {
+        to { transform: rotate(360deg); }
+      }
+
       .ai-recommendation-container {
         margin-top: 16px;
         padding: 16px;
@@ -1858,6 +1869,9 @@
       let currentBuildCode = ''; // Code from Build Mode response
       let currentBuildTestCases = ''; // Detected test cases from problem
       let currentBuildConstraints = ''; // Detected constraints from problem
+      let currentBuildLanguage = 'python'; // Language from build form
+      let currentBuildTopic = ''; // Detected pattern from response
+      let currentBuildWeakSpots = ''; // Accumulated weak spots from quiz performance
       let buildTraceHasBeenUsed = false; // Track if trace/walkthrough has been used
       let buildExplainHasBeenUsed = false; // Track if explain has been used
       let lastBuildResponse = null; // Store last response for context-aware follow-ups
@@ -2633,9 +2647,38 @@
           outputContainer.appendChild(explainContainer);
         }
 
+        // === BUILD MODE SIMILAR PROBLEM RESPONSE ===
+        if (outputs.isBuildSimilarProblem) {
+          // Render using the same fill-in-blank function used by debug similar problems
+          renderFillInBlankProblem(outputs);
+          
+          // Update build context for chained follow-ups
+          if (outputs.fullSolution) {
+            currentBuildCode = outputs.fullSolution;
+          }
+          if (outputs.problemDescription) {
+            currentBuildProblem = outputs.problemDescription;
+          }
+          lastBuildResponse = outputs;
+        }
+
         // === REAL WORLD EXAMPLE (FILL-IN-THE-BLANK) RESPONSE ===
         if (outputs.isRealWorldExample) {
           renderFillInBlankProblem(outputs);
+        }
+
+        // === FEEDBACK BUTTONS (shown for every response, above follow-ups) ===
+        if (currentLogId) {
+          const feedbackEl = document.createElement("div");
+          feedbackEl.className = "feedback-container";
+          feedbackEl.id = "feedback-container";
+          feedbackEl.innerHTML = `
+            <div class="feedback-prompt">Was this helpful?</div>
+            <button class="feedback-btn" data-decision="yes" title="Helpful">👍</button>
+            <button class="feedback-btn" data-decision="no" title="Not helpful">👎</button>
+          `;
+          outputContainer.appendChild(feedbackEl);
+          console.log("[Widget] Feedback buttons added, logId:", currentLogId);
         }
 
         // === LEARN MODE FOLLOW-UP BUTTONS ===
@@ -2671,14 +2714,27 @@
         }
         
         // === BUILD MODE FOLLOW-UP BUTTONS ===
-        // Show progressive follow-up buttons after Build Mode responses
-        const showBuildFollowupButtons = isBuildMode && outputs.code && !outputs.isBuildTraceWalkthrough && !outputs.isBuildExplainSimple;
+        // Show follow-up buttons after ALL Build Mode responses (initial, trace, explain, similar problem)
+        // Persistent like debug mode - buttons always appear so user can keep practicing
+        const showBuildFollowupButtons = isBuildMode || outputs.isBuildTraceWalkthrough || outputs.isBuildExplainSimple || outputs.isBuildSimilarProblem;
         
         if (showBuildFollowupButtons) {
-          // Store Build Mode context for follow-ups
-          if (outputs.code) {
+          
+          // then fall back to response fields, then global state (empty in new widgets)
+          const ctx = outputs._buildContext || {};
+          
+          // Update build context from the response
+          if (outputs.code && !outputs.isBuildTraceWalkthrough && !outputs.isBuildExplainSimple && !outputs.isBuildSimilarProblem) {
+            // Initial build response
             currentBuildCode = outputs.code;
+          } else if (outputs.isBuildSimilarProblem && outputs.fullSolution) {
+            // Similar problem response - use the full solution as context for next follow-up
+            currentBuildCode = outputs.fullSolution;
+          } else if (ctx.code) {
+            // From echoed context (new widget instance)
+            currentBuildCode = ctx.code;
           }
+          
           // Problem is stored via form submission, but also from detected context
           if (outputs.testCasesDetected) {
             currentBuildTestCases = outputs.testCasesDetected;
@@ -2686,38 +2742,65 @@
           if (outputs.constraintsDetected) {
             currentBuildConstraints = outputs.constraintsDetected;
           }
-          // Reset flags for new Build Mode response
-          buildTraceHasBeenUsed = false;
-          buildExplainHasBeenUsed = false;
+          
+          if (outputs.isBuildSimilarProblem && outputs.problemDescription) {
+            currentBuildProblem = outputs.problemDescription;
+          } else if (ctx.problem) {
+            currentBuildProblem = ctx.problem;
+          }
+          
+          if (outputs.relatedPatterns && outputs.relatedPatterns.length > 0) {
+            currentBuildTopic = outputs.relatedPatterns[0];
+          } else if (outputs.pattern) {
+            currentBuildTopic = outputs.pattern;
+          } else if (ctx.topic) {
+            currentBuildTopic = ctx.topic;
+          }
+          
+          // Update weak spots from context if available
+          if (ctx.weakSpots) {
+            currentBuildWeakSpots = ctx.weakSpots;
+          }
+          
+          // Update language from context if available
+          if (ctx.language) {
+            currentBuildLanguage = ctx.language;
+          }
+          
+          // Reset flags only on initial build response
+          if (!outputs.isBuildTraceWalkthrough && !outputs.isBuildExplainSimple && !outputs.isBuildSimilarProblem) {
+            buildTraceHasBeenUsed = false;
+            buildExplainHasBeenUsed = false;
+          }
           lastBuildResponse = outputs;
           
-          // First-time button text
-          const traceText = "See example walkthrough and trace table";
-          const explainText = "Explain in simpler terms";
+          // Embed context in data-attributes for self-contained follow-up buttons (like Debug mode)
+          // This ensures follow-ups work even in new widget instances
+          const buildCodeForBtn = escapeHtml(currentBuildCode || '');
+          const buildLangForBtn = escapeHtml(currentBuildLanguage || 'python');
+          const buildProblemForBtn = escapeHtml(currentBuildProblem || '');
+          const buildTopicForBtn = escapeHtml(currentBuildTopic || '');
+          const buildWeakSpotsForBtn = escapeHtml(currentBuildWeakSpots || '');
+          const buildTestCasesForBtn = escapeHtml(currentBuildTestCases || '');
+          const buildConstraintsForBtn = escapeHtml(currentBuildConstraints || '');
           
           const buildFollowupContainer = document.createElement("div");
           buildFollowupContainer.className = "followup-buttons-container";
           buildFollowupContainer.id = "build-followup-container";
           buildFollowupContainer.innerHTML = `
-            <div class="followup-buttons-title">Want to understand better?</div>
-            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough">
+            <div class="followup-buttons-title">Want to practice more?</div>
+            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough" data-code="${buildCodeForBtn}" data-language="${buildLangForBtn}" data-problem="${buildProblemForBtn}" data-topic="${buildTopicForBtn}" data-test-cases="${buildTestCasesForBtn}" data-constraints="${buildConstraintsForBtn}">
               <span class="followup-btn-icon">📊</span>
-              <span class="followup-btn-text">${traceText}</span>
+              <span class="followup-btn-text">See example walkthrough and trace table</span>
               <span class="followup-btn-arrow">→</span>
             </button>
-            <button class="followup-btn build-followup-btn" data-action="build-explain-simple">
-              <span class="followup-btn-icon">💡</span>
-              <span class="followup-btn-text">${explainText}</span>
+            <button class="followup-btn build-followup-btn" data-action="build-similar-problem" data-code="${buildCodeForBtn}" data-language="${buildLangForBtn}" data-problem="${buildProblemForBtn}" data-topic="${buildTopicForBtn}" data-weak-spots="${buildWeakSpotsForBtn}">
+              <span class="followup-btn-icon">🧩</span>
+              <span class="followup-btn-text">Try a similar practice problem</span>
               <span class="followup-btn-arrow">→</span>
             </button>
           `;
           outputContainer.appendChild(buildFollowupContainer);
-        }
-        
-        // === BUILD MODE FOLLOW-UP RESPONSE (TRACE OR EXPLAIN) ===
-        // No further follow-up buttons after a follow-up response — one-shot only
-        if (outputs.isBuildTraceWalkthrough || outputs.isBuildExplainSimple) {
-          lastBuildResponse = outputs;
         }
         
         // === DEBUG MODE: CORRECT CODE - ALTERNATIVE APPROACH ===
@@ -3029,20 +3112,7 @@
           outputContainer.appendChild(debugFollowupContainer);
         }
         
-        // Add feedback buttons for premium users
-        const isPremium = !!localStorage.getItem('algotutor_premium_code');
-        if (isPremium && currentLogId) {
-          const feedbackEl = document.createElement("div");
-          feedbackEl.className = "feedback-container";
-          feedbackEl.id = "feedback-container";
-          feedbackEl.innerHTML = `
-            <div class="feedback-prompt">Was this helpful?</div>
-            <button class="feedback-btn" data-decision="yes" title="Helpful">👍</button>
-            <button class="feedback-btn" data-decision="no" title="Not helpful">👎</button>
-          `;
-          outputContainer.appendChild(feedbackEl);
-          console.log("[Widget] Feedback buttons added for premium user, logId:", currentLogId);
-        }
+        // (Feedback buttons are now rendered above the follow-up sections)
         
         // Add copy-to-clipboard buttons to all code blocks (except fill-in-blank quiz code)
         addCopyButtons(outputContainer);
@@ -3375,6 +3445,43 @@
           });
           
           if (allResolved && !fillinContainer.querySelector('.ai-recommendation-btn')) {
+            // Accumulate weak spots from blanks the user got wrong or ran out of tries on
+            const weakSpotParts = [];
+            Array.from(allBlanks).forEach((item) => {
+              const itemAttempts = parseInt(item.dataset.attempts || '0');
+              const itemFeedback = item.querySelector('.fillin-feedback');
+              const itemCorrect = itemFeedback && itemFeedback.classList.contains('correct');
+              const itemReviewTip = item.dataset.reviewTip || '';
+              const itemAnswer = item.dataset.answer || '';
+              
+              if (!itemCorrect) {
+                // User got this wrong or ran out of tries
+                const desc = itemReviewTip || `concept tested by: ${itemAnswer}`;
+                weakSpotParts.push(`${desc} (${itemAttempts >= 3 ? 'ran out of tries' : 'got wrong after ' + itemAttempts + ' attempts'})`);
+              } else if (itemAttempts > 1) {
+                // User eventually got it right but needed multiple attempts
+                const desc = itemReviewTip || `concept tested by: ${itemAnswer}`;
+                weakSpotParts.push(`${desc} (needed ${itemAttempts} attempts)`);
+              }
+            });
+            
+            if (weakSpotParts.length > 0) {
+              const newWeakSpots = 'User struggled with: ' + weakSpotParts.join('; ');
+              // Accumulate weak spots - append new ones to existing
+              if (currentBuildWeakSpots) {
+                currentBuildWeakSpots += ' | ' + newWeakSpots;
+              } else {
+                currentBuildWeakSpots = newWeakSpots;
+              }
+              // Also update debug bug info for debug mode similar problems
+              if (currentDebugBugInfo) {
+                currentDebugBugInfo += ' | ' + newWeakSpots;
+              } else {
+                currentDebugBugInfo = newWeakSpots;
+              }
+              console.log('[Widget] Weak spots accumulated:', newWeakSpots);
+            }
+            
             const recBtn = document.createElement('button');
             recBtn.className = 'ai-recommendation-btn';
             recBtn.innerHTML = '🤖 AI Recommendation';
@@ -3539,12 +3646,15 @@
           return;
         }
 
-        // Store problem for Build Mode follow-ups
+        // Store problem and language for Build Mode follow-ups
         currentBuildProblem = problem;
+        currentBuildLanguage = language;
         // Reset follow-up tracking for new Build Mode submission
         currentBuildCode = '';
         currentBuildTestCases = '';
         currentBuildConstraints = '';
+        currentBuildTopic = '';
+        currentBuildWeakSpots = '';
         buildTraceHasBeenUsed = false;
         buildExplainHasBeenUsed = false;
         lastBuildResponse = null;
@@ -4449,8 +4559,16 @@
           let prompt;
           
           // === BUILD MODE ACTIONS (check first - don't depend on topic) ===
+          // Read context from data-attributes (embedded on buttons) to work across widget instances
           if (action === 'build-trace-walkthrough') {
-            if (!currentBuildCode) {
+            // Read from data-attributes first (for new widget instances), fall back to global state
+            const buildCode = followupBtn.dataset.code || currentBuildCode;
+            const buildLanguage = followupBtn.dataset.language || currentBuildLanguage || 'python';
+            const buildProblem = followupBtn.dataset.problem || currentBuildProblem;
+            const buildTestCases = followupBtn.dataset.testCases || currentBuildTestCases;
+            const buildConstraints = followupBtn.dataset.constraints || currentBuildConstraints;
+            
+            if (!buildCode) {
               console.warn('[Widget] No build code available for trace/walkthrough');
               restoreButton();
               return;
@@ -4462,20 +4580,48 @@
             
             prompt = `Use AlgoTutor build_trace_walkthrough tool to show a dry-run table and example walkthrough.`;
             prompt += ` isEdgeCase: ${isEdgeCase}.`;
-            prompt += ` Code: \`\`\`\n${currentBuildCode}\n\`\`\``;
-            if (currentBuildProblem) {
-              prompt += ` Problem: ${currentBuildProblem}`;
+            prompt += ` Code: \`\`\`\n${buildCode}\n\`\`\``;
+            if (buildProblem) {
+              prompt += ` Problem: ${buildProblem}`;
             }
-            if (currentBuildTestCases) {
-              prompt += ` Test cases detected: ${currentBuildTestCases}`;
+            if (buildTestCases) {
+              prompt += ` Test cases detected: ${buildTestCases}`;
             }
-            if (currentBuildConstraints) {
-              prompt += ` Constraints: ${currentBuildConstraints}`;
+            if (buildConstraints) {
+              prompt += ` Constraints: ${buildConstraints}`;
             }
             // Include last response context if available
             if (lastBuildResponse && lastBuildResponse.exampleWalkthrough) {
               prompt += ` Previous walkthrough context: ${lastBuildResponse.exampleWalkthrough.substring(0, 500)}`;
             }
+            console.log('[Widget] Build trace walkthrough - code length:', buildCode.length);
+          } else if (action === 'build-similar-problem') {
+            // Read from data-attributes first (for new widget instances), fall back to global state
+            const buildCode = followupBtn.dataset.code || currentBuildCode;
+            const buildLanguage = followupBtn.dataset.language || currentBuildLanguage || 'python';
+            const buildProblem = followupBtn.dataset.problem || currentBuildProblem;
+            const buildTopic = followupBtn.dataset.topic || currentBuildTopic;
+            const buildWeakSpots = followupBtn.dataset.weakSpots || currentBuildWeakSpots;
+            
+            if (!buildCode) {
+              console.warn('[Widget] No build code available for similar problem');
+              restoreButton();
+              return;
+            }
+            
+            prompt = `Use AlgoTutor build_similar_problem tool to generate a fill-in-the-blank practice problem.`;
+            prompt += ` Code: \`\`\`${buildLanguage}\n${buildCode}\n\`\`\``;
+            prompt += ` Language: ${buildLanguage}`;
+            if (buildProblem) {
+              prompt += ` Problem context: ${buildProblem}`;
+            }
+            if (buildTopic) {
+              prompt += ` Topic/pattern: ${buildTopic}`;
+            }
+            if (buildWeakSpots) {
+              prompt += ` Weak spots (focus blanks on these concepts): ${buildWeakSpots}`;
+            }
+            console.log('[Widget] Build similar problem - code length:', buildCode.length, 'topic:', buildTopic);
           } else if (action === 'build-explain-simple') {
             if (!currentBuildCode) {
               console.warn('[Widget] No build code available for explanation');

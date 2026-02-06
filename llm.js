@@ -850,6 +850,236 @@ Return ONLY valid JSON with the required fields.`;
   }
 }
 
+// Generate Build Mode Similar Problem (on-demand follow-up)
+export async function generateBuildSimilarProblem(args) {
+  console.log('[generateBuildSimilarProblem] Starting');
+  console.log('[generateBuildSimilarProblem] Args:', JSON.stringify(args, null, 2));
+  
+  // Detect DS/algorithms from the build solution code
+  const detected = detectDSAFromCode(args.code || '');
+  console.log('[generateBuildSimilarProblem] Detected from code:', detected);
+  
+  // Build allowed concepts: detected DS/algos + simpler ones (rank 1 basics)
+  const detectedDSNames = detected.dataStructures;
+  const detectedAlgoNames = detected.algorithms;
+  const basicExtras = ['array', 'string', 'set'];
+  const allowedConcepts = [...new Set([...detectedDSNames, ...detectedAlgoNames, ...basicExtras])].join(', ');
+  
+  // Dynamic blank count based on code length
+  const codeLines = (args.code || '').split('\n').length;
+  const requiredBlankCount = codeLines > 10 ? 3 : 2;
+  console.log('[generateBuildSimilarProblem] Code lines:', codeLines, '→ Required blanks:', requiredBlankCount);
+  
+  // Build weak-spots-focused instruction if weak spots info is provided
+  let weakSpotInstruction = '';
+  if (args.weakSpots) {
+    weakSpotInstruction = `
+**CRITICAL - WEAK-SPOT-FOCUSED BLANKS:**
+The user has previously struggled with these concepts in fill-in-the-blank quizzes: "${args.weakSpots}"
+
+Your blanks MUST test the SAME TYPE of concept/mistake the user struggled with. For example:
+- If they struggled with base case conditions → blank out the base case condition or return
+- If they struggled with loop boundaries → blank out loop bounds or comparison operators
+- If they struggled with recursive calls → blank out a recursive call or its arguments
+- If they struggled with data structure operations → blank out the data structure operation
+- If they struggled with pointer/variable updates → blank out pointer manipulation logic
+
+The blanks should help the user practice and reinforce understanding of exactly what they previously got wrong.
+`;
+  }
+  
+  const systemPrompt = VALIDATION_PREFIX + `You are AlgoTutor, an expert CS educator. Generate a LeetCode-style fill-in-the-blank coding problem that is RELATED to but DIFFERENT from the given code. The problem should test the same algorithm/data structure pattern but with a different scenario or twist.
+
+CRITICAL BLANK QUALITY RULES:
+- Blanks MUST target IMPORTANT ALGORITHMIC LOGIC: base cases, recursive calls, loop conditions, data structure operations, key comparisons, return statements
+- Blanks must NEVER target trivial syntax: closing brackets, finishing a for loop definition, variable declarations, import statements, class boilerplate
+- Each blank should test whether the user understands the CORE ALGORITHM, not whether they can write syntax
+
+Respond with valid JSON only.`;
+  
+  const userPrompt = `Generate a SIMILAR but DIFFERENT fill-in-the-blank problem based on this code:
+
+ORIGINAL CODE:
+\`\`\`${args.language || 'python'}
+${args.code}
+\`\`\`
+
+${args.problem ? `ORIGINAL PROBLEM CONTEXT: ${args.problem}` : ''}
+${args.topic ? `ALGORITHM/PATTERN: ${args.topic}` : 'Analyze the code to determine the pattern.'}
+${weakSpotInstruction}
+
+REQUIREMENTS:
+1. The new problem should use the SAME algorithm/data structure pattern
+2. But have a DIFFERENT scenario, twist, or variation
+3. Should be a fresh, creative problem - not a copy of the original
+4. Blanks MUST test CRITICAL algorithmic understanding - NOT trivial syntax
+5. Good blank targets: base case returns, recursive call arguments, loop termination conditions, key data structure operations, comparison logic
+6. Bad blank targets: finishing "for i in range(", variable names, closing parentheses, import statements, print statements
+
+CRITICAL CONSTRAINT: The problem must use the SAME data structures/algorithms as the original code.
+DETECTED concepts from code: ${allowedConcepts}
+You may add simpler ones (arrays, strings, sets) only if they naturally fit the problem, but do NOT introduce more complex structures or algorithms not detected from the original code.
+
+REQUIRED JSON SECTIONS:
+
+- problemTitle: REQUIRED - A concise title for the problem. Example: "Two Sum" or "Valid Parentheses"
+
+- problemDescription: REQUIRED - A clear problem description in LeetCode style. Include:
+  - What the function should do
+  - Input format
+  - Output format
+  - 2-3 example test cases showing input → output (include these IN the description text)
+  - Any constraints
+
+- codeWithBlanks: REQUIRED - ${args.language || 'Python'} code with EXACTLY ${requiredBlankCount} blanks marked as ___BLANK_1___, ___BLANK_2___${requiredBlankCount === 3 ? ', ___BLANK_3___' : ''}. 
+
+**CRITICAL BLANK RULES:**
+1. You MUST include EXACTLY ${requiredBlankCount} blanks - no more, no less
+2. The number of ___BLANK_X___ placeholders in codeWithBlanks MUST EXACTLY match the number of objects in the blanks array
+3. Each blank tests a DIFFERENT part of the algorithm - NO DUPLICATES
+4. Blanks should test CRITICAL algorithm logic (e.g., don't blank out variable names or simple syntax)
+5. When ALL blanks are filled with correct answers, the code MUST produce correct output
+6. The code must be in ${args.language || 'Python'} with valid syntax
+7. For TEXT INPUT blanks (where user types): The blank placeholder MUST replace the ENTIRE LINE of code, not just part of it. The user types the full line as the answer.
+   CRITICAL - DO NOT leave part of the line visible and only blank part of it:
+   BAD: "current = ___BLANK_1___" (partial line - user only fills "current.next", too easy)
+   BAD: "current.next = ___BLANK_2___" (partial line - gives away the left side)
+   GOOD: "    ___BLANK_1___" (full line blanked - user must type "current = current.next")
+   GOOD: "        ___BLANK_2___" (full line blanked - user must type "current.next = ListNode(arr[index])")
+   The blank should be indented to match the code's indentation level, but the ENTIRE line of code must be replaced by the blank.
+   MCQ blanks can be smaller pieces of code since user selects from options.
+8. For COMPOUND EXPRESSIONS with "and" or "or" between two function calls/operations: SPLIT into SEPARATE blanks!
+   BAD: "___BLANK_2___" = "helper(left) and helper(right)" (too complex for one blank)
+   GOOD: "___BLANK_2___ and ___BLANK_3___" where BLANK_2 = "helper(left)" and BLANK_3 = "helper(right)"
+   Each recursive call or distinct operation should be its own blank.
+9. TEXT INPUT BLANK CHARACTER LIMITS:
+    - MINIMUM: 10 characters (no trivial blanks like "n-1", "left", "append")
+    - MAXIMUM: 40 characters (anything longer MUST be split into multiple blanks)
+    GOOD examples (10-40 chars): "helper(node.left)" (17), "left, right = 0, len(nums)-1" (29), "return helper(n-1) + helper(n-2)" (32)
+    BAD examples: "node.left" (9 chars - TOO SHORT), "helper(a, b, c) and helper(d, e, f)" (70+ chars - TOO LONG, must split)
+10. LONG LINE SPLITTING: If a single line of code is longer than 40 characters OR contains logical operators like "and"/"or"/"&&"/"||" joining two distinct operations, split that line into 2 blanks instead of 1.
+
+CRITICAL EMBEDDING RULE: The blanks in codeWithBlanks MUST appear as ___BLANK_1___, ___BLANK_2___${requiredBlankCount === 3 ? ', ___BLANK_3___' : ''} EMBEDDED DIRECTLY in the code string. Each blank MUST correspond to exactly one question in the blanks array. Do NOT just mention blanks in questions — they MUST be visible in the code.
+
+VERIFICATION STEP: Before outputting, COUNT the ___BLANK_X___ placeholders in your codeWithBlanks and VERIFY it equals ${requiredBlankCount}. If they don't match, FIX IT.
+
+- blanks: REQUIRED - Array of EXACTLY ${requiredBlankCount} blank objects (must match codeWithBlanks). Format:
+  [
+    {
+      "id": 1,
+      "type": "multiple_choice",
+      "placeholder": "___BLANK_1___",
+      "lineContext": "the EXACT line of code containing ___BLANK_1___",
+      "options": ["option1", "option2", "option3", "option4"],
+      "correctAnswer": "the correct option (must be one of the 4 options)",
+      "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
+      "explanation": "Why this is correct - explain the algorithm logic",
+      "reviewTip": "Brief tip on what pattern/concept to review (e.g., 'Review: BST property - left < root < right')"
+    },
+    {
+      "id": 2,
+      "type": "text_input",
+      "placeholder": "___BLANK_2___",
+      "lineContext": "the EXACT line of code containing ___BLANK_2___",
+      "correctAnswer": "exact code that goes in this blank (10-40 chars)",
+      "hint": "A helpful hint that guides thinking WITHOUT revealing the answer",
+      "explanation": "Why this is correct - explain the algorithm logic",
+      "reviewTip": "Brief tip on what pattern/concept to review"
+    }${requiredBlankCount === 3 ? `,
+    {
+      "id": 3,
+      "type": "text_input",
+      "placeholder": "___BLANK_3___",
+      "lineContext": "the EXACT line of code containing ___BLANK_3___",
+      "correctAnswer": "exact code that goes in this blank (10-40 chars)",
+      "hint": "A helpful hint",
+      "explanation": "Why this is correct",
+      "reviewTip": "Brief tip on what to review"
+    }` : ''}
+  ]
+  
+  **BLANK REQUIREMENTS:**
+  - Blank 1: MUST be multiple_choice - test a CRITICAL decision point (e.g., comparison operator, data structure choice). Can be smaller pieces of code.
+  - Blank 2${requiredBlankCount === 3 ? '-3' : ''}: MUST be text_input - MUST be SUBSTANTIAL (entire line or significant code chunk, 15+ characters). Examples of GOOD text_input blanks: "return helper(n-1) + helper(n-2)", "left, right = 0, len(nums)-1", "result.append(current[:])". Examples of BAD text_input blanks: "n-1", "left", "append" (too small!)
+  - Each blank MUST test a DIFFERENT concept - DO NOT ask the same question twice
+  - Each blank MUST have a hint that helps WITHOUT giving away the answer
+  - Each blank MUST have a reviewTip: a brief 1-line tip (10-20 words max) pointing out what pattern/concept to review. Format: "Review: [concept] - [key insight]". Examples: "Review: Two pointers - move inward when sum too large", "Review: Recursion base case - always handle empty/null first"
+  - All 4 options in multiple choice should be plausible
+
+- fullSolution: REQUIRED - The complete code with all blanks filled in correctly. This code MUST work and produce correct output.
+
+- whyThisTests: REQUIRED - One sentence explaining what understanding this problem tests and how it relates to the original code.
+
+- isBuildSimilarProblem: REQUIRED - Set to true
+
+Return ONLY valid JSON with the required fields.`;
+
+  try {
+    // Use higher temperature for variety
+    const response = await callOpenAI(systemPrompt, userPrompt, 3000, 0.95);
+    console.log('[generateBuildSimilarProblem] Raw response received, length:', response.length);
+    
+    const parsed = JSON.parse(response);
+    console.log('[generateBuildSimilarProblem] ✓ Successfully parsed JSON response');
+    
+    if (parsed.error === 'INVALID_INPUT') {
+      return {
+        error: 'INVALID_INPUT',
+        message: parsed.message || 'Unable to generate similar problem.'
+      };
+    }
+    
+    // POST-VALIDATION: Verify blank count matches
+    if (parsed.codeWithBlanks && parsed.blanks) {
+      const blankMatches = parsed.codeWithBlanks.match(/___BLANK_\d+___/g) || [];
+      const codeBlankCount = blankMatches.length;
+      const arrayBlankCount = parsed.blanks.length;
+      
+      console.log('[generateBuildSimilarProblem] Blank validation:', {
+        blanksInCode: codeBlankCount,
+        blanksInArray: arrayBlankCount,
+        matches: blankMatches
+      });
+      
+      if (codeBlankCount !== arrayBlankCount) {
+        console.warn('[generateBuildSimilarProblem] ⚠️ BLANK COUNT MISMATCH! Code has', codeBlankCount, 'blanks, array has', arrayBlankCount);
+      }
+    }
+    
+    // Ensure the flag is set
+    parsed.isBuildSimilarProblem = true;
+    
+    // Echo back input context so new widget instances can populate follow-up buttons
+    parsed._buildContext = {
+      code: args.code,
+      language: args.language || 'python',
+      problem: args.problem || '',
+      topic: args.topic || '',
+      weakSpots: args.weakSpots || ''
+    };
+    
+    return parsed;
+  } catch (error) {
+    console.error('[generateBuildSimilarProblem] ❌ Failed:', error);
+    return {
+      problemTitle: "Error",
+      problemDescription: "Error generating problem. Please try again.",
+      codeWithBlanks: "# Error occurred",
+      blanks: [],
+      fullSolution: "# Error occurred",
+      whyThisTests: "Error occurred",
+      isBuildSimilarProblem: true,
+      _buildContext: {
+        code: args.code,
+        language: args.language || 'python',
+        problem: args.problem || '',
+        topic: args.topic || '',
+        weakSpots: args.weakSpots || ''
+      },
+    };
+  }
+}
+
 // Generate Trace Table and Example Walkthrough (on-demand for Learn Mode)
 export async function generateTraceAndWalkthrough(args) {
   console.log('[generateTraceAndWalkthrough] Starting for topic:', args.topic);
@@ -1353,6 +1583,15 @@ Return ONLY valid JSON with the required fields.`;
     // Ensure the flag is set
     parsed.isBuildTraceWalkthrough = true;
     
+    // Echo back input context so new widget instances can populate follow-up buttons
+    parsed._buildContext = {
+      code: args.code,
+      language: 'python',
+      problem: args.problem || '',
+      topic: '',
+      weakSpots: ''
+    };
+    
     return parsed;
   } catch (error) {
     console.error('[generateBuildTraceWalkthrough] ❌ Failed:', error);
@@ -1511,6 +1750,15 @@ Return ONLY valid JSON with the required fields.`;
     
     // Ensure the flag is set
     parsed.isBuildExplainSimple = true;
+    
+    // Echo back input context so new widget instances can populate follow-up buttons
+    parsed._buildContext = {
+      code: args.code,
+      language: 'python',
+      problem: args.problem || '',
+      topic: '',
+      weakSpots: ''
+    };
     
     return parsed;
   } catch (error) {
