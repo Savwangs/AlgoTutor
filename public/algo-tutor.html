@@ -3385,6 +3385,7 @@
       };
 
       // Trigger AI Recommendation based on fill-in-the-blank performance
+      // Uses direct API call to render inline in the SAME widget (not via MCP/ChatGPT)
       const triggerAIRecommendation = async (fillinContainer, btn) => {
         // Disable button and show loading
         btn.disabled = true;
@@ -3396,42 +3397,101 @@
           const blankId = item.dataset.blankId || (idx + 1);
           const answer = item.dataset.answer || '';
           const attempts = parseInt(item.dataset.attempts || '0');
-          const checkBtn = item.querySelector('.fillin-check-btn');
           const feedbackEl = item.querySelector('.fillin-feedback');
           const isCorrect = feedbackEl && feedbackEl.classList.contains('correct');
           const hintEl = item.querySelector('.fillin-hint');
           const usedHint = hintEl ? hintEl.classList.contains('visible') : false;
+          const sawAnswer = attempts >= 3 && !isCorrect;
           
           return {
             blankId: blankId,
             correctAnswer: answer,
             attempts: attempts,
             gotCorrect: isCorrect,
-            usedHint: usedHint
+            usedHint: usedHint,
+            sawAnswer: sawAnswer
           };
         });
         
         // Get problem context
-        const problemTitle = fillinContainer.querySelector('.fillin-problem-title');
-        const problemDesc = fillinContainer.querySelector('.fillin-problem-description');
-        const problemContext = (problemTitle ? problemTitle.textContent : '') + ' ' + (problemDesc ? problemDesc.textContent : '');
-        
-        // Build prompt for AI recommendation
-        const perfSummary = performanceData.map(p => 
-          `Blank ${p.blankId}: answer="${p.correctAnswer}", attempts=${p.attempts}, correct=${p.gotCorrect}, usedHint=${p.usedHint}`
-        ).join('; ');
-        
-        const prompt = `Use AlgoTutor ai_recommendation tool to give me a study recommendation. ` +
-          `Problem: ${problemContext.trim().substring(0, 500)}. ` +
-          `Performance: ${perfSummary}`;
+        const problemTitleEl = fillinContainer.querySelector('.fillin-problem-title');
+        const problemDescEl = fillinContainer.querySelector('.fillin-problem-description');
+        const problemTitle = problemTitleEl ? problemTitleEl.textContent.trim() : '';
+        const problemDescription = problemDescEl ? problemDescEl.textContent.trim() : '';
         
         try {
-          await sendFollowUp(prompt);
-          btn.innerHTML = '✅ Recommendation sent!';
+          // Direct API call — bypasses ChatGPT/MCP so the result renders in this widget
+          const response = await fetch('https://algo-tutor.org/api/ai-recommendation', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              performanceData: JSON.stringify(performanceData),
+              problemTitle: problemTitle,
+              problemDescription: problemDescription,
+              topic: problemTitle, // use title as topic fallback
+            })
+          });
+          
+          const data = await response.json();
+          
+          if (!response.ok || data.error) {
+            throw new Error(data.error || 'Failed to generate recommendation');
+          }
+          
+          const outputs = data.recommendation || {};
+          
+          // Render recommendation inline in the same container
+          btn.innerHTML = '✅ Recommendation generated!';
+          
+          const recContainer = document.createElement('div');
+          recContainer.className = 'ai-recommendation-container';
+          recContainer.innerHTML = `<div class="ai-recommendation-title">🤖 AI Study Recommendation</div>`;
+          
+          const addRecSection = (title, items) => {
+            if (!items || (Array.isArray(items) && items.length === 0)) return;
+            const sectionEl = document.createElement('div');
+            sectionEl.className = 'ai-recommendation-section';
+            sectionEl.innerHTML = `
+              <div class="ai-recommendation-section-title">${escapeHtml(title)}</div>
+              <div class="ai-recommendation-section-content">${
+                Array.isArray(items)
+                  ? '<ul>' + items.map(p => `<li>${escapeHtml(p)}</li>`).join('') + '</ul>'
+                  : escapeHtml(String(items)).replace(/\n/g, '<br>')
+              }</div>
+            `;
+            recContainer.appendChild(sectionEl);
+          };
+          
+          addRecSection('📚 What to Study', outputs.whatToStudy);
+          addRecSection('🔍 Pattern Recognition Tips', outputs.patternTips);
+          addRecSection('🎯 Practice Strategy', outputs.practiceStrategy);
+          addRecSection('💡 Key Takeaways', outputs.keyTakeaways);
+          
+          if (outputs.encouragement) {
+            const encEl = document.createElement('div');
+            encEl.className = 'ai-recommendation-section';
+            encEl.innerHTML = `
+              <div style="padding: 10px 14px; background: rgba(16, 185, 129, 0.1); border: 1px solid rgba(16, 185, 129, 0.3); border-radius: 8px; color: #10b981; font-size: 0.85rem; line-height: 1.6;">
+                💪 ${escapeHtml(outputs.encouragement)}
+              </div>
+            `;
+            recContainer.appendChild(encEl);
+          }
+          
+          // Insert recommendation after the button in the same widget
+          fillinContainer.appendChild(recContainer);
+          
         } catch (err) {
           console.error('[Widget] AI recommendation failed:', err);
           btn.innerHTML = '🤖 AI Recommendation';
           btn.disabled = false;
+          
+          // Show inline error message
+          const errEl = document.createElement('div');
+          errEl.style.cssText = 'color: #ef4444; font-size: 0.8rem; margin-top: 8px;';
+          errEl.textContent = 'Failed to generate recommendation. Please try again.';
+          btn.parentNode.insertBefore(errEl, btn.nextSibling);
+          setTimeout(() => errEl.remove(), 5000);
         }
       };
 

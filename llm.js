@@ -4,7 +4,7 @@ const openai = new OpenAI({
   apiKey: process.env.OPENAI_API_KEY,
 });
 
-const MODEL = 'gpt-5.2'; // Cheapest GPT-5 model (~$0.00015/1K input tokens)
+const MODEL = 'gpt-5.2'; 
 
 // Input validation prefix - added to all system prompts
 const VALIDATION_PREFIX = `
@@ -1380,6 +1380,8 @@ export async function generateAIRecommendation(args) {
   } catch (e) {
     perfData = [];
   }
+  // Safety guard: ensure perfData is always an array
+  if (!Array.isArray(perfData)) perfData = [];
   
   const perfSummary = perfData.map(p => 
     `Blank ${p.blankId}: ${p.gotCorrect ? 'Correct' : 'Incorrect'}, ${p.attempts} attempts, hint used: ${p.usedHint ? 'yes' : 'no'}, answer revealed: ${p.sawAnswer ? 'yes' : 'no'}${p.userAnswer ? `, user typed: "${p.userAnswer}"` : ''}${p.correctAnswer ? `, correct: "${p.correctAnswer}"` : ''}${p.reviewTip ? `, tip: "${p.reviewTip}"` : ''}`

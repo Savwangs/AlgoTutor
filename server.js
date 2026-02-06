@@ -2186,6 +2186,40 @@ const httpServer = createServer(async (req, res) => {
     }
   }
 
+  // API: AI Recommendation (direct call from widget, bypasses MCP/ChatGPT)
+  if (req.method === "POST" && url.pathname === "/api/ai-recommendation") {
+    console.log('[API] AI recommendation request');
+    res.setHeader("Access-Control-Allow-Origin", "*");
+    res.setHeader("Content-Type", "application/json");
+
+    try {
+      const body = await parseJsonBody(req);
+      const { performanceData, problemTitle, topic, problemDescription } = body;
+
+      if (!performanceData) {
+        res.writeHead(400);
+        return res.end(JSON.stringify({ error: 'performanceData is required' }));
+      }
+
+      console.log('[API] Generating AI recommendation for:', problemTitle || topic || 'unknown');
+
+      const outputs = await generateAIRecommendation({
+        performanceData,
+        problemTitle,
+        topic,
+        problemDescription,
+      });
+
+      console.log('[API] ✓ AI recommendation generated');
+      res.writeHead(200);
+      return res.end(JSON.stringify({ success: true, recommendation: outputs }));
+    } catch (error) {
+      console.error('[API] ❌ AI recommendation error:', error);
+      res.writeHead(500);
+      return res.end(JSON.stringify({ error: error.message }));
+    }
+  }
+
   // API: Cancel subscription
   // EARLY_ACCESS_START: Disabled during early access - no subscriptions to cancel
   if (req.method === "POST" && url.pathname === "/api/cancel-subscription") {
