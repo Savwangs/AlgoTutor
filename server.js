@@ -25,7 +25,7 @@ const __dirname = dirname(__filename);
 //
 // 0. Debug Logging Helpers
 //
-const DEBUG = true; // Set to false to disable verbose logging
+const DEBUG = process.env.NODE_ENV !== 'production'; // Auto-off in production, on in development
 
 function logSection(title) {
   if (!DEBUG) return;
@@ -1278,14 +1278,20 @@ function createAlgoTutorServer() {
     },
     async () => {
       console.log("[list_algo_sessions] Total sessions:", sessions.length);
-      
+
+      // Sanitize: strip internal userId from each session before returning
+      const sanitizedSessions = sessions.slice(-10).map(({ userId, ...rest }) => rest);
+
       return {
-        state: "update",
-        content: [],
-        toolOutput: {
-          sessions: sessions.slice(-10), // Last 10 sessions
-          totalCount: sessions.length,
-        },
+        content: [
+          {
+            type: "text",
+            text: JSON.stringify({
+              sessions: sanitizedSessions,
+              totalCount: sessions.length,
+            }),
+          },
+        ],
       };
     }
   );
