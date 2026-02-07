@@ -351,6 +351,14 @@ export async function logUsage(user, mode, topic = null, widgetId = null, metada
       logEntry.related_patterns = metadata.relatedPatterns;
     }
 
+    // Add follow-up tree logging fields
+    if (metadata.parentLogId) {
+      logEntry.parent_log_id = metadata.parentLogId;
+    }
+    if (metadata.actionType) {
+      logEntry.action_type = metadata.actionType;
+    }
+
     // Log the full entry being inserted for debugging
     console.log('[Auth] Inserting usage log entry:', JSON.stringify(logEntry, null, 2));
 

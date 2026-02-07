@@ -1873,7 +1873,6 @@
       let currentBuildTopic = ''; // Detected pattern from response
       let currentBuildWeakSpots = ''; // Accumulated weak spots from quiz performance
       let buildTraceHasBeenUsed = false; // Track if trace/walkthrough has been used
-      let buildExplainHasBeenUsed = false; // Track if explain has been used
       let lastBuildResponse = null; // Store last response for context-aware follow-ups
 
       // Debug Mode follow-up state
@@ -2559,94 +2558,6 @@
           }
         }
         
-        // === BUILD MODE EXPLAIN SIMPLE RESPONSE ===
-        if (outputs.isBuildExplainSimple) {
-          const explainContainer = document.createElement("div");
-          explainContainer.className = "trace-walkthrough-container";
-          
-          // Real World Analogy (Level 3)
-          if (outputs.realWorldAnalogy) {
-            const analogyEl = document.createElement("div");
-            analogyEl.className = "trick-box";
-            analogyEl.innerHTML = `
-              <div class="trick-box-title">🌍 Real-World Analogy</div>
-              <div class="trick-box-content">${escapeHtml(outputs.realWorldAnalogy)}</div>
-            `;
-            explainContainer.appendChild(analogyEl);
-          }
-          
-          // Detailed Explanation
-          if (outputs.detailedExplanation) {
-            const detailEl = document.createElement("div");
-            detailEl.className = "output-block";
-            detailEl.innerHTML = `
-              <h3>Step-by-Step Explanation</h3>
-              <div class="text-block">${escapeHtml(outputs.detailedExplanation).replace(/\n/g, '<br>')}</div>
-            `;
-            explainContainer.appendChild(detailEl);
-          }
-          
-          // Pattern Explanation
-          if (outputs.patternExplanation) {
-            const patternEl = document.createElement("div");
-            patternEl.className = "output-block";
-            patternEl.innerHTML = `
-              <h3>How to Approach This Pattern</h3>
-              <div class="text-block">${escapeHtml(outputs.patternExplanation).replace(/\n/g, '<br>')}</div>
-            `;
-            explainContainer.appendChild(patternEl);
-          }
-          
-          // Skeleton Code
-          if (outputs.skeleton) {
-            const skeletonEl = document.createElement("div");
-            skeletonEl.className = "output-block";
-            skeletonEl.innerHTML = `
-              <h3>Code Skeleton</h3>
-              <pre class="code-block">${escapeHtml(outputs.skeleton)}</pre>
-            `;
-            explainContainer.appendChild(skeletonEl);
-          }
-          
-          // Key Insights
-          if (outputs.keyInsights && Array.isArray(outputs.keyInsights)) {
-            const insightsEl = document.createElement("div");
-            insightsEl.className = "output-block";
-            insightsEl.innerHTML = `<h3>💡 Key Insights</h3>`;
-            const ul = document.createElement("ul");
-            ul.className = "list-block";
-            outputs.keyInsights.forEach(insight => {
-              const li = document.createElement("li");
-              li.textContent = insight;
-              ul.appendChild(li);
-            });
-            insightsEl.appendChild(ul);
-            explainContainer.appendChild(insightsEl);
-          }
-          
-          // Common Mistakes
-          if (outputs.commonMistakes && Array.isArray(outputs.commonMistakes)) {
-            const mistakesEl = document.createElement("div");
-            mistakesEl.className = "warning-box";
-            mistakesEl.innerHTML = `<div class="warning-title">⚠️ Common Mistakes to Avoid</div>`;
-            const ul = document.createElement("ul");
-            ul.style.marginTop = "8px";
-            ul.style.paddingLeft = "20px";
-            ul.style.color = "#1f2937";
-            outputs.commonMistakes.forEach(mistake => {
-              const li = document.createElement("li");
-              li.textContent = mistake;
-              li.style.marginBottom = "4px";
-              li.style.color = "#1f2937";
-              ul.appendChild(li);
-            });
-            mistakesEl.appendChild(ul);
-            explainContainer.appendChild(mistakesEl);
-          }
-          
-          outputContainer.appendChild(explainContainer);
-        }
-
         // === BUILD MODE SIMILAR PROBLEM RESPONSE ===
         if (outputs.isBuildSimilarProblem) {
           // Render using the same fill-in-blank function used by debug similar problems
@@ -2674,8 +2585,8 @@
           feedbackEl.id = "feedback-container";
           feedbackEl.innerHTML = `
             <div class="feedback-prompt">Was this helpful?</div>
-            <button class="feedback-btn" data-decision="yes" title="Helpful">👍</button>
-            <button class="feedback-btn" data-decision="no" title="Not helpful">👎</button>
+            <button class="feedback-btn" data-decision="yes" data-log-id="${currentLogId}" title="Helpful">👍</button>
+            <button class="feedback-btn" data-decision="no" data-log-id="${currentLogId}" title="Not helpful">👎</button>
           `;
           outputContainer.appendChild(feedbackEl);
           console.log("[Widget] Feedback buttons added, logId:", currentLogId);
@@ -2695,16 +2606,17 @@
             currentLearnCode = outputs.code;
           }
           
+          const learnParentLogId = currentLogId || '';
           const followupContainer = document.createElement("div");
           followupContainer.className = "followup-buttons-container";
           followupContainer.innerHTML = `
             <div class="followup-buttons-title">Want to continue learning?</div>
-            <button class="followup-btn" data-action="trace-walkthrough" data-topic="${escapeHtml(topicForFollowup)}" data-code="${escapeHtml(currentLearnCode || '')}">
+            <button class="followup-btn" data-action="trace-walkthrough" data-topic="${escapeHtml(topicForFollowup)}" data-code="${escapeHtml(currentLearnCode || '')}" data-parent-log-id="${learnParentLogId}">
               <span class="followup-btn-icon">📊</span>
               <span class="followup-btn-text">See a trace table and example walkthrough</span>
               <span class="followup-btn-arrow">→</span>
             </button>
-            <button class="followup-btn" data-action="real-world" data-topic="${escapeHtml(topicForFollowup)}">
+            <button class="followup-btn" data-action="real-world" data-topic="${escapeHtml(topicForFollowup)}" data-parent-log-id="${learnParentLogId}">
               <span class="followup-btn-icon">🧩</span>
               <span class="followup-btn-text">Try a real-world practice problem</span>
               <span class="followup-btn-arrow">→</span>
@@ -2716,7 +2628,7 @@
         // === BUILD MODE FOLLOW-UP BUTTONS ===
         // Show follow-up buttons after ALL Build Mode responses (initial, trace, explain, similar problem)
         // Persistent like debug mode - buttons always appear so user can keep practicing
-        const showBuildFollowupButtons = isBuildMode || outputs.isBuildTraceWalkthrough || outputs.isBuildExplainSimple || outputs.isBuildSimilarProblem;
+        const showBuildFollowupButtons = isBuildMode || outputs.isBuildTraceWalkthrough || outputs.isBuildSimilarProblem;
         
         if (showBuildFollowupButtons) {
           
@@ -2724,7 +2636,7 @@
           const ctx = outputs._buildContext || {};
           
           // Update build context from the response
-          if (outputs.code && !outputs.isBuildTraceWalkthrough && !outputs.isBuildExplainSimple && !outputs.isBuildSimilarProblem) {
+          if (outputs.code && !outputs.isBuildTraceWalkthrough && !outputs.isBuildSimilarProblem) {
             // Initial build response
             currentBuildCode = outputs.code;
           } else if (outputs.isBuildSimilarProblem && outputs.fullSolution) {
@@ -2768,9 +2680,8 @@
           }
           
           // Reset flags only on initial build response
-          if (!outputs.isBuildTraceWalkthrough && !outputs.isBuildExplainSimple && !outputs.isBuildSimilarProblem) {
+          if (!outputs.isBuildTraceWalkthrough && !outputs.isBuildSimilarProblem) {
             buildTraceHasBeenUsed = false;
-            buildExplainHasBeenUsed = false;
           }
           lastBuildResponse = outputs;
           
@@ -2784,17 +2695,18 @@
           const buildTestCasesForBtn = escapeHtml(currentBuildTestCases || '');
           const buildConstraintsForBtn = escapeHtml(currentBuildConstraints || '');
           
+          const buildParentLogId = currentLogId || '';
           const buildFollowupContainer = document.createElement("div");
           buildFollowupContainer.className = "followup-buttons-container";
           buildFollowupContainer.id = "build-followup-container";
           buildFollowupContainer.innerHTML = `
             <div class="followup-buttons-title">Want to practice more?</div>
-            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough" data-code="${buildCodeForBtn}" data-language="${buildLangForBtn}" data-problem="${buildProblemForBtn}" data-topic="${buildTopicForBtn}" data-test-cases="${buildTestCasesForBtn}" data-constraints="${buildConstraintsForBtn}">
+            <button class="followup-btn build-followup-btn" data-action="build-trace-walkthrough" data-code="${buildCodeForBtn}" data-language="${buildLangForBtn}" data-problem="${buildProblemForBtn}" data-topic="${buildTopicForBtn}" data-test-cases="${buildTestCasesForBtn}" data-constraints="${buildConstraintsForBtn}" data-parent-log-id="${buildParentLogId}">
               <span class="followup-btn-icon">📊</span>
               <span class="followup-btn-text">See example walkthrough and trace table</span>
               <span class="followup-btn-arrow">→</span>
             </button>
-            <button class="followup-btn build-followup-btn" data-action="build-similar-problem" data-code="${buildCodeForBtn}" data-language="${buildLangForBtn}" data-problem="${buildProblemForBtn}" data-topic="${buildTopicForBtn}" data-weak-spots="${buildWeakSpotsForBtn}">
+            <button class="followup-btn build-followup-btn" data-action="build-similar-problem" data-code="${buildCodeForBtn}" data-language="${buildLangForBtn}" data-problem="${buildProblemForBtn}" data-topic="${buildTopicForBtn}" data-weak-spots="${buildWeakSpotsForBtn}" data-parent-log-id="${buildParentLogId}">
               <span class="followup-btn-icon">🧩</span>
               <span class="followup-btn-text">Try a similar practice problem</span>
               <span class="followup-btn-arrow">→</span>
@@ -3093,17 +3005,18 @@
           const debugTopicForBtn = escapeHtml(currentDebugTopic || '');
           const debugBugInfoForBtn = escapeHtml(currentDebugBugInfo || '');
           
+          const debugParentLogId = currentLogId || '';
           const debugFollowupContainer = document.createElement("div");
           debugFollowupContainer.className = "followup-buttons-container";
           debugFollowupContainer.id = "debug-followup-container";
           debugFollowupContainer.innerHTML = `
             <div class="followup-buttons-title">Want to practice more?</div>
-            <button class="followup-btn debug-followup-btn" data-action="debug-trace-walkthrough" data-code="${debugCodeForBtn}" data-language="${debugLangForBtn}" data-problem="${debugProblemForBtn}" data-topic="${debugTopicForBtn}">
+            <button class="followup-btn debug-followup-btn" data-action="debug-trace-walkthrough" data-code="${debugCodeForBtn}" data-language="${debugLangForBtn}" data-problem="${debugProblemForBtn}" data-topic="${debugTopicForBtn}" data-parent-log-id="${debugParentLogId}">
               <span class="followup-btn-icon">📊</span>
               <span class="followup-btn-text">See example walkthrough and trace table</span>
               <span class="followup-btn-arrow">→</span>
             </button>
-            <button class="followup-btn debug-followup-btn" data-action="debug-similar-problem" data-code="${debugCodeForBtn}" data-language="${debugLangForBtn}" data-problem="${debugProblemForBtn}" data-topic="${debugTopicForBtn}" data-bug-info="${debugBugInfoForBtn}">
+            <button class="followup-btn debug-followup-btn" data-action="debug-similar-problem" data-code="${debugCodeForBtn}" data-language="${debugLangForBtn}" data-problem="${debugProblemForBtn}" data-topic="${debugTopicForBtn}" data-bug-info="${debugBugInfoForBtn}" data-parent-log-id="${debugParentLogId}">
               <span class="followup-btn-icon">🧩</span>
               <span class="followup-btn-text">Try a similar practice problem</span>
               <span class="followup-btn-arrow">→</span>
@@ -3656,7 +3569,6 @@
         currentBuildTopic = '';
         currentBuildWeakSpots = '';
         buildTraceHasBeenUsed = false;
-        buildExplainHasBeenUsed = false;
         lastBuildResponse = null;
 
         statusEl.textContent = "Building solution...";
@@ -3998,8 +3910,11 @@
           return;
         }
         
-        // Try to extract logId for feedback tracking
-        currentLogId = extractLogId(g) || extractLogId(g?.toolOutput) || extractLogId(g?.content?.[0]?.text);
+        // Try to extract logId for feedback tracking (only overwrite if truthy to prevent nullification by subsequent text messages)
+        const newLogIdFromGlobals = extractLogId(g) || extractLogId(g?.toolOutput) || extractLogId(g?.content?.[0]?.text);
+        if (newLogIdFromGlobals) {
+          currentLogId = newLogIdFromGlobals;
+        }
         console.log("[Widget] Extracted logId from globals:", currentLogId);
         
         // Try to extract outputs from various locations
@@ -4062,8 +3977,11 @@
           return;
         }
         
-        // Try to extract logId for feedback tracking
-        currentLogId = extractLogId(s) || extractLogId(s.toolOutput) || extractLogId(s.content?.[0]?.text);
+        // Try to extract logId for feedback tracking (only overwrite if truthy to prevent nullification by subsequent text messages)
+        const newLogIdFromState = extractLogId(s) || extractLogId(s.toolOutput) || extractLogId(s.content?.[0]?.text);
+        if (newLogIdFromState) {
+          currentLogId = newLogIdFromState;
+        }
         console.log("[Widget] Extracted logId:", currentLogId);
         
         // Try to extract outputs from various locations
@@ -4439,22 +4357,25 @@
       ];
       
       let pendingFeedbackDecision = null;
+      let pendingFeedbackLogId = null;
       
       // Show feedback modal with appropriate options
-      function showFeedbackModal(decision) {
+      function showFeedbackModal(decision, logIdFromBtn) {
         pendingFeedbackDecision = decision;
+        pendingFeedbackLogId = logIdFromBtn || currentLogId;
         const options = decision === 'yes' ? positiveOptions : negativeOptions;
         const title = decision === 'yes' ? 'What did you like?' : 'What was wrong?';
         
         feedbackModalTitle.textContent = title;
         feedbackOptions.innerHTML = '';
         
+        const capturedLogId = pendingFeedbackLogId;
         options.forEach(opt => {
           const btn = document.createElement('button');
           btn.className = 'feedback-option-btn';
           btn.textContent = opt.label;
           btn.dataset.value = opt.value;
-          btn.addEventListener('click', () => submitFeedback(decision, opt.value));
+          btn.addEventListener('click', () => submitFeedback(decision, opt.value, capturedLogId));
           feedbackOptions.appendChild(btn);
         });
         
@@ -4462,8 +4383,10 @@
       }
       
       // Submit feedback to API
-      async function submitFeedback(decision, reason) {
-        console.log('[Feedback] Submitting:', { logId: currentLogId, decision, reason });
+      async function submitFeedback(decision, reason, explicitLogId) {
+        // Use the explicitly passed logId (captured at button render time) with fallback to global
+        const feedbackLogId = explicitLogId || pendingFeedbackLogId || currentLogId;
+        console.log('[Feedback] Submitting:', { logId: feedbackLogId, decision, reason, source: explicitLogId ? 'explicit' : (pendingFeedbackLogId ? 'pending' : 'global') });
         
         // Close modal immediately for good UX
         feedbackModal.classList.remove('active');
@@ -4474,7 +4397,7 @@
           feedbackContainer.innerHTML = `<div class="feedback-thanks">Thanks for your feedback! 🎉</div>`;
         }
         
-        if (!currentLogId) {
+        if (!feedbackLogId) {
           console.warn('[Feedback] No logId available, cannot submit');
           return;
         }
@@ -4485,7 +4408,7 @@
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-              logId: currentLogId,
+              logId: feedbackLogId,
               decision: decision,
               reason: reason,
               widgetId: widgetId
@@ -4507,18 +4430,19 @@
       document.addEventListener('click', (e) => {
         if (e.target.classList.contains('feedback-btn')) {
           const decision = e.target.dataset.decision;
-          console.log('[Feedback] Button clicked:', decision);
-          showFeedbackModal(decision);
+          const logIdFromBtn = e.target.dataset.logId;
+          console.log('[Feedback] Button clicked:', decision, 'logId from btn:', logIdFromBtn);
+          showFeedbackModal(decision, logIdFromBtn);
         }
       });
       
-      // Skip button - just close modal and show thanks
+      // Skip button - just close modal and submit decision without reason
       feedbackModalSkip.addEventListener('click', () => {
         feedbackModal.classList.remove('active');
         
-        // Optionally submit without reason
-        if (pendingFeedbackDecision && currentLogId) {
-          submitFeedback(pendingFeedbackDecision, null);
+        // Submit with the decision but no reason
+        if (pendingFeedbackDecision) {
+          submitFeedback(pendingFeedbackDecision, null, pendingFeedbackLogId);
         }
       });
       
@@ -4540,7 +4464,7 @@
         
         console.log('[Widget] Follow-up button clicked:', action, 'topic:', topic);
         console.log('[Widget] currentBuildCode:', currentBuildCode ? 'SET' : 'EMPTY');
-        console.log('[Widget] buildTraceHasBeenUsed:', buildTraceHasBeenUsed, 'buildExplainHasBeenUsed:', buildExplainHasBeenUsed);
+        console.log('[Widget] buildTraceHasBeenUsed:', buildTraceHasBeenUsed);
         
         // Disable button to prevent double-clicks
         followupBtn.disabled = true;
@@ -4557,6 +4481,10 @@
         
         try {
           let prompt;
+          
+          // Read parentLogId from data-attribute (for tree-structured logging)
+          const parentLogId = followupBtn.dataset.parentLogId || currentLogId || '';
+          console.log('[Widget] Follow-up parentLogId:', parentLogId);
           
           // === BUILD MODE ACTIONS (check first - don't depend on topic) ===
           // Read context from data-attributes (embedded on buttons) to work across widget instances
@@ -4590,6 +4518,9 @@
             if (buildConstraints) {
               prompt += ` Constraints: ${buildConstraints}`;
             }
+            if (parentLogId) {
+              prompt += ` parentLogId: ${parentLogId}`;
+            }
             // Include last response context if available
             if (lastBuildResponse && lastBuildResponse.exampleWalkthrough) {
               prompt += ` Previous walkthrough context: ${lastBuildResponse.exampleWalkthrough.substring(0, 500)}`;
@@ -4621,29 +4552,10 @@
             if (buildWeakSpots) {
               prompt += ` Weak spots (focus blanks on these concepts): ${buildWeakSpots}`;
             }
+            if (parentLogId) {
+              prompt += ` parentLogId: ${parentLogId}`;
+            }
             console.log('[Widget] Build similar problem - code length:', buildCode.length, 'topic:', buildTopic);
-          } else if (action === 'build-explain-simple') {
-            if (!currentBuildCode) {
-              console.warn('[Widget] No build code available for explanation');
-              restoreButton();
-              return;
-            }
-            
-            buildExplainHasBeenUsed = true; // Mark as used for next time
-            
-            prompt = `Use AlgoTutor build_explain_simple tool to explain the solution more clearly.`;
-            prompt += ` Code: \`\`\`\n${currentBuildCode}\n\`\`\``;
-            if (currentBuildProblem) {
-              prompt += ` Problem: ${currentBuildProblem}`;
-            }
-            // Include last response context for context-aware explanations
-            if (lastBuildResponse) {
-              if (lastBuildResponse.exampleWalkthrough) {
-                prompt += ` Explain this walkthrough more clearly: ${lastBuildResponse.exampleWalkthrough.substring(0, 500)}`;
-              } else if (lastBuildResponse.detailedExplanation) {
-                prompt += ` Build on this explanation: ${lastBuildResponse.detailedExplanation.substring(0, 500)}`;
-              }
-            }
           }
           // === DEBUG MODE ACTIONS ===
           // Read context from data-attributes (embedded on buttons) to work across widget instances
@@ -4664,6 +4576,9 @@
             prompt += ` Language: ${debugLanguage}`;
             if (debugProblem) {
               prompt += ` Problem context: ${debugProblem}`;
+            }
+            if (parentLogId) {
+              prompt += ` parentLogId: ${parentLogId}`;
             }
             console.log('[Widget] Debug trace walkthrough - code length:', debugCode.length);
           } else if (action === 'debug-similar-problem') {
@@ -4692,6 +4607,9 @@
             if (debugBugInfo) {
               prompt += ` Bug info (focus blanks on this issue type): ${debugBugInfo}`;
             }
+            if (parentLogId) {
+              prompt += ` parentLogId: ${parentLogId}`;
+            }
             console.log('[Widget] Debug similar problem - code length:', debugCode.length, 'topic:', debugTopic);
           }
           // === LEARN MODE ACTIONS ===
@@ -4705,6 +4623,9 @@
             if (code) {
               prompt += ` Use this code as reference: \`\`\`python\n${code}\n\`\`\``;
             }
+            if (parentLogId) {
+              prompt += ` parentLogId: ${parentLogId}`;
+            }
           } else if (action === 'real-world') {
             if (!topic) {
               console.warn('[Widget] No topic available for follow-up');
@@ -4712,6 +4633,9 @@
               return;
             }
             prompt = `Use AlgoTutor learn_real_world_example tool to generate a fill-in-the-blank practice problem for ${topic}.`;
+            if (parentLogId) {
+              prompt += ` parentLogId: ${parentLogId}`;
+            }
           }
           
           if (prompt) {

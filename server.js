@@ -7,7 +7,7 @@ import { dirname, join } from "node:path";
 import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
 import { z } from "zod";
-import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateDebugFillInBlank, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildExplainSimple, generateBuildSimilarProblem, generateDebugTraceWalkthrough, generateDebugSimilarProblem, generateAIRecommendation } from './llm.js';
+import { generateLearnContent, generateBuildSolution, generateDebugAnalysis, generateDebugFillInBlank, generateTraceAndWalkthrough, generateRealWorldExample, generateBuildTraceWalkthrough, generateBuildSimilarProblem, generateDebugTraceWalkthrough, generateDebugSimilarProblem, generateAIRecommendation } from './llm.js';
 import { authenticateRequest, logUsage, isAuthEnabled } from './auth.js';
 import Stripe from 'stripe';
 import { createClient } from '@supabase/supabase-js';
@@ -84,11 +84,13 @@ const learnModeInputSchema = z.object({
 const learnTraceWalkthroughSchema = z.object({
   topic: z.string().min(1).describe("The DSA topic/algorithm to generate trace table and walkthrough for"),
   code: z.string().optional().describe("Optional: The code from the initial learn response to trace through"),
+  parentLogId: z.string().optional().describe("The logId of the parent interaction this follow-up branches from"),
 });
 
 // Learn Mode Real World Example Schema - for follow-up requests
 const learnRealWorldExampleSchema = z.object({
   topic: z.string().min(1).describe("The DSA topic/algorithm to generate a practice problem for"),
+  parentLogId: z.string().optional().describe("The logId of the parent interaction this follow-up branches from"),
 });
 
 // Build Mode Schema - SIMPLIFIED (test cases and constraints are detected from problem description)
@@ -106,13 +108,7 @@ const buildTraceWalkthroughSchema = z.object({
   testCases: z.string().optional().describe("Optional test cases extracted from problem description"),
   constraints: z.string().optional().describe("Optional constraints extracted from problem description"),
   isEdgeCase: z.boolean().default(false).describe("Whether to use an edge case (true) or normal case (false)"),
-});
-
-// Build Mode Explain Simple Schema - for follow-up requests
-const buildExplainSimpleSchema = z.object({
-  problem: z.string().min(1).describe("The original problem description"),
-  code: z.string().min(1).describe("The code from the build mode response"),
-  previousContext: z.string().optional().describe("Previous response content for context-aware explanations"),
+  parentLogId: z.string().optional().describe("The logId of the parent interaction this follow-up branches from"),
 });
 
 // Build Mode Similar Problem Schema - for follow-up requests
@@ -122,6 +118,7 @@ const buildSimilarProblemSchema = z.object({
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
   topic: z.string().optional().describe("The algorithm/data structure topic inferred from the code"),
   weakSpots: z.string().optional().describe("Accumulated info about what the user got wrong in previous fill-in-blank quizzes - used to focus blanks on weak areas"),
+  parentLogId: z.string().optional().describe("The logId of the parent interaction this follow-up branches from"),
 });
 
 // Debug Mode Schema - simplified (only code and language)
@@ -135,6 +132,7 @@ const debugTraceWalkthroughSchema = z.object({
   code: z.string().min(1).describe("The code to trace through"),
   problem: z.string().optional().describe("Optional description of what the code does"),
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
+  parentLogId: z.string().optional().describe("The logId of the parent interaction this follow-up branches from"),
 });
 
 // Debug Mode Similar Problem Schema - for follow-up requests
@@ -144,6 +142,7 @@ const debugSimilarProblemSchema = z.object({
   language: z.enum(["python", "java", "cpp"]).default("python").describe("Programming language"),
   topic: z.string().optional().describe("The algorithm/data structure topic inferred from the code"),
   bugInfo: z.string().optional().describe("Bug diagnosis info from debug mode - used to focus blanks on the issue type the user encountered"),
+  parentLogId: z.string().optional().describe("The logId of the parent interaction this follow-up branches from"),
 });
 
 //
@@ -485,6 +484,7 @@ function createAlgoTutorServer() {
           }
         };
         
+        learnMetadata.actionType = 'initial';
         logInfo('Logging usage to Supabase', { userId: user.id, mode: 'learn', topic: args.topic, widgetId: authResult.widgetId });
         const logId = await logUsage(user, 'learn', args.topic, authResult.widgetId, learnMetadata);
         logSuccess('Usage logged successfully with V2 metadata', { logId });
@@ -575,7 +575,7 @@ function createAlgoTutorServer() {
         }
         
         // Log usage
-        const logId = await logUsage(user, 'learn_trace', args.topic, authResult.widgetId, { type: 'trace_walkthrough' });
+        const logId = await logUsage(user, 'learn', args.topic, authResult.widgetId, { actionType: 'trace_walkthrough', parentLogId: args.parentLogId || null });
         
         return makeToolOutput("learn", outputs, null, logId);
       } catch (error) {
@@ -643,7 +643,7 @@ function createAlgoTutorServer() {
         }
         
         // Log usage
-        const logId = await logUsage(user, 'learn_example', args.topic, authResult.widgetId, { type: 'real_world_example' });
+        const logId = await logUsage(user, 'learn', args.topic, authResult.widgetId, { actionType: 'real_world_example', parentLogId: args.parentLogId || null });
         
         return makeToolOutput("learn", outputs, null, logId);
       } catch (error) {
@@ -766,6 +766,7 @@ function createAlgoTutorServer() {
           }
         };
         
+        buildMetadata.actionType = 'initial';
         const logId = await logUsage(user, 'build', args.problem.substring(0, 200), authResult.widgetId, buildMetadata);
         logSuccess('Usage logged with V2 metadata', { logId });
         
@@ -847,7 +848,7 @@ function createAlgoTutorServer() {
         }
         
         // Log usage
-        const logId = await logUsage(user, 'build_trace', args.problem?.substring(0, 200) || 'trace', authResult.widgetId, { type: 'trace_walkthrough', level: args.level });
+        const logId = await logUsage(user, 'build', args.problem?.substring(0, 200) || 'trace', authResult.widgetId, { actionType: 'trace_walkthrough', parentLogId: args.parentLogId || null });
         
         return makeToolOutput("build", outputs, null, logId);
       } catch (error) {
@@ -858,76 +859,7 @@ function createAlgoTutorServer() {
   );
 
   //
-  // 🚀 Tool 2c: Build Mode - Explain Simple (follow-up)
-  //
-  server.registerTool(
-    "build_explain_simple",
-    {
-      title: "AlgoTutor Build Mode Explain Simple",
-      description:
-        "Explains a Build Mode solution in simpler terms. Use this when the user clicks the explain follow-up button. Provide previousContext for context-aware explanations of specific content.",
-      inputSchema: buildExplainSimpleSchema,
-      _meta: {
-        "openai/outputTemplate": "ui://widget/algo-tutor.html",
-        "openai/toolInvocation/invoking": "Generating simpler explanation...",
-        "openai/toolInvocation/invoked": "Explanation ready! Check the AlgoTutor panel.",
-        "openai/instruction": "STOP. The simplified explanation is displayed in the AlgoTutor panel above. DO NOT repeat the content or explain it yourself. Simply say: 'The explanation is ready in the AlgoTutor panel above.' Nothing more.",
-      },
-      annotations: { readOnlyHint: true },
-    },
-    async (args, context) => {
-      logSection('BUILD EXPLAIN SIMPLE TOOL CALLED');
-      logInfo('Tool arguments received', args);
-      
-      const headers = context?.requestInfo?.headers || {};
-      const mockReq = { headers };
-      
-      try {
-        const authResult = await authenticateRequest(mockReq, 'build');
-        logInfo('Authentication result', { success: authResult.success });
-        
-        if (!authResult.success) {
-          logError('Authentication/Authorization failed', authResult.error);
-          return {
-            content: [{
-              type: "text",
-              text: JSON.stringify({
-                _widgetOnly: true,
-                _instruction: "Display the error in the AlgoTutor panel.",
-                mode: "build",
-                error: authResult.error
-              })
-            }]
-          };
-        }
-        
-        const user = authResult.user;
-        logSuccess(`User authenticated: ${user.email}`);
-        
-        // Generate simple explanation
-        const outputs = await generateBuildExplainSimple(args);
-        
-        // Check for validation errors
-        if (outputs.error === 'INVALID_INPUT') {
-          return makeToolOutput("build", {
-            invalidInput: true,
-            message: outputs.message || 'Unable to generate explanation.'
-          });
-        }
-        
-        // Log usage
-        const logId = await logUsage(user, 'build_explain', args.problem?.substring(0, 200) || 'explain', authResult.widgetId, { type: 'explain_simple', level: args.level });
-        
-        return makeToolOutput("build", outputs, null, logId);
-      } catch (error) {
-        logError('BUILD EXPLAIN SIMPLE ERROR', error);
-        throw error;
-      }
-    }
-  );
-
-  //
-  // 🚀 Tool 2d: Build Mode - Similar Problem (follow-up)
+  // 🚀 Tool 2c: Build Mode - Similar Problem (follow-up)
   //
   server.registerTool(
     "build_similar_problem",
@@ -985,7 +917,7 @@ function createAlgoTutorServer() {
         }
         
         // Log usage
-        const logId = await logUsage(user, 'build_similar', args.problem?.substring(0, 200) || 'similar', authResult.widgetId, { type: 'similar_problem' });
+        const logId = await logUsage(user, 'build', args.problem?.substring(0, 200) || 'similar', authResult.widgetId, { actionType: 'similar_problem', parentLogId: args.parentLogId || null });
         
         return makeToolOutput("build", outputs, null, logId);
       } catch (error) {
@@ -1168,6 +1100,7 @@ function createAlgoTutorServer() {
           }
         };
         
+        debugMetadata.actionType = 'initial';
         const topic = outputs.whatCodeDoes || 'code_debug';
         const logId = await logUsage(user, 'debug', topic.substring(0, 200), authResult.widgetId, debugMetadata);
         logSuccess('Usage logged with V2 metadata', { logId });
@@ -1250,7 +1183,7 @@ function createAlgoTutorServer() {
         }
         
         // Log usage
-        const logId = await logUsage(user, 'debug_trace', args.problem?.substring(0, 200) || 'trace', authResult.widgetId, { type: 'trace_walkthrough' });
+        const logId = await logUsage(user, 'debug', args.problem?.substring(0, 200) || 'trace', authResult.widgetId, { actionType: 'trace_walkthrough', parentLogId: args.parentLogId || null });
         
         return makeToolOutput("debug", outputs, null, logId);
       } catch (error) {
@@ -1319,7 +1252,7 @@ function createAlgoTutorServer() {
         }
         
         // Log usage
-        const logId = await logUsage(user, 'debug_similar', args.problem?.substring(0, 200) || 'similar', authResult.widgetId, { type: 'similar_problem' });
+        const logId = await logUsage(user, 'debug', args.problem?.substring(0, 200) || 'similar', authResult.widgetId, { actionType: 'similar_problem', parentLogId: args.parentLogId || null });
         
         return makeToolOutput("debug", outputs, null, logId);
       } catch (error) {
@@ -1338,6 +1271,7 @@ function createAlgoTutorServer() {
     topic: z.string().optional().describe("The DSA topic"),
     problemDescription: z.string().optional().describe("Description of the problem"),
     codeWithBlanks: z.string().optional().describe("The code with blanks"),
+    parentLogId: z.string().optional().describe("The logId of the parent interaction this follow-up branches from"),
   });
 
   server.registerTool(
@@ -1388,7 +1322,7 @@ function createAlgoTutorServer() {
         const outputs = await generateAIRecommendation(args);
         
         // Log usage
-        const logId = await logUsage(user, 'ai_recommendation', args.topic?.substring(0, 200) || 'recommendation', authResult.widgetId, { type: 'ai_recommendation' });
+        const logId = await logUsage(user, 'debug', args.topic?.substring(0, 200) || 'recommendation', authResult.widgetId, { actionType: 'ai_recommendation', parentLogId: args.parentLogId || null });
         
         return makeToolOutput("debug", outputs, null, logId);
       } catch (error) {
