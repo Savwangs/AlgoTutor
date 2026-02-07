@@ -663,94 +663,16 @@
         line-height: 1.5;
       }
 
-      /* Upgrade button styles */
-      .upgrade-container {
+      /* Error display */
+      .error-container {
         text-align: center;
         padding: 40px 20px;
       }
 
-      .upgrade-message {
+      .error-message {
         font-size: 1.1rem;
         color: var(--error);
         margin-bottom: 20px;
-      }
-
-      .upgrade-btn {
-        display: inline-block;
-        padding: 14px 28px;
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: white;
-        font-weight: 600;
-        font-size: 1rem;
-        border: none;
-        border-radius: 10px;
-        cursor: pointer;
-        text-decoration: none;
-        transition: all 0.2s;
-        box-shadow: 0 4px 15px rgba(245, 158, 11, 0.4);
-      }
-
-      .upgrade-btn:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 6px 20px rgba(245, 158, 11, 0.5);
-      }
-
-      /* EARLY_ACCESS: Early Access Banner */
-      .early-access-banner {
-        background: linear-gradient(135deg, rgba(16, 185, 129, 0.2), rgba(59, 130, 246, 0.15));
-        border: 1px solid rgba(16, 185, 129, 0.4);
-        border-radius: 8px;
-        padding: 10px 16px;
-        margin-bottom: 12px;
-        text-align: center;
-      }
-
-      .early-access-banner-title {
-        font-size: 0.9rem;
-        font-weight: 700;
-        color: #10b981;
-        margin-bottom: 4px;
-      }
-
-      .early-access-banner-text {
-        font-size: 0.8rem;
-        color: var(--text-main);
-        line-height: 1.4;
-      }
-
-      .early-access-banner-text strong {
-        color: #fbbf24;
-      }
-
-      /* Early adopter promo banner */
-      .promo-banner {
-        background: linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(251, 191, 36, 0.1));
-        border: 1px solid rgba(245, 158, 11, 0.4);
-        border-radius: 10px;
-        padding: 16px;
-        margin-top: 20px;
-        text-align: left;
-      }
-
-      .promo-banner-title {
-        font-size: 0.95rem;
-        font-weight: 700;
-        color: #fbbf24;
-        margin-bottom: 8px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
-      }
-
-      .promo-banner-text {
-        font-size: 0.85rem;
-        color: var(--text-main);
-        line-height: 1.6;
-        margin: 0;
-      }
-
-      .promo-banner-text strong {
-        color: #fbbf24;
       }
 
       /* Validation error display */
@@ -775,25 +697,6 @@
         line-height: 1.6;
       }
 
-      /* Premium activation button in header */
-      .activate-premium-btn {
-        padding: 8px 14px;
-        background: linear-gradient(135deg, #f59e0b, #d97706);
-        color: white;
-        font-weight: 600;
-        font-size: 0.8rem;
-        border: none;
-        border-radius: 8px;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: flex;
-        align-items: center;
-        gap: 6px;
-      }
-
-      .activate-premium-btn:hover {
-        transform: scale(1.05);
-      }
 
       /* Header buttons container */
       .header-buttons {
@@ -820,23 +723,6 @@
         background: rgba(59, 130, 246, 0.1);
       }
 
-      /* Cancel subscription button */
-      .cancel-subscription-btn {
-        padding: 6px 10px;
-        background: transparent;
-        color: var(--text-muted);
-        font-size: 0.75rem;
-        border: 1px solid var(--border-subtle);
-        border-radius: 6px;
-        cursor: pointer;
-        transition: all 0.2s;
-        display: none;
-      }
-
-      .cancel-subscription-btn:hover {
-        color: var(--error);
-        border-color: var(--error);
-      }
 
       /* Modal styles */
       .modal-overlay {
@@ -966,47 +852,6 @@
         gap: 14px;
       }
 
-      /* Premium success state */
-      .premium-success-container {
-        text-align: center;
-        padding: 60px 20px;
-      }
-
-      .premium-success-icon {
-        font-size: 4rem;
-        margin-bottom: 20px;
-        animation: pulse 2s ease-in-out infinite;
-      }
-
-      @keyframes pulse {
-        0%, 100% { transform: scale(1); }
-        50% { transform: scale(1.1); }
-      }
-
-      .premium-success-title {
-        font-size: 1.5rem;
-        font-weight: 700;
-        color: var(--success);
-        margin-bottom: 12px;
-      }
-
-      .premium-success-message {
-        font-size: 1rem;
-        color: var(--text-main);
-        margin-bottom: 8px;
-        line-height: 1.6;
-      }
-
-      .premium-success-hint {
-        font-size: 0.85rem;
-        color: var(--text-muted);
-        margin-top: 20px;
-        padding: 12px 16px;
-        background: rgba(16, 185, 129, 0.1);
-        border: 1px solid rgba(16, 185, 129, 0.3);
-        border-radius: 8px;
-        display: inline-block;
-      }
 
       /* Feedback UI Styles */
       .feedback-container {
@@ -1618,14 +1463,6 @@
             <button class="help-link" id="help-btn" title="Contact support">
               Need Help?
             </button>
-            <!-- EARLY_ACCESS_START: Premium buttons hidden during early access
-            <button class="cancel-subscription-btn" id="cancel-subscription-btn">
-              Cancel Subscription
-            </button>
-            <button class="activate-premium-btn" id="activate-premium-btn">
-              ⚡ Activate Premium
-            </button>
-            EARLY_ACCESS_END -->
           </div>
         </div>
         <div class="mode-selector">
@@ -1783,26 +1620,6 @@
       </div>
     </main>
 
-    <!-- EARLY_ACCESS_START: Premium Activation Modal hidden during early access
-    <div class="modal-overlay" id="premium-modal">
-      <div class="modal">
-        <h2>⚡ Activate Premium</h2>
-        <p>Enter the activation code from your purchase confirmation.</p>
-        <div id="modal-message" class="modal-message" style="display: none;"></div>
-        <input 
-          type="text" 
-          class="modal-input" 
-          id="premium-code-input" 
-          placeholder="ALGO-XXXXXX"
-          maxlength="11"
-        />
-        <div class="modal-buttons">
-          <button class="modal-btn modal-btn-secondary" id="modal-cancel">Cancel</button>
-          <button class="modal-btn modal-btn-primary" id="modal-activate">Activate</button>
-        </div>
-      </div>
-    </div>
-    EARLY_ACCESS_END -->
 
     <!-- Feedback Modal -->
     <div class="feedback-modal-overlay" id="feedback-modal">
@@ -1841,14 +1658,9 @@
     </div>
 
     <script type="module">
-      // EARLY_ACCESS: Set to false to re-enable premium activation features
-      // During early access, all features are free - no premium activation needed
-      const EARLY_ACCESS_MODE = true;
-      
       // DEBUGGING: Log everything available on window
       console.log("============================================");
       console.log("[Widget] INITIAL LOAD - Checking window object");
-      console.log("[Widget] EARLY_ACCESS_MODE:", EARLY_ACCESS_MODE);
       console.log("[Widget] window.openai:", window.openai);
       console.log("[Widget] window.state:", window.state);
       console.log("[Widget] Full window keys:", Object.keys(window).filter(k => k.includes('openai') || k.includes('state') || k.includes('widget')));
@@ -3709,7 +3521,7 @@
         return null;
       }
 
-      // Helper: Check for errors with upgrade URL
+      // Helper: Check for errors
       function extractError(data) {
         console.log("[Widget] extractError called with:", typeof data, data);
         
@@ -3759,37 +3571,14 @@
         return null;
       }
 
-      // Helper: Format remaining time for countdown
-      function formatCountdown(expiresAt) {
-        const now = Date.now();
-        const expires = new Date(expiresAt).getTime();
-        const remaining = expires - now;
-        
-        if (remaining <= 0) return null; // Expired
-        
-        const hours = Math.floor(remaining / (1000 * 60 * 60));
-        const minutes = Math.floor((remaining % (1000 * 60 * 60)) / (1000 * 60));
-        
-        if (hours > 0) {
-          return `${hours}h ${minutes}m`;
-        }
-        return `${minutes}m`;
-      }
-
-      // Render error with upgrade button
+      // Render error message
       function renderError(error) {
         console.log("[Widget] ==================== renderError ====================");
         console.log("[Widget] Rendering error:", JSON.stringify(error, null, 2));
         outputContainer.innerHTML = '';
         
-        // Store cooldown expiry in localStorage if present
-        if (error.cooldownExpiresAt) {
-          localStorage.setItem('algotutor_cooldown_expires', error.cooldownExpiresAt);
-          console.log("[Widget] Stored cooldown expires at:", error.cooldownExpiresAt);
-        }
-        
         const errorDiv = document.createElement('div');
-        errorDiv.className = 'upgrade-container';
+        errorDiv.className = 'error-container';
         
         // Error icon
         const iconDiv = document.createElement('div');
@@ -3799,86 +3588,12 @@
         errorDiv.appendChild(iconDiv);
         
         const messageDiv = document.createElement('div');
-        messageDiv.className = 'upgrade-message';
+        messageDiv.className = 'error-message';
         messageDiv.textContent = error.message || 'An error occurred.';
         errorDiv.appendChild(messageDiv);
         
-        // Show countdown timer if cooldown is active
-        if (error.cooldownExpiresAt) {
-          const countdownDiv = document.createElement('div');
-          countdownDiv.id = 'cooldown-timer';
-          countdownDiv.style.marginTop = '12px';
-          countdownDiv.style.padding = '8px 16px';
-          countdownDiv.style.background = 'rgba(59, 130, 246, 0.1)';
-          countdownDiv.style.borderRadius = '8px';
-          countdownDiv.style.color = 'var(--accent)';
-          countdownDiv.style.fontSize = '0.9rem';
-          countdownDiv.style.fontWeight = '500';
-          
-          const updateCountdown = () => {
-            const formatted = formatCountdown(error.cooldownExpiresAt);
-            if (formatted) {
-              countdownDiv.textContent = `⏱️ Try again in ${formatted}`;
-            } else {
-              countdownDiv.textContent = '✅ You can try again now!';
-              countdownDiv.style.background = 'rgba(16, 185, 129, 0.1)';
-              countdownDiv.style.color = '#10b981';
-              localStorage.removeItem('algotutor_cooldown_expires');
-            }
-          };
-          
-          updateCountdown();
-          // Update every minute
-          const intervalId = setInterval(updateCountdown, 60000);
-          // Store interval ID so we can clear it later
-          countdownDiv.dataset.intervalId = intervalId;
-          
-          errorDiv.appendChild(countdownDiv);
-        }
-        
-        if (error.upgradeUrl) {
-          console.log("[Widget] ✅ upgradeUrl found, creating button:", error.upgradeUrl);
-          
-          // Add some spacing
-          const spacer = document.createElement('div');
-          spacer.style.marginBottom = '20px';
-          errorDiv.appendChild(spacer);
-          
-          const upgradeBtn = document.createElement('button');
-          upgradeBtn.className = 'upgrade-btn';
-          upgradeBtn.textContent = '⚡ Upgrade to Premium';
-          upgradeBtn.onclick = () => {
-            console.log("[Widget] Upgrade button clicked, opening:", error.upgradeUrl);
-            window.open(error.upgradeUrl, '_blank');
-          };
-          errorDiv.appendChild(upgradeBtn);
-          
-          // Add a note below the button
-          const noteDiv = document.createElement('p');
-          noteDiv.style.marginTop = '16px';
-          noteDiv.style.color = 'var(--text-muted)';
-          noteDiv.style.fontSize = '0.85rem';
-          noteDiv.textContent = 'Get unlimited access to all AlgoTutor modes!';
-          errorDiv.appendChild(noteDiv);
-          
-          // Add early adopter promo banner
-          const promoBanner = document.createElement('div');
-          promoBanner.className = 'promo-banner';
-          promoBanner.innerHTML = `
-            <div class="promo-banner-title">🎉 Early Access: 30%+ OFF!</div>
-            <p class="promo-banner-text">
-              Get premium now at <strong>$9.99/mo</strong>.
-              Plus, <strong>early access to personalized exam prep</strong> coming soon.
-              Guaranteed to help with any CS class exam.
-            </p>
-          `;
-          errorDiv.appendChild(promoBanner);
-        } else {
-          console.warn("[Widget] ⚠️ No upgradeUrl in error object");
-        }
-        
         outputContainer.appendChild(errorDiv);
-        console.log("[Widget] ✅ Error rendered with upgrade container");
+        console.log("[Widget] ✅ Error rendered");
       }
 
       // Listen for state updates from ChatGPT
@@ -3890,7 +3605,7 @@
         const g = detail.globals || detail.state || detail;
         console.log("[Widget] Extracted globals:", JSON.stringify(g, null, 2));
         
-        // Check for errors first (including upgrade prompts)
+        // Check for errors first
         // Try multiple possible locations
         console.log("[Widget] Checking for errors...");
         let error = extractError(g);
@@ -3965,7 +3680,7 @@
           return;
         }
         
-        // Check for errors first (including upgrade prompts)
+        // Check for errors first
         console.log("[Widget] Checking for errors in state_updated...");
         let error = extractError(s);
         if (!error && s.toolOutput) error = extractError(s.toolOutput);
@@ -4022,129 +3737,8 @@
       
       console.log("[Widget] ==================== INITIALIZATION COMPLETE ====================");
 
-      // ==================== AUTO-ACTIVATE PREMIUM FROM LOCALSTORAGE ====================
-      // EARLY_ACCESS_START: Auto-activation disabled during early access
-      let storedPremiumCode = null;
-      if (!EARLY_ACCESS_MODE) {
-        // Check if user has a stored premium code and auto-activate it for this session
-        storedPremiumCode = localStorage.getItem('algotutor_premium_code');
-        const cancelBtn = document.getElementById('cancel-subscription-btn');
-        const currentWidgetId = getChatGPTUserId(); // Get widget ID for device binding
-        
-        if (storedPremiumCode) {
-          console.log('[Widget] Found stored premium code, auto-activating:', storedPremiumCode, 'widgetId:', currentWidgetId);
-          
-          // Show cancel button since user has a stored code
-          if (cancelBtn) {
-            cancelBtn.style.display = 'inline-block';
-          }
-          
-          // Auto-activate in background (don't block UI)
-          // Include widgetId to verify this device is the one that claimed the code
-          fetch('https://algo-tutor.org/api/activate-premium', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ code: storedPremiumCode, widgetId: currentWidgetId })
-          })
-          .then(response => response.json())
-          .then(data => {
-            if (data.error) {
-              console.log('[Widget] Auto-activation failed:', data.error);
-              // If code is invalid, revoked, or claimed by another device, remove it from storage
-              if (data.error.includes('Invalid') || data.error.includes('not found') || data.error.includes('revoked') || data.error.includes('another device')) {
-                localStorage.removeItem('algotutor_premium_code');
-                console.log('[Widget] Removed invalid/revoked/claimed code from localStorage');
-                // Hide cancel button since code is no longer valid
-                if (cancelBtn) {
-                  cancelBtn.style.display = 'none';
-                }
-              }
-            } else {
-              console.log('[Widget] ✓ Auto-activation successful! Premium status restored.');
-              // Update the activate button to show premium is active
-              const activateBtn = document.getElementById('activate-premium-btn');
-              if (activateBtn) {
-                activateBtn.textContent = '✓ Premium Active';
-                activateBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                activateBtn.disabled = true;
-              }
-            }
-          })
-          .catch(error => {
-            console.error('[Widget] Auto-activation error:', error);
-          });
-        } else {
-          console.log('[Widget] No stored premium code found');
-          // Hide cancel button if no code stored
-          if (cancelBtn) {
-            cancelBtn.style.display = 'none';
-          }
-        }
-        
-        // Cancel subscription button click handler
-        if (cancelBtn) {
-          cancelBtn.addEventListener('click', () => {
-            console.log('[Widget] Opening cancel subscription page');
-            window.open('https://algo-tutor.org/cancel.html', '_blank');
-          });
-        }
-      } else {
-        console.log('[Widget] Early access mode - premium auto-activation disabled');
-      }
-      // EARLY_ACCESS_END
 
-      // ==================== CHECK COOLDOWN FROM LOCALSTORAGE ====================
-      // EARLY_ACCESS: Cooldown checking disabled during early access - unlimited usage
-      const storedCooldown = localStorage.getItem('algotutor_cooldown_expires');
-      if (!EARLY_ACCESS_MODE && storedCooldown && !storedPremiumCode) {
-        const now = Date.now();
-        const expires = new Date(storedCooldown).getTime();
-        const remaining = expires - now;
-        
-        if (remaining > 0) {
-          console.log('[Widget] Active cooldown found, expires at:', storedCooldown);
-          // Don't show cooldown UI on init - it will show when user tries to use the tool
-          // Just log that we have an active cooldown
-        } else {
-          // Cooldown expired, clean up localStorage
-          localStorage.removeItem('algotutor_cooldown_expires');
-          console.log('[Widget] Cooldown expired, removed from localStorage');
-        }
-      }
 
-      // ==================== PREMIUM ACTIVATION MODAL ====================
-      // EARLY_ACCESS_START: Premium activation code - disabled during early access
-      if (!EARLY_ACCESS_MODE) {
-        const premiumModal = document.getElementById('premium-modal');
-        const activatePremiumBtn = document.getElementById('activate-premium-btn');
-        const modalCancel = document.getElementById('modal-cancel');
-        const modalActivate = document.getElementById('modal-activate');
-        const premiumCodeInput = document.getElementById('premium-code-input');
-        const modalMessage = document.getElementById('modal-message');
-
-        // Open modal
-        activatePremiumBtn.addEventListener('click', () => {
-          premiumModal.classList.add('active');
-          premiumCodeInput.value = '';
-          modalMessage.style.display = 'none';
-          premiumCodeInput.focus();
-        });
-
-        // Close modal
-        modalCancel.addEventListener('click', () => {
-          premiumModal.classList.remove('active');
-        });
-
-        // Close on overlay click
-        premiumModal.addEventListener('click', (e) => {
-          if (e.target === premiumModal) {
-            premiumModal.classList.remove('active');
-          }
-        });
-      } else {
-        console.log('[Widget] Early access mode - premium activation disabled');
-      }
-      // EARLY_ACCESS_END
 
       // ==================== HELP MODAL ====================
       const helpModal = document.getElementById('help-modal');
@@ -4168,22 +3762,6 @@
         }
       });
 
-      // Format input as user types
-      // EARLY_ACCESS_START: Premium code input formatting - disabled during early access
-      if (!EARLY_ACCESS_MODE) {
-        const premiumCodeInput = document.getElementById('premium-code-input');
-        if (premiumCodeInput) {
-          premiumCodeInput.addEventListener('input', (e) => {
-            let value = e.target.value.toUpperCase().replace(/[^A-Z0-9-]/g, '');
-            // Auto-add ALGO- prefix if not present
-            if (value.length > 0 && !value.startsWith('ALGO-') && !value.startsWith('A')) {
-              value = 'ALGO-' + value;
-            }
-            e.target.value = value;
-          });
-        }
-      }
-      // EARLY_ACCESS_END
 
       // Helper to get chatgpt user ID (from context or generate one based on session)
       function getChatGPTUserId() {
@@ -4227,113 +3805,6 @@
         }
       })();
 
-      // Activate premium
-      // EARLY_ACCESS_START: Premium activation handler - disabled during early access
-      if (!EARLY_ACCESS_MODE) {
-        const modalActivate = document.getElementById('modal-activate');
-        const premiumCodeInput = document.getElementById('premium-code-input');
-        const modalMessage = document.getElementById('modal-message');
-        const premiumModal = document.getElementById('premium-modal');
-        const activatePremiumBtn = document.getElementById('activate-premium-btn');
-        
-        if (modalActivate && premiumCodeInput) {
-          modalActivate.addEventListener('click', async () => {
-            const code = premiumCodeInput.value.trim().toUpperCase();
-            
-            if (!code || code.length < 5) {
-              modalMessage.textContent = 'Please enter a valid activation code.';
-              modalMessage.className = 'modal-message error';
-              modalMessage.style.display = 'block';
-              return;
-            }
-
-            modalActivate.disabled = true;
-            modalActivate.textContent = 'Activating...';
-
-            try {
-              // Get widget ID for device binding - this binds the code to this specific device
-              const widgetId = getChatGPTUserId();
-              console.log('[Widget] Activating premium with widgetId:', widgetId);
-              
-              const response = await fetch('https://algo-tutor.org/api/activate-premium', {
-                method: 'POST',
-                headers: {
-                  'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({
-                  code: code,
-                  widgetId: widgetId
-                })
-              });
-
-              const data = await response.json();
-
-              if (data.error) {
-                modalMessage.textContent = data.error;
-                modalMessage.className = 'modal-message error';
-                modalMessage.style.display = 'block';
-              } else {
-                modalMessage.textContent = '✓ ' + (data.message || 'Premium activated successfully!');
-                modalMessage.className = 'modal-message success';
-                modalMessage.style.display = 'block';
-                
-                // Store the code in localStorage for cross-session persistence
-                localStorage.setItem('algotutor_premium_code', code);
-                console.log('[Widget] Premium code stored in localStorage:', code);
-                
-                // Show cancel button now that user has activated premium
-                const cancelBtn = document.getElementById('cancel-subscription-btn');
-                if (cancelBtn) {
-                  cancelBtn.style.display = 'inline-block';
-                }
-                
-                // Close modal after brief delay
-                setTimeout(() => {
-                  premiumModal.classList.remove('active');
-                  
-                  // Update the activate button to show premium is active
-                  activatePremiumBtn.textContent = '✓ Premium Active';
-                  activatePremiumBtn.style.background = 'linear-gradient(135deg, #10b981, #059669)';
-                  activatePremiumBtn.disabled = true;
-                  
-                  // Clear any error display and show success state in the output container
-                  outputContainer.innerHTML = `
-                    <div class="premium-success-container">
-                      <div class="premium-success-icon">🎉</div>
-                      <div class="premium-success-title">Premium Activated!</div>
-                      <div class="premium-success-message">
-                        Your account now has unlimited access to all AlgoTutor modes.
-                      </div>
-                      <div class="premium-success-hint">
-                        Begin interacting with AlgoTutor widget to start learning with premium access!
-                      </div>
-                      <div class="premium-success-hint" style="margin-top: 12px; background: rgba(59, 130, 246, 0.1); border-color: rgba(59, 130, 246, 0.3);">
-                        📊 Forgot your code? Visit <strong>algo-tutor.org</strong> and sign in to recover it anytime.
-                      </div>
-                    </div>
-                  `;
-                }, 1500);
-              }
-            } catch (error) {
-              console.error('Activation error:', error);
-              modalMessage.textContent = 'Failed to activate. Please try again.';
-              modalMessage.className = 'modal-message error';
-              modalMessage.style.display = 'block';
-            }
-
-            modalActivate.disabled = false;
-            modalActivate.textContent = 'Activate';
-          });
-
-          // Handle Enter key in input
-          premiumCodeInput.addEventListener('keypress', (e) => {
-            if (e.key === 'Enter') {
-              modalActivate.click();
-            }
-          });
-        }
-      }
-      // EARLY_ACCESS_END
 
       // ==================== FEEDBACK SYSTEM ====================
       const feedbackModal = document.getElementById('feedback-modal');

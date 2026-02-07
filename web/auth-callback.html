@@ -124,10 +124,6 @@
     const statusText = document.getElementById('status-text');
     const messageEl = document.getElementById('message');
 
-    // Check for plan parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const plan = urlParams.get('plan');
-
     function showError(text) {
       messageEl.textContent = text;
       messageEl.className = 'message error';
@@ -135,46 +131,6 @@
       statusTitle.textContent = 'Error';
       statusText.textContent = 'Something went wrong.';
       document.querySelector('.spinner').style.display = 'none';
-    }
-
-    // EARLY_ACCESS: Checkout disabled during early access - all features free
-    // Start Stripe checkout (disabled during early access)
-    async function startCheckout(email) {
-      /* EARLY_ACCESS_START: Stripe checkout disabled
-      statusTitle.textContent = 'Redirecting to checkout...';
-      statusText.textContent = 'You will be redirected to Stripe to complete your purchase.';
-
-      try {
-        const response = await fetch('/api/create-checkout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email })
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-          showError('Error starting checkout: ' + data.error);
-          return;
-        }
-
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
-      } catch (error) {
-        console.error('Checkout error:', error);
-        showError('Failed to start checkout. Please try again.');
-      }
-      EARLY_ACCESS_END */
-      
-      // During early access, redirect to dashboard instead of checkout
-      console.log('[AuthCallback] Early access mode - redirecting to dashboard instead of checkout');
-      statusTitle.textContent = 'Welcome to AlgoTutor!';
-      statusText.textContent = 'All features are free during early access. Redirecting to dashboard...';
-      setTimeout(() => {
-        window.location.href = '/dashboard.html';
-      }, 1000);
     }
 
     // Main logic
@@ -197,18 +153,10 @@
 
         // User is authenticated
         statusTitle.textContent = 'Success!';
-        statusText.textContent = 'You are now signed in.';
-
-        if (plan === 'premium') {
-          // Redirect to Stripe checkout
-          await startCheckout(session.user.email);
-        } else {
-          // Redirect to dashboard
-          statusText.textContent = 'Redirecting to dashboard...';
-          setTimeout(() => {
-            window.location.href = '/dashboard.html';
-          }, 1000);
-        }
+        statusText.textContent = 'Redirecting to dashboard...';
+        setTimeout(() => {
+          window.location.href = '/dashboard.html';
+        }, 1000);
       } catch (error) {
         console.error('Callback error:', error);
         showError('An unexpected error occurred. Please try again.');

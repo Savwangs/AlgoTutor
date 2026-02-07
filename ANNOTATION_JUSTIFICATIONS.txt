@@ -1,0 +1,80 @@
+ANNOTATION JUSTIFICATIONS — AlgoTutor ChatGPT App
+===================================================
+
+All AlgoTutor MCP tools are annotated with `readOnlyHint: true`.
+Below is the justification for this annotation choice.
+
+
+WHY readOnlyHint: true IS APPROPRIATE
+--------------------------------------
+
+1. NO EXTERNAL SIDE EFFECTS FOR THE USER
+
+   AlgoTutor tools do not modify any user-visible external state. They do not:
+   - Create, update, or delete files on the user's device
+   - Send emails, notifications, or messages on behalf of the user
+   - Make purchases or financial transactions
+   - Modify any external service the user interacts with
+   - Change any state that the user would need to undo
+
+   From the user's perspective, every tool invocation is a pure read: they ask
+   a question, and they receive an educational explanation displayed in the widget.
+
+2. INTERNAL DATABASE WRITES ARE OBSERVATIONAL LOGGING ONLY
+
+   The tools do perform internal database writes, but these are strictly
+   server-side observational logging that the user never sees or interacts with:
+
+   - Usage logging: Records which mode was used, the topic studied, and metadata
+     like detected DSA patterns. This is equivalent to server access logs.
+   - User creation/lookup: On first use, a user record is created to associate
+     the session. This is standard session management, not a user-initiated action.
+   - Widget/session linking: Associates the widget ID with the user for session
+     continuity. This is transparent infrastructure.
+
+   These writes are analogous to a web server writing access logs — they happen
+   as a byproduct of serving the request, not as the purpose of the tool.
+
+3. OPENAI'S DEFINITION OF readOnlyHint
+
+   Per OpenAI's MCP documentation, `readOnlyHint: true` indicates that the tool
+   "does not modify external systems or user-visible state." AlgoTutor's internal
+   analytics logging does not constitute modification of external systems or
+   user-visible state. The user has no awareness of, access to, or interaction
+   with the usage_logs or users tables.
+
+4. TOOL-BY-TOOL BREAKDOWN
+
+   All tools follow the same pattern:
+
+   | Tool                          | User-Visible Action            | Internal Side Effect     |
+   |-------------------------------|--------------------------------|--------------------------|
+   | learn_concept                 | Display lesson in widget       | Log usage                |
+   | learn_trace_walkthrough       | Display trace table in widget  | Log usage                |
+   | learn_real_world_example      | Display practice problem       | Log usage                |
+   | build_solution                | Display solution in widget     | Log usage                |
+   | build_trace_walkthrough       | Display trace table in widget  | Log usage                |
+   | build_similar_problem         | Display practice problem       | Log usage                |
+   | debug_code                    | Display debug analysis         | Log usage                |
+   | debug_trace_walkthrough       | Display trace table in widget  | Log usage                |
+   | debug_similar_problem         | Display practice problem       | Log usage                |
+   | ai_study_recommendation       | Display recommendation         | Log usage                |
+   | list_algo_sessions            | List saved sessions            | None                     |
+
+   In every case, the user-visible action is displaying read-only educational
+   content. The internal side effect is append-only analytics logging.
+
+5. PRECEDENT
+
+   This pattern is consistent with how other ChatGPT apps handle observational
+   logging. Search engines, weather apps, and dictionary tools all log queries
+   internally while correctly marking their tools as read-only, because the
+   logging is not the tool's purpose — it's operational infrastructure.
+
+
+SUMMARY
+-------
+AlgoTutor's tools are correctly annotated as `readOnlyHint: true` because they
+produce no user-visible side effects. The internal database writes (usage logging,
+session management) are purely observational infrastructure that do not modify any
+external system or state that the user can see, access, or would need to undo.

@@ -213,7 +213,7 @@
 
   <main class="container">
     <h1>Privacy Policy</h1>
-    <p class="last-updated">Last updated: January 2026</p>
+    <p class="last-updated">Last updated: February 2026</p>
 
     <section class="policy-section">
       <h2>Introduction</h2>
@@ -225,8 +225,10 @@
       <p>We collect the following types of information:</p>
       <ul>
         <li><strong>Account Information:</strong> Email address when you create an account.</li>
-        <li><strong>Usage Data:</strong> Information about how you use AlgoTutor, including which modes you use (Learn, Build, Debug) and topics you study.</li>
-
+        <li><strong>Usage Data:</strong> Information about how you use AlgoTutor, including which modes you use (Learn, Build, Debug), topics you study, DSA patterns detected, difficulty scores, and related metadata to improve the learning experience.</li>
+        <li><strong>IP Address:</strong> Your IP address is collected when you interact with the service. We use IP-based subnet grouping to associate sessions with users when no other identifier is available.</li>
+        <li><strong>Widget ID:</strong> A unique widget identifier is generated for your ChatGPT session and stored to enable cross-session tracking and personalization.</li>
+        <li><strong>Code and Queries:</strong> Any code, problem descriptions, or queries you submit through AlgoTutor are sent to OpenAI's API for processing. These inputs are necessary for the service to generate educational explanations, build solutions, and debug assistance.</li>
       </ul>
     </section>
 
@@ -235,7 +237,9 @@
       <p>We use your information to:</p>
       <ul>
         <li>Provide and maintain the AlgoTutor service</li>
-        <li>Improve our service and educational content</li>
+        <li>Process your code and queries through OpenAI to generate educational content</li>
+        <li>Analyze usage patterns (modes used, topics studied, DSA patterns) to improve educational content and the learning experience</li>
+        <li>Track sessions via widget IDs for continuity across interactions</li>
         <li>Communicate with you about your account</li>
         <li>Provide customer support</li>
       </ul>
@@ -255,8 +259,8 @@
       <h2>Data Sharing</h2>
       <p>We do not sell your personal information. We may share data with:</p>
       <ul>
-        <li><strong>OpenAI:</strong> Your queries are processed through the ChatGPT platform as part of the service</li>
-        <li><strong>Service Providers:</strong> Hosting and infrastructure providers necessary to operate the service</li>
+        <li><strong>OpenAI:</strong> Your queries, code submissions, and problem descriptions are sent to OpenAI's API for processing. This is necessary for AlgoTutor to generate educational explanations and solutions. OpenAI's use of this data is governed by their own <a href="https://openai.com/policies/privacy-policy" target="_blank">Privacy Policy</a>.</li>
+        <li><strong>Service Providers:</strong> Hosting and infrastructure providers (including Supabase for database storage and Render for server hosting) necessary to operate the service.</li>
       </ul>
     </section>
 
@@ -273,7 +277,7 @@
 
     <section class="policy-section">
       <h2>Cookies and Tracking</h2>
-      <p>We do not use third-party advertising cookies or trackers.</p>
+      <p>We do not use third-party advertising cookies or trackers. The AlgoTutor widget uses browser localStorage to store your widget ID for session continuity. No tracking cookies are set.</p>
     </section>
 
     <section class="policy-section">

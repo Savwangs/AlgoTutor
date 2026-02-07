@@ -73,14 +73,13 @@ export async function getOrCreateUser(userIdentifier) {
 
     console.log('[Auth] User not found, creating new user...');
     // Create new user if not found
-    // EARLY_ACCESS: Mark all new users as early_user for discount eligibility
     const newUserData = {
       chatgpt_user_id: userIdentifier,
       email: `${userIdentifier}@chatgpt.user`, // Placeholder email
       subscription_tier: 'free',
       subscription_status: 'active',
       usage_count: 0,
-      early_user: true,  // EARLY_ACCESS: Track for discounted pricing when subscriptions launch
+      early_user: true,
       early_user_registered_at: new Date().toISOString(),
     };
     console.log('[Auth] New user data:', newUserData);
@@ -109,165 +108,18 @@ export async function getOrCreateUser(userIdentifier) {
 
 /**
  * Check if user has access to a specific mode
+ * All modes are available to all users.
  */
 export function canAccessMode(user, mode) {
-  // EARLY_ACCESS_START: All modes free during early access period
-  // When re-enabling subscriptions, uncomment the code below and remove the return true
-  console.log(`[Auth] EARLY ACCESS: All modes available for free`);
   return true;
-  
-  /*
-  console.log(`[Auth] Checking if user can access mode:`, { tier: user.subscription_tier, mode });
-  
-  if (!supabase || !isAuthEnabled()) {
-    console.log('[Auth] Auth disabled - allowing access');
-    return true; // No restrictions when auth is disabled
-  }
-
-  const tier = user.subscription_tier || 'free';
-
-  const accessRules = {
-    free: ['learn'], // Free users can only use Learn Mode
-    premium: ['learn', 'build', 'debug'], // Premium gets all modes
-  };
-
-  const allowed = accessRules[tier]?.includes(mode) ?? false;
-  console.log(`[Auth] Access check result:`, { tier, mode, allowed, allowedModes: accessRules[tier] });
-  return allowed;
-  */
-  // EARLY_ACCESS_END
 }
 
 /**
  * Check if user has exceeded usage limits
- * Uses a rolling 24-hour window instead of daily reset at midnight
- * Checks both user_id and widget_id for accurate tracking across IP changes
+ * Currently unlimited for all users.
  */
 export async function checkUsageLimit(user, widgetId = null) {
-  // EARLY_ACCESS_START: Unlimited usage during early access period
-  // When re-enabling subscriptions, uncomment the code below and remove the return statement
-  console.log('[Auth] EARLY ACCESS: Unlimited usage for all users');
   return { allowed: true, remaining: null };
-  
-  /*
-  console.log('[Auth] Checking usage limit for user:', { email: user.email, id: user.id, widgetId });
-  
-  if (!supabase || !isAuthEnabled()) {
-    console.log('[Auth] Auth disabled - no limits');
-    return { allowed: true, remaining: null };
-  }
-
-  const tier = user.subscription_tier || 'free';
-  const freeLimit = parseInt(process.env.FREE_TIER_LIMIT || '1', 10);
-
-  // Premium has unlimited usage
-  if (tier === 'premium') {
-    console.log('[Auth] Premium user - unlimited access');
-    return { allowed: true, remaining: null };
-  }
-
-  // Rolling 24-hour window: count usage from exactly 24 hours ago
-  const now = Date.now();
-  const twentyFourHoursAgo = new Date(now - 24 * 60 * 60 * 1000).toISOString();
-  
-  try {
-    // Count usage by user_id in the last 24 hours
-    const { count: userCount, error: userCountError } = await supabase
-      .from('usage_logs')
-      .select('*', { count: 'exact', head: true })
-      .eq('user_id', user.id)
-      .gte('created_at', twentyFourHoursAgo);
-
-    if (userCountError) {
-      console.error('[Auth] Error counting user usage:', userCountError);
-    }
-
-    let widgetCount = 0;
-    // Also count usage by widget_id if available (more reliable across IP changes)
-    if (widgetId) {
-      const { count, error: widgetCountError } = await supabase
-        .from('usage_logs')
-        .select('*', { count: 'exact', head: true })
-        .eq('widget_id', widgetId)
-        .gte('created_at', twentyFourHoursAgo);
-
-      if (widgetCountError) {
-        console.error('[Auth] Error counting widget usage:', widgetCountError);
-      } else {
-        widgetCount = count || 0;
-      }
-    }
-
-    // Use the maximum of both counts to ensure accurate tracking
-    const recentUsage = Math.max(userCount || 0, widgetCount);
-    console.log(`[Auth] Usage in last 24h:`, { 
-      userCount: userCount || 0, 
-      widgetCount, 
-      effectiveCount: recentUsage,
-      limit: freeLimit, 
-      since: twentyFourHoursAgo 
-    });
-
-    // Check free tier usage
-    if (recentUsage >= freeLimit) {
-      // Get the most recent usage log to calculate when cooldown expires
-      // Check both user_id and widget_id for the most recent
-      let lastUsageTime = 0;
-
-      const { data: lastUserUsage } = await supabase
-        .from('usage_logs')
-        .select('created_at')
-        .eq('user_id', user.id)
-        .order('created_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (lastUserUsage) {
-        lastUsageTime = Math.max(lastUsageTime, new Date(lastUserUsage.created_at).getTime());
-      }
-
-      if (widgetId) {
-        const { data: lastWidgetUsage } = await supabase
-          .from('usage_logs')
-          .select('created_at')
-          .eq('widget_id', widgetId)
-          .order('created_at', { ascending: false })
-          .limit(1)
-          .maybeSingle();
-
-        if (lastWidgetUsage) {
-          lastUsageTime = Math.max(lastUsageTime, new Date(lastWidgetUsage.created_at).getTime());
-        }
-      }
-
-      let cooldownExpiresAt = null;
-      if (lastUsageTime > 0) {
-        cooldownExpiresAt = new Date(lastUsageTime + 24 * 60 * 60 * 1000).toISOString();
-        console.log(`[Auth] Cooldown expires at:`, cooldownExpiresAt);
-      }
-
-      console.log(`[Auth] ❌ Free tier limit exceeded:`, { recentUsage, limit: freeLimit });
-      return {
-        allowed: false,
-        remaining: 0,
-        cooldownExpiresAt,
-        message: `Free tier limit reached (${freeLimit} use per day)`,
-      };
-    }
-
-    const remaining = freeLimit - recentUsage;
-    console.log(`[Auth] ✓ Usage limit OK:`, { recentUsage, limit: freeLimit, remaining });
-    return {
-      allowed: true,
-      remaining,
-    };
-  } catch (error) {
-    console.error('[Auth] Error in checkUsageLimit:', error);
-    // Fall back to allowing access on error
-    return { allowed: true, remaining: null };
-  }
-  */
-  // EARLY_ACCESS_END
 }
 
 /**
@@ -311,7 +163,7 @@ export async function logUsage(user, mode, topic = null, widgetId = null, metada
       logEntry.widget_id = widgetId;
     }
 
-    // Add V2 personalization metadata if provided (for premium users)
+    // Add V2 personalization metadata if provided
     if (metadata.patternDetected) {
       logEntry.pattern_detected = metadata.patternDetected;
     }
@@ -406,214 +258,6 @@ export async function logUsage(user, mode, topic = null, widgetId = null, metada
 }
 
 /**
- * Get user subscription status
- */
-export async function getUserSubscription(userId) {
-  if (!supabase) {
-    return null;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .select('subscription_tier, subscription_status, usage_count')
-      .eq('id', userId)
-      .single();
-
-    if (error) {
-      console.error('[Auth] Error fetching subscription:', error);
-      return null;
-    }
-
-    return data;
-  } catch (error) {
-    console.error('[Auth] Error in getUserSubscription:', error);
-    return null;
-  }
-}
-
-/**
- * Update user subscription (for future payment integration)
- */
-export async function updateSubscription(userId, tier, status = 'active') {
-  if (!supabase) {
-    return null;
-  }
-
-  try {
-    const { data, error } = await supabase
-      .from('users')
-      .update({
-        subscription_tier: tier,
-        subscription_status: status,
-        updated_at: new Date().toISOString(),
-      })
-      .eq('id', userId)
-      .select()
-      .single();
-
-    if (error) {
-      console.error('[Auth] Error updating subscription:', error);
-      return null;
-    }
-
-    console.log(`[Auth] Updated subscription for user ${userId}: ${tier} (${status})`);
-    return data;
-  } catch (error) {
-    console.error('[Auth] Error in updateSubscription:', error);
-    return null;
-  }
-}
-
-/**
- * Link a premium code to an MCP user using deterministic widget_id lookup
- * 
- * NEW APPROACH (fixes race condition):
- * Instead of grabbing ANY pending code, we now use the widget_id to find the specific
- * code that belongs to this user. The flow is:
- * 
- * 1. Widget activates code → claimed_by_widget_id is set on the code
- * 2. Widget registers session → free_sessions links widget_id to mcp_user_id  
- * 3. MCP request comes in → we look up widget_id from free_sessions
- * 4. We find the code by claimed_by_widget_id → deterministic, no race condition
- * 
- * This ensures each user only gets linked to their own code.
- */
-export async function linkPendingPremiumCode(user, widgetId = null) {
-  if (!supabase) {
-    return user;
-  }
-
-  // If user is already premium, no need to check for pending codes
-  if (user.subscription_tier === 'premium') {
-    console.log('[Auth] User already premium, skipping code linking');
-    return user;
-  }
-
-  try {
-    console.log('[Auth] Checking for premium codes to link for user:', user.chatgpt_user_id);
-    
-    // Step 1: Get the widget_id for this MCP user from free_sessions
-    // This was linked when the widget called /api/register-session
-    let effectiveWidgetId = widgetId;
-    
-    if (!effectiveWidgetId) {
-      const { data: session, error: sessionError } = await supabase
-        .from('free_sessions')
-        .select('widget_id')
-        .eq('mcp_user_id', user.chatgpt_user_id)
-        .order('last_seen_at', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (sessionError) {
-        console.error('[Auth] Error looking up widget_id from free_sessions:', sessionError);
-        return user;
-      }
-
-      if (!session) {
-        console.log('[Auth] No linked free_session found for this MCP user, cannot determine widget_id');
-        return user;
-      }
-
-      effectiveWidgetId = session.widget_id;
-    }
-    
-    console.log('[Auth] Found widget_id for user:', effectiveWidgetId);
-
-    // Step 2: Find premium code claimed by this specific widget_id
-    // This is deterministic - each code is bound to exactly one widget
-    const { data: code, error: codeError } = await supabase
-      .from('premium_codes')
-      .select('*')
-      .eq('claimed_by_widget_id', effectiveWidgetId)
-      .eq('used', true)
-      .eq('revoked', false)
-      .maybeSingle();
-
-    if (codeError) {
-      console.error('[Auth] Error looking up premium code by widget_id:', codeError);
-      return user;
-    }
-
-    if (!code) {
-      console.log('[Auth] No premium code found for widget_id:', effectiveWidgetId);
-      return user;
-    }
-
-    console.log('[Auth] Found premium code for widget:', code.code);
-
-    // Step 3: Check if already linked to this user (just update premium status)
-    // or if not linked yet (link it now)
-    if (code.mcp_user_id && code.mcp_user_id !== user.chatgpt_user_id) {
-      // Code is linked to a different MCP user - this shouldn't happen but handle it
-      console.log('[Auth] Code is linked to different MCP user:', code.mcp_user_id, 'current user:', user.chatgpt_user_id);
-      // Still upgrade this user since they have the widget with the code
-    }
-
-    // Link the code to this MCP user if not already linked
-    if (!code.mcp_user_id) {
-      const { error: linkError } = await supabase
-        .from('premium_codes')
-        .update({ mcp_user_id: user.chatgpt_user_id })
-        .eq('id', code.id);
-
-      if (linkError) {
-        console.error('[Auth] Error linking code to MCP user:', linkError);
-      } else {
-        console.log('[Auth] ✓ Linked code to MCP user:', user.chatgpt_user_id);
-      }
-    }
-
-    // Step 4: Upgrade the user to premium in the database
-    // Also store widget_id on user for persistence across IP subnet changes
-    console.log('[Auth] Upgrading user to premium:', { userId: user.id, userEmail: user.email, widgetId: effectiveWidgetId });
-    
-    const { data: updatedUser, error: upgradeError } = await supabase
-      .from('users')
-      .update({
-        subscription_tier: 'premium',
-        subscription_status: 'active',
-        widget_id: effectiveWidgetId  // Store widget_id for reliable lookups across IP changes
-      })
-      .eq('id', user.id)
-      .select();
-
-    console.log('[Auth] User upgrade result:', { 
-      updatedUser, 
-      upgradeError, 
-      rowsUpdated: updatedUser?.length,
-      newTier: updatedUser?.[0]?.subscription_tier,
-      widgetId: updatedUser?.[0]?.widget_id
-    });
-
-    if (upgradeError) {
-      console.error('[Auth] Error upgrading user to premium:', upgradeError);
-      return user;
-    }
-
-    if (!updatedUser || updatedUser.length === 0) {
-      console.error('[Auth] ❌ UPDATE returned 0 rows! User was NOT updated in database.');
-      console.error('[Auth] This may be due to RLS policy blocking the update.');
-      return user;
-    }
-
-    // Update the user object in memory with the returned data
-    user.subscription_tier = updatedUser[0].subscription_tier;
-    user.subscription_status = updatedUser[0].subscription_status;
-    user.widget_id = updatedUser[0].widget_id;
-
-    console.log('[Auth] ✓ Successfully linked premium code to user:', user.chatgpt_user_id);
-    console.log('[Auth] ✓ User upgraded to premium! New tier:', user.subscription_tier);
-    
-    return user;
-  } catch (error) {
-    console.error('[Auth] Error in linkPendingPremiumCode:', error);
-    return user;
-  }
-}
-
-/**
  * Link a pending free session to an MCP user
  * This bridges the gap between widget registration (browser IP) and tool usage (OpenAI proxy IP)
  * Returns the linked widget_id so we can track usage by widget_id
@@ -623,48 +267,10 @@ export async function linkPendingFreeSession(user) {
     return { user, widgetId: null };
   }
 
-  // Premium users still need widget_id for logging purposes
-  if (user.subscription_tier === 'premium') {
-    // 1. Check user record first (most reliable - persists across IP changes)
-    if (user.widget_id) {
-      console.log('[Auth] Premium user, returning widget_id from user record:', user.widget_id);
-      return { user, widgetId: user.widget_id };
-    }
-    
-    // 2. Try free_sessions lookup (existing logic)
-    const { data: existingSession } = await supabase
-      .from('free_sessions')
-      .select('widget_id')
-      .eq('mcp_user_id', user.chatgpt_user_id)
-      .order('last_seen_at', { ascending: false })
-      .limit(1)
-      .maybeSingle();
-    
-    if (existingSession?.widget_id) {
-      // Store on user for future lookups (persists across IP changes)
-      await supabase.from('users').update({ widget_id: existingSession.widget_id }).eq('id', user.id);
-      console.log('[Auth] Premium user, found widget_id from free_sessions:', existingSession.widget_id);
-      return { user, widgetId: existingSession.widget_id };
-    }
-    
-    // 3. FALLBACK: Look up from premium_codes by mcp_user_id
-    const { data: codeWithWidget } = await supabase
-      .from('premium_codes')
-      .select('claimed_by_widget_id')
-      .eq('mcp_user_id', user.chatgpt_user_id)
-      .eq('used', true)
-      .not('claimed_by_widget_id', 'is', null)
-      .maybeSingle();
-    
-    if (codeWithWidget?.claimed_by_widget_id) {
-      // Store on user for future lookups
-      await supabase.from('users').update({ widget_id: codeWithWidget.claimed_by_widget_id }).eq('id', user.id);
-      console.log('[Auth] Premium user, found widget_id from premium_codes:', codeWithWidget.claimed_by_widget_id);
-      return { user, widgetId: codeWithWidget.claimed_by_widget_id };
-    }
-    
-    console.log('[Auth] Premium user, no widget_id found in any source');
-    return { user, widgetId: null };
+  // Check user record first for existing widget_id
+  if (user.widget_id) {
+    console.log('[Auth] Returning widget_id from user record:', user.widget_id);
+    return { user, widgetId: user.widget_id };
   }
 
   try {
@@ -828,50 +434,12 @@ export async function authenticateRequest(req, mode) {
       usage_count: user.usage_count 
     });
 
-    // Step 1.5: Check for pending free sessions and link if found
-    // This must happen BEFORE premium code linking so we have the widget_id
-    console.log('[Auth] Step 1.5: Check for pending free sessions...');
+    // Link pending free sessions to get widget_id
+    console.log('[Auth] Step 2: Check for pending free sessions...');
     const { widgetId } = await linkPendingFreeSession(user);
     if (widgetId) {
       console.log('[Auth] ✓ Widget ID linked:', widgetId);
     }
-
-    // Step 1.6: Check for premium codes and link if found
-    // Uses widget_id for deterministic lookup (fixes race condition)
-    console.log('[Auth] Step 1.6: Check for premium codes...');
-    user = await linkPendingPremiumCode(user, widgetId);
-
-    // Check if user can access this mode
-    console.log('[Auth] Step 2: Check mode access...');
-    if (!canAccessMode(user, mode)) {
-      console.log(`[Auth] ❌ Access DENIED - ${user.subscription_tier} tier cannot access ${mode} mode`);
-      return {
-        success: false,
-        error: {
-          code: 'FORBIDDEN',
-          message: `Your ${user.subscription_tier} plan does not include access to ${mode} mode. Upgrade to Premium for full access.`,
-        },
-      };
-    }
-    console.log('[Auth] ✓ Mode access granted');
-
-    // Check usage limits (pass widgetId for accurate tracking across IP changes)
-    console.log('[Auth] Step 3: Check usage limits...');
-    const usageCheck = await checkUsageLimit(user, widgetId);
-    console.log('[Auth] Usage check result:', usageCheck);
-    
-    if (!usageCheck.allowed) {
-      console.log('[Auth] ❌ Usage limit EXCEEDED');
-      return {
-        success: false,
-        error: {
-          code: 'LIMIT_EXCEEDED',
-          message: usageCheck.message,
-          cooldownExpiresAt: usageCheck.cooldownExpiresAt,
-        },
-      };
-    }
-    console.log('[Auth] ✓ Usage limit OK');
 
     console.log('[Auth] ✓✓✓ AUTHENTICATION SUCCESSFUL ✓✓✓');
     console.log('='.repeat(80) + '\n');
@@ -880,7 +448,7 @@ export async function authenticateRequest(req, mode) {
       success: true,
       user,
       widgetId,
-      usageRemaining: usageCheck.remaining,
+      usageRemaining: null,
     };
   } catch (error) {
     console.error('[Auth] ❌❌❌ AUTHENTICATION ERROR ❌❌❌');

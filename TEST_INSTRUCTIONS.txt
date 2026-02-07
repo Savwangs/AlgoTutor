@@ -1,0 +1,148 @@
+TEST INSTRUCTIONS — AlgoTutor ChatGPT App
+==========================================
+
+App Name:    AlgoTutor
+Description: Interactive DSA (Data Structures & Algorithms) learning tool with
+             Learn, Build, and Debug modes. Designed for CS students preparing
+             for exams and coding interviews.
+Server URL:  https://algo-tutor.org/mcp
+
+
+PREREQUISITES
+-------------
+- A ChatGPT Plus or Team account with MCP app access.
+- The AlgoTutor app installed from the ChatGPT App Store.
+- No additional account creation or API keys are required.
+
+
+QUICK START
+-----------
+1. Open ChatGPT and ensure AlgoTutor is enabled in your conversation.
+2. The AlgoTutor widget panel should appear when any tool is invoked.
+3. All features are free — no sign-up, subscription, or activation needed.
+
+
+TEST CASES
+----------
+
+### Test 1: Learn Mode — Basic Concept
+   Prompt: "Teach me binary search"
+   Expected:
+   - The learn_mode tool is invoked.
+   - The AlgoTutor widget panel appears showing:
+     • A structured lesson with "The Trick" callout
+     • Pattern signature keywords
+     • A memorizable code template
+     • An exam-format trace table
+     • A "What Professors Test" edge case section
+   - ChatGPT responds briefly acknowledging the lesson is in the panel.
+   - ChatGPT does NOT repeat the lesson content in its message.
+
+### Test 2: Learn Mode — Follow-up Trace Walkthrough
+   Prompt (after Test 1): "Show me a trace table for this"
+   Expected:
+   - The learn_trace_walkthrough tool is invoked.
+   - The widget updates to show a step-by-step trace table.
+
+### Test 3: Learn Mode — Follow-up Practice Problem
+   Prompt (after Test 1): "Give me a practice problem"
+   Expected:
+   - The learn_real_world_example tool is invoked.
+   - The widget shows a fill-in-the-blank practice problem.
+
+### Test 4: Build Mode — Solution Generation
+   Prompt: "Build a solution for Two Sum (LeetCode)"
+   Expected:
+   - The build_solution tool is invoked.
+   - The widget shows a complete coded solution with:
+     • Clean, well-commented code
+     • Time/space complexity analysis
+     • A "Don't Forget" warning callout
+   - ChatGPT does NOT show code in its own response.
+
+### Test 5: Build Mode — Follow-up Trace
+   Prompt (after Test 4): "Walk through the solution step by step"
+   Expected:
+   - The build_trace_walkthrough tool is invoked.
+   - The widget shows a trace table of the built solution.
+
+### Test 6: Build Mode — Follow-up Similar Problem
+   Prompt (after Test 4): "Give me a similar problem to practice"
+   Expected:
+   - The build_similar_problem tool is invoked.
+   - The widget shows a related fill-in-the-blank problem.
+
+### Test 7: Debug Mode — Bug Analysis
+   Prompt: "Debug this code:
+   def binary_search(arr, target):
+       left, right = 0, len(arr)
+       while left < right:
+           mid = (left + right) // 2
+           if arr[mid] == target:
+               return mid
+           elif arr[mid] < target:
+               left = mid
+           else:
+               right = mid
+       return -1"
+   Expected:
+   - The debug_code tool is invoked.
+   - The widget shows:
+     • Bug location highlighted
+     • Explanation of the bug
+     • The corrected code
+     • A "What Professors Test" section
+   - ChatGPT does NOT show the fix in its own response.
+
+### Test 8: Debug Mode — Follow-up Trace
+   Prompt (after Test 7): "Trace through the corrected code"
+   Expected:
+   - The debug_trace_walkthrough tool is invoked.
+   - The widget shows a trace table for the debugged code.
+
+### Test 9: Debug Mode — Follow-up Similar Problem
+   Prompt (after Test 7): "Give me a similar debugging problem"
+   Expected:
+   - The debug_similar_problem tool is invoked.
+   - The widget shows a related fill-in-the-blank problem.
+
+### Test 10: AI Study Recommendation
+   Prompt (after using several tools): "What should I study next?"
+   Expected:
+   - The ai_study_recommendation tool is invoked.
+   - The widget shows a personalized study recommendation.
+
+### Test 11: Feedback System
+   After any tool response:
+   - Thumbs up/down buttons should be visible at the bottom of the widget.
+   - Clicking either opens a brief feedback modal.
+   - Feedback can be submitted or skipped.
+
+### Test 12: Widget Interaction
+   - The widget should render correctly within the ChatGPT interface.
+   - Mode tabs (Learn, Build, Debug) should be visible in the widget header.
+   - The "Need Help?" button in the header should open a help/support modal.
+
+
+WHAT TO VERIFY
+--------------
+✓ All tools return content displayed in the widget, not in ChatGPT's message.
+✓ No premium, subscription, or payment prompts appear anywhere.
+✓ No usage limits or cooldown timers are shown.
+✓ The widget renders correctly with proper styling.
+✓ Follow-up tools work correctly after initial tool calls.
+✓ Error states display cleanly (e.g., if the LLM call fails).
+✓ The privacy policy at https://algo-tutor.org/privacy.html is accessible.
+✓ The terms of service at https://algo-tutor.org/terms.html is accessible.
+
+
+NOTES FOR REVIEWER
+------------------
+- All tools are annotated with `readOnlyHint: true`. See ANNOTATION_JUSTIFICATIONS.txt
+  for a detailed explanation of why this is appropriate.
+- The app performs internal usage logging (analytics) but this does not modify any
+  user-visible external state.
+- The widget uses localStorage only for widget ID persistence (session continuity).
+- No user authentication is required to use the app through ChatGPT.
+- The web pages (login, signup, dashboard) are for the companion website and are
+  not required for ChatGPT app functionality.

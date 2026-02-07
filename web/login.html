@@ -348,69 +348,9 @@
     const submitBtn = document.getElementById('submit-btn');
     const googleBtn = document.getElementById('google-btn');
     const forgotLink = document.getElementById('forgot-link');
-    const planInfo = document.getElementById('plan-info');
-    const pageTitle = document.getElementById('page-title');
-    const pageSubtitle = document.getElementById('page-subtitle');
-    const authTabs = document.getElementById('auth-tabs');
-    const signupTab = document.getElementById('signup-tab');
-
-    // Check for plan parameter
-    const urlParams = new URLSearchParams(window.location.search);
-    const plan = urlParams.get('plan');
-    
-    if (plan === 'premium') {
-      planInfo.innerHTML = '<span class="plan-badge">Upgrade to Premium</span>';
-      pageTitle.textContent = 'Sign in or Create Account';
-      pageSubtitle.textContent = 'to upgrade to Premium';
-      // Show auth tabs when premium plan is selected
-      authTabs.style.display = 'flex';
-      // Set the signup link to preserve the plan parameter
-      signupTab.href = '/signup.html?plan=premium';
-    }
-
     function showMessage(text, type) {
       messageEl.textContent = text;
       messageEl.className = `message ${type}`;
-    }
-
-    // EARLY_ACCESS: Checkout disabled during early access - all features free
-    // Redirect to Stripe checkout (disabled during early access)
-    async function startCheckout(email) {
-      /* EARLY_ACCESS_START: Stripe checkout disabled
-      try {
-        const response = await fetch('/api/create-checkout', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json',
-          },
-          body: JSON.stringify({ email })
-        });
-
-        const data = await response.json();
-
-        if (data.error) {
-          showMessage('Error starting checkout: ' + data.error, 'error');
-          submitBtn.disabled = false;
-          submitBtn.textContent = 'Sign In';
-          return;
-        }
-
-        // Redirect to Stripe Checkout
-        window.location.href = data.url;
-      } catch (error) {
-        console.error('Checkout error:', error);
-        showMessage('Failed to start checkout. Please try again.', 'error');
-        submitBtn.disabled = false;
-        submitBtn.textContent = 'Sign In';
-      }
-      EARLY_ACCESS_END */
-      
-      // During early access, redirect to dashboard instead of checkout
-      console.log('[Login] Early access mode - redirecting to dashboard instead of checkout');
-      showMessage('Welcome back! All features are free during early access.', 'success');
-      setTimeout(() => {
-        window.location.href = '/dashboard.html';
-      }, 1000);
     }
 
     // Email/Password Sign In
@@ -436,18 +376,10 @@
 
         if (error) throw error;
 
-        // If premium plan, redirect to checkout
-        if (plan === 'premium') {
-          showMessage('Success! Redirecting to checkout...', 'success');
-          setTimeout(() => {
-            startCheckout(email);
-          }, 1000);
-        } else {
-          showMessage('Success! Redirecting...', 'success');
-          setTimeout(() => {
-            window.location.href = '/dashboard.html';
-          }, 1000);
-        }
+        showMessage('Success! Redirecting...', 'success');
+        setTimeout(() => {
+          window.location.href = '/dashboard.html';
+        }, 1000);
       } catch (error) {
         showMessage(error.message, 'error');
         submitBtn.disabled = false;
@@ -463,15 +395,10 @@
       }
 
       try {
-        // For premium plan, redirect to a page that will handle checkout
-        const redirectUrl = plan === 'premium' 
-          ? 'https://algo-tutor.org/auth-callback.html?plan=premium'
-          : 'https://algo-tutor.org/dashboard.html';
-
         const { data, error } = await supabaseClient.auth.signInWithOAuth({
           provider: 'google',
           options: {
-            redirectTo: redirectUrl
+            redirectTo: 'https://algo-tutor.org/dashboard.html'
           }
         });
 
@@ -513,21 +440,11 @@
     if (supabaseClient) {
       supabaseClient.auth.getUser().then(({ data: { user }, error }) => {
         if (!error && user) {
-          // If already logged in and plan=premium, redirect to checkout
-          if (plan === 'premium') {
-            startCheckout(user.email);
-          } else {
-            window.location.href = '/dashboard.html';
-          }
+          window.location.href = '/dashboard.html';
         }
       });
     }
 
-    // Update footer link to preserve plan parameter
-    const footerLink = document.querySelector('.auth-footer a');
-    if (plan === 'premium' && footerLink) {
-      footerLink.href = '/signup.html?plan=premium';
-    }
   </script>
 </body>
 </html>
