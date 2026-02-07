@@ -1,5 +1,5 @@
 -- Migration: Add columns to usage_logs for V2 personalization features
--- These columns will capture learning data for premium users to enable
+-- These columns capture learning data to enable
 -- personalized quizzes, flashcards, and spaced repetition in V2
 
 -- Add new columns to usage_logs for V2 personalization

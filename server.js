@@ -391,7 +391,7 @@ function createAlgoTutorServer() {
         }
         
         const user = authResult.user;
-        logSuccess(`User authenticated: ${user.email}, tier: ${user.subscription_tier}`);
+        logSuccess(`User authenticated: ${user.email}`);
         
         const id = `session-${nextId++}`;
         const session = { id, mode: "learn", timestamp: new Date().toISOString(), input: args, userId: user.id };

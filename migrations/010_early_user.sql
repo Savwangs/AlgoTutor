@@ -1,5 +1,4 @@
--- EARLY_ACCESS: Track users who signed up during free early access period
--- These users will get the discounted $9.99/mo rate when subscriptions launch
+-- EARLY_ACCESS: Track users who signed up during the early access period
 -- Run this migration in Supabase SQL Editor
 
 ALTER TABLE users ADD COLUMN IF NOT EXISTS early_user BOOLEAN DEFAULT false;

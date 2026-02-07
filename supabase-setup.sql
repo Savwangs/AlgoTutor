@@ -1,23 +1,22 @@
 -- ================================================
 -- AlgoTutor Supabase Database Schema
 -- ================================================
--- Run this in Supabase SQL Editor to set up authentication
--- and subscription management for AlgoTutor
+-- Run this in Supabase SQL Editor to set up the
+-- AlgoTutor database tables and indexes
 -- ================================================
 
 -- ================================================
 -- 1. USERS TABLE
 -- ================================================
--- Stores user information and subscription status
+-- Stores user information
 CREATE TABLE IF NOT EXISTS users (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   email TEXT UNIQUE NOT NULL,
   chatgpt_user_id TEXT UNIQUE, -- ChatGPT's user identifier
-  subscription_tier TEXT DEFAULT 'free' CHECK (subscription_tier IN ('free', 'premium')),
-  subscription_status TEXT DEFAULT 'active' CHECK (subscription_status IN ('active', 'cancelled', 'expired', 'trialing')),
+  widget_id TEXT,              -- Linked widget ID for cross-session tracking
   usage_count INTEGER DEFAULT 0,
-  stripe_customer_id TEXT, -- For future Stripe integration
-  stripe_subscription_id TEXT, -- For future Stripe integration
+  early_user BOOLEAN DEFAULT false,
+  early_user_registered_at TIMESTAMP,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
   updated_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
@@ -31,77 +30,66 @@ CREATE TABLE IF NOT EXISTS usage_logs (
   user_id UUID REFERENCES users(id) ON DELETE CASCADE,
   mode TEXT NOT NULL CHECK (mode IN ('learn', 'build', 'debug')),
   topic TEXT,
+  widget_id TEXT,
+  -- V2 personalization metadata
+  pattern_detected TEXT,
+  mistake_type TEXT,
+  data_structures TEXT[],
+  trick_shown TEXT,
+  request_data JSONB,
+  response_summary JSONB,
+  what_professors_test TEXT,
+  dont_forget TEXT,
+  mistake JSONB,
+  time_complexity TEXT,
+  difficulty_score TEXT,
+  related_patterns TEXT[],
+  -- Follow-up tree structure
+  parent_log_id UUID REFERENCES usage_logs(id),
+  action_type TEXT,
+  -- User feedback
+  feedback_decision TEXT,
+  feedback_reason TEXT,
   created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
 -- ================================================
--- 3. PREMIUM CODES TABLE
+-- 3. FREE SESSIONS TABLE
 -- ================================================
--- Stores premium activation codes for linking ChatGPT users to paid accounts
-CREATE TABLE IF NOT EXISTS premium_codes (
+-- Tracks widget sessions across IP changes
+CREATE TABLE IF NOT EXISTS free_sessions (
   id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  code TEXT UNIQUE NOT NULL,
-  email TEXT NOT NULL,
-  stripe_session_id TEXT,
-  used BOOLEAN DEFAULT false,
-  used_by_chatgpt_user_id TEXT,
-  mcp_user_id TEXT,  -- The subnet-based user ID from MCP tool calls (null until linked)
-  revoked BOOLEAN DEFAULT false,  -- Set to true when subscription is cancelled
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW(),
-  used_at TIMESTAMP WITH TIME ZONE
-);
-
--- Migration: Add columns if table already exists
--- Run these in Supabase SQL Editor if table already exists:
--- ALTER TABLE premium_codes ADD COLUMN IF NOT EXISTS mcp_user_id TEXT;
--- ALTER TABLE premium_codes ADD COLUMN IF NOT EXISTS revoked BOOLEAN DEFAULT false;
-
--- ================================================
--- 4. SUBSCRIPTION PLANS TABLE
--- ================================================
--- Defines available subscription tiers
-CREATE TABLE IF NOT EXISTS subscription_plans (
-  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-  name TEXT NOT NULL UNIQUE,
-  price_monthly DECIMAL(10,2) NOT NULL,
-  usage_limit INTEGER, -- NULL means unlimited
-  features JSONB DEFAULT '{}',
-  stripe_price_id TEXT, -- For future Stripe integration
-  active BOOLEAN DEFAULT true,
-  created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW()
+  widget_id TEXT UNIQUE NOT NULL,
+  browser_ip TEXT,
+  mcp_user_id TEXT,
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  last_seen_at TIMESTAMPTZ DEFAULT NOW()
 );
 
 -- ================================================
--- 4. INSERT DEFAULT PLANS
--- ================================================
-INSERT INTO subscription_plans (name, price_monthly, usage_limit, features, stripe_price_id) VALUES
-  ('Free', 0, 3, '{
-    "modes": ["learn", "build", "debug"],
-    "max_per_day": 3,
-    "priority_support": false
-  }', NULL),
-  ('Premium', 9.99, NULL, '{
-    "modes": ["learn", "build", "debug"],
-    "priority_support": true,
-    "unlimited_usage": true
-  }', 'price_TfeAEdFfqE0EMv')
-ON CONFLICT (name) DO NOTHING;
-
--- ================================================
--- 5. INDEXES FOR PERFORMANCE
+-- 4. INDEXES FOR PERFORMANCE
 -- ================================================
 CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
 CREATE INDEX IF NOT EXISTS idx_users_chatgpt_id ON users(chatgpt_user_id);
-CREATE INDEX IF NOT EXISTS idx_users_subscription_tier ON users(subscription_tier);
+CREATE INDEX IF NOT EXISTS idx_users_early_user ON users(early_user) WHERE early_user = true;
 CREATE INDEX IF NOT EXISTS idx_usage_logs_user_id ON usage_logs(user_id);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_created_at ON usage_logs(created_at);
 CREATE INDEX IF NOT EXISTS idx_usage_logs_mode ON usage_logs(mode);
-CREATE INDEX IF NOT EXISTS idx_premium_codes_code ON premium_codes(code);
-CREATE INDEX IF NOT EXISTS idx_premium_codes_email ON premium_codes(email);
-CREATE INDEX IF NOT EXISTS idx_premium_codes_stripe_session ON premium_codes(stripe_session_id);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_widget_id ON usage_logs(widget_id);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_pattern ON usage_logs(pattern_detected);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_mistake_type ON usage_logs(mistake_type);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_user_mode ON usage_logs(user_id, mode, created_at);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_difficulty ON usage_logs(difficulty_score);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_feedback ON usage_logs(feedback_decision);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_feedback_reason ON usage_logs(feedback_reason);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_parent_log_id ON usage_logs(parent_log_id);
+CREATE INDEX IF NOT EXISTS idx_usage_logs_action_type ON usage_logs(action_type);
+CREATE INDEX IF NOT EXISTS idx_free_sessions_widget_id ON free_sessions(widget_id);
+CREATE INDEX IF NOT EXISTS idx_free_sessions_pending ON free_sessions(mcp_user_id) WHERE mcp_user_id IS NULL;
+CREATE INDEX IF NOT EXISTS idx_free_sessions_mcp_user ON free_sessions(mcp_user_id) WHERE mcp_user_id IS NOT NULL;
 
 -- ================================================
--- 6. FUNCTION TO UPDATE updated_at TIMESTAMP
+-- 5. FUNCTION TO UPDATE updated_at TIMESTAMP
 -- ================================================
 CREATE OR REPLACE FUNCTION update_updated_at_column()
 RETURNS TRIGGER AS $$
@@ -112,7 +100,7 @@ END;
 $$ LANGUAGE plpgsql;
 
 -- ================================================
--- 7. TRIGGER TO AUTO-UPDATE updated_at
+-- 6. TRIGGER TO AUTO-UPDATE updated_at
 -- ================================================
 DROP TRIGGER IF EXISTS update_users_updated_at ON users;
 CREATE TRIGGER update_users_updated_at
@@ -121,16 +109,15 @@ CREATE TRIGGER update_users_updated_at
   EXECUTE FUNCTION update_updated_at_column();
 
 -- ================================================
--- 8. ROW LEVEL SECURITY (RLS) - Optional
+-- 7. ROW LEVEL SECURITY (RLS)
 -- ================================================
--- Enable RLS for security (users can only see their own data)
 ALTER TABLE users ENABLE ROW LEVEL SECURITY;
 ALTER TABLE usage_logs ENABLE ROW LEVEL SECURITY;
 
 -- Policy: Users can read their own data
 CREATE POLICY users_select_own ON users
   FOR SELECT
-  USING (true); -- Service role can read all, adjust as needed
+  USING (true); -- Service role can read all
 
 -- Policy: Users can update their own data
 CREATE POLICY users_update_own ON users
@@ -140,7 +127,7 @@ CREATE POLICY users_update_own ON users
 -- Policy: Service role can insert users
 CREATE POLICY users_insert ON users
   FOR INSERT
-  WITH CHECK (true); -- Service role can insert
+  WITH CHECK (true);
 
 -- Policy: Users can read their own usage logs
 CREATE POLICY usage_logs_select_own ON usage_logs
@@ -152,43 +139,9 @@ CREATE POLICY usage_logs_insert ON usage_logs
   FOR INSERT
   WITH CHECK (true);
 
--- Enable RLS for premium_codes
-ALTER TABLE premium_codes ENABLE ROW LEVEL SECURITY;
-
--- Policy: Service role can read all premium codes
-CREATE POLICY premium_codes_select ON premium_codes
-  FOR SELECT
-  USING (true);
-
--- Policy: Service role can insert premium codes
-CREATE POLICY premium_codes_insert ON premium_codes
-  FOR INSERT
-  WITH CHECK (true);
-
--- Policy: Service role can update premium codes
-CREATE POLICY premium_codes_update ON premium_codes
-  FOR UPDATE
-  USING (true);
-
 -- ================================================
--- 9. HELPER VIEWS
+-- 8. HELPER VIEWS
 -- ================================================
-
--- View: User subscription details with plan info
-CREATE OR REPLACE VIEW user_subscriptions AS
-SELECT 
-  u.id,
-  u.email,
-  u.subscription_tier,
-  u.subscription_status,
-  u.usage_count,
-  sp.price_monthly,
-  sp.usage_limit,
-  sp.features,
-  u.created_at,
-  u.updated_at
-FROM users u
-LEFT JOIN subscription_plans sp ON u.subscription_tier = sp.name;
 
 -- View: Daily usage statistics
 CREATE OR REPLACE VIEW daily_usage_stats AS
@@ -200,18 +153,3 @@ SELECT
 FROM usage_logs
 GROUP BY DATE(created_at), mode
 ORDER BY date DESC;
-
--- 1. Reset ALL users to free tier
-UPDATE users 
-SET subscription_tier = 'free', 
-  subscription_status = 'active',
-  usage_count = 0;
-
--- 2. Delete ALL premium codes (new ones will be generated on checkout)
-DELETE FROM premium_codes;
-
--- 3. Clear ALL usage logs (so daily limit counter starts fresh)
-DELETE FROM usage_logs;
-
--- 4. Clear ALL free sessions (so widget_id → mcp_user_id links are reset)
-DELETE FROM free_sessions;

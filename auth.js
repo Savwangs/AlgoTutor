@@ -39,8 +39,6 @@ export async function getOrCreateUser(userIdentifier) {
     return {
       id: 'guest',
       email: 'guest@algotutor.local',
-      subscription_tier: 'free',
-      subscription_status: 'active',
       usage_count: 0,
       isGuest: true,
     };
@@ -64,8 +62,6 @@ export async function getOrCreateUser(userIdentifier) {
     if (existingUser) {
       console.log(`[Auth] ✓ Found existing user:`, {
         email: existingUser.email,
-        tier: existingUser.subscription_tier,
-        status: existingUser.subscription_status,
         usage_count: existingUser.usage_count
       });
       return existingUser;
@@ -76,8 +72,6 @@ export async function getOrCreateUser(userIdentifier) {
     const newUserData = {
       chatgpt_user_id: userIdentifier,
       email: `${userIdentifier}@chatgpt.user`, // Placeholder email
-      subscription_tier: 'free',
-      subscription_status: 'active',
       usage_count: 0,
       early_user: true,
       early_user_registered_at: new Date().toISOString(),
@@ -96,8 +90,7 @@ export async function getOrCreateUser(userIdentifier) {
     }
 
     console.log(`[Auth] ✓ Created new user:`, {
-      email: newUser.email,
-      tier: newUser.subscription_tier
+      email: newUser.email
     });
     return newUser;
   } catch (error) {
@@ -430,7 +423,6 @@ export async function authenticateRequest(req, mode) {
     console.log('[Auth] ✓ User obtained:', { 
       id: user.id, 
       email: user.email, 
-      tier: user.subscription_tier,
       usage_count: user.usage_count 
     });
 
