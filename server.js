@@ -1644,6 +1644,19 @@ const httpServer = createServer(async (req, res) => {
     return;
   }
 
+  // Serve OpenAI domain verification file
+  if (req.method === "GET" && url.pathname.startsWith("/.well-known/")) {
+    const filePath = join(__dirname, url.pathname);
+    try {
+      const data = readFileSync(filePath);
+      res.writeHead(200, { "Content-Type": "text/plain" });
+      res.end(data);
+      return;
+    } catch (e) {
+      // Fall through to 404
+    }
+  }
+
   console.log('[HTTP] ❌ 404 Not Found - path:', url.pathname);
   res.writeHead(404).end("Not Found");
   console.log('█'.repeat(80) + '\n');
