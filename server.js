@@ -395,7 +395,7 @@ function createAlgoTutorServer() {
           // Add upgradeUrl for LIMIT_EXCEEDED errors
           const errorWithUpgrade = {
             ...authResult.error,
-            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/dashboard.html' : undefined
           };
           
           // Use a stronger instruction for LIMIT_EXCEEDED to prevent ChatGPT from generating content
@@ -549,7 +549,7 @@ function createAlgoTutorServer() {
         if (!authResult.success) {
           const errorWithUpgrade = {
             ...authResult.error,
-            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/dashboard.html' : undefined
           };
           const errorData = {
             _widgetOnly: true,
@@ -617,7 +617,7 @@ function createAlgoTutorServer() {
         if (!authResult.success) {
           const errorWithUpgrade = {
             ...authResult.error,
-            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/dashboard.html' : undefined
           };
           const errorData = {
             _widgetOnly: true,
@@ -689,7 +689,7 @@ function createAlgoTutorServer() {
           // Add upgradeUrl for LIMIT_EXCEEDED errors
           const errorWithUpgrade = {
             ...authResult.error,
-            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/dashboard.html' : undefined
           };
           
           // Use a stronger instruction for LIMIT_EXCEEDED to prevent ChatGPT from generating content
@@ -963,7 +963,7 @@ function createAlgoTutorServer() {
           // Add upgradeUrl for LIMIT_EXCEEDED errors
           const errorWithUpgrade = {
             ...authResult.error,
-            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/pricing.html' : undefined
+            upgradeUrl: authResult.error.code === 'LIMIT_EXCEEDED' ? 'https://algo-tutor.org/dashboard.html' : undefined
           };
           
           // Use a stronger instruction for LIMIT_EXCEEDED to prevent ChatGPT from generating content
@@ -1477,7 +1477,7 @@ const httpServer = createServer(async (req, res) => {
           quantity: 1,
         }],
         success_url: `https://algo-tutor.org/success.html?session_id={CHECKOUT_SESSION_ID}`,
-        cancel_url: `https://algo-tutor.org/pricing.html`,
+        cancel_url: `https://algo-tutor.org/dashboard.html`,
         metadata: {
           email: email
         }
@@ -2662,7 +2662,7 @@ const httpServer = createServer(async (req, res) => {
   }
 
   // Serve web pages (landing, login, signup, dashboard, success, auth-callback, reset-password)
-  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/pricing.html', '/success.html', '/auth-callback.html', '/reset-password.html', '/cancel.html', '/support.html', '/privacy.html', '/terms.html'];
+  const webPages = ['/', '/index.html', '/login.html', '/signup.html', '/dashboard.html', '/success.html', '/auth-callback.html', '/reset-password.html', '/cancel.html', '/support.html', '/privacy.html', '/terms.html'];
   const pagePath = url.pathname === '/' ? '/index.html' : url.pathname;
   
   if (req.method === "GET" && webPages.includes(url.pathname)) {
