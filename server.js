@@ -355,7 +355,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Lesson ready! Check the AlgoTutor panel.",
         "openai/instruction": "The lesson content is displayed in the AlgoTutor widget panel above. Do NOT repeat, summarize, or re-explain the widget content in your response. Simply acknowledge that the lesson is ready in the panel with 1-2 brief sentences.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('LEARN MODE TOOL CALLED');
@@ -502,7 +502,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Trace table ready! Check the AlgoTutor panel.",
         "openai/instruction": "The trace table and walkthrough are displayed in the AlgoTutor panel above. Do NOT repeat the content. Simply acknowledge that the trace table is ready.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('LEARN TRACE WALKTHROUGH TOOL CALLED');
@@ -566,7 +566,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Practice problem ready! Check the AlgoTutor panel.",
         "openai/instruction": "The practice problem is displayed in the AlgoTutor panel above. Do NOT repeat the problem or give hints. Simply acknowledge that the problem is ready and encourage the user to try it.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('LEARN REAL WORLD EXAMPLE TOOL CALLED');
@@ -630,7 +630,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Solution ready! Check the AlgoTutor panel.",
         "openai/instruction": "STOP. The complete solution is displayed in the AlgoTutor panel above. DO NOT provide code, algorithms, solutions, explanations, or solve the problem yourself. DO NOT show any code blocks, implementation details, or step-by-step logic. Simply say: 'Your solution is ready in the AlgoTutor panel above.' Nothing more.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('BUILD MODE TOOL CALLED');
@@ -749,7 +749,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Trace table ready! Check the AlgoTutor panel.",
         "openai/instruction": "STOP. The trace table and walkthrough are displayed in the AlgoTutor panel above. DO NOT repeat the content or explain it yourself. Simply say: 'The trace table and walkthrough are ready in the AlgoTutor panel above.' Nothing more.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('BUILD TRACE WALKTHROUGH TOOL CALLED');
@@ -818,7 +818,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Practice problem ready! Check the AlgoTutor panel.",
         "openai/instruction": "STOP. The practice problem is displayed in the AlgoTutor panel above. DO NOT repeat the problem or give hints. Simply say: 'A similar practice problem is ready in the AlgoTutor panel above. Try to fill in the blanks!' Nothing more.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('BUILD SIMILAR PROBLEM TOOL CALLED');
@@ -887,7 +887,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Debug complete! Check the AlgoTutor panel.",
         "openai/instruction": "STOP. The debug analysis is displayed in the AlgoTutor panel above. DO NOT fix the code, show corrected code, explain the bug, or provide any code snippets. DO NOT show before/after code, debugging steps, or solutions. Simply say: 'Your debug analysis is ready in the AlgoTutor panel above.' Nothing more.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('DEBUG MODE TOOL CALLED');
@@ -1067,7 +1067,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Trace table ready! Check the AlgoTutor panel.",
         "openai/instruction": "STOP. The trace table and walkthrough are displayed in the AlgoTutor panel above. DO NOT repeat the content or explain it yourself. Simply say: 'The trace table and walkthrough are ready in the AlgoTutor panel above.' Nothing more.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('DEBUG TRACE WALKTHROUGH TOOL CALLED');
@@ -1136,7 +1136,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Practice problem ready! Check the AlgoTutor panel.",
         "openai/instruction": "STOP. The practice problem is displayed in the AlgoTutor panel above. DO NOT repeat the problem or give hints. Simply say: 'A similar practice problem is ready in the AlgoTutor panel above. Try to fill in the blanks!' Nothing more.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('DEBUG SIMILAR PROBLEM TOOL CALLED');
@@ -1214,7 +1214,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Recommendation ready! Check the AlgoTutor panel.",
         "openai/instruction": "STOP. The AI recommendation is displayed in the AlgoTutor panel above. DO NOT repeat the recommendation. Simply say: 'Your personalized study recommendation is ready in the AlgoTutor panel above.' Nothing more.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: true },
     },
     async (args, context) => {
       logSection('AI RECOMMENDATION TOOL CALLED');
@@ -1274,7 +1274,7 @@ function createAlgoTutorServer() {
         "openai/toolInvocation/invoked": "Sessions loaded.",
         "openai/instruction": "The sessions are displayed in the AlgoTutor widget panel above. Do NOT repeat or list the sessions in your response. Simply acknowledge that the sessions are loaded with 1-2 brief sentences.",
       },
-      annotations: { readOnlyHint: true },
+      annotations: { readOnlyHint: true, destructiveHint: false, openWorldHint: false },
     },
     async () => {
       console.log("[list_algo_sessions] Total sessions:", sessions.length);
